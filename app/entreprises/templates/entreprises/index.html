@@ -1,0 +1,32 @@
+{% extends 'layout.html' %}
+{% block title %}Entreprises{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Entreprises</h1>
+    <a href="{{ url_for('entreprises.create') }}" class="btn btn-danger"><i class="fas fa-plus me-1"></i>Nouvelle</a>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr><th>Nom</th><th>Taille</th><th>Modules</th><th>Statut</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for e in entreprises %}
+          <tr>
+            <td>{{ e.nom }}</td>
+            <td>{{ e.taille or '-' }}</td>
+            <td>{% for m in e.modules_actifs %}<span class="badge bg-info me-1">{{ m }}</span>{% endfor %}</td>
+            <td><span class="badge bg-{{ 'success' if e.statut == 'Actif' else 'secondary' }}">{{ e.statut or 'Actif' }}</span></td>
+            <td><a href="{{ url_for('entreprises.edit', entreprise_id=e.id) }}" class="btn btn-sm btn-outline-primary">Modifier</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-4">Aucune entreprise.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

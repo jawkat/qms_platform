@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}QMS Platform{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --sidebar-width: 260px;
+      --sidebar-bg: #1a1a2e;
+      --sidebar-hover: #16213e;
+      --primary: #e63946;
+      --primary-dark: #b91c1c;
+    }
+    body { background: #f5f6fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
+    .app-layout { min-height: 100vh; }
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--sidebar-bg);
+      color: #fff;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 1000;
+      transition: transform 0.3s;
+    }
+    .sidebar .nav-link {
+      color: rgba(255,255,255,.7);
+      padding: .5rem .75rem;
+      border-radius: .375rem;
+      transition: all .2s;
+      font-size: .9rem;
+    }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,.1);
+    }
+    .sidebar .nav-link.active { border-left: 3px solid var(--primary); }
+    .sidebar-section h6 {
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: rgba(255,255,255,.4);
+      padding: 0 .75rem;
+      margin: 1.5rem 0 .5rem;
+    }
+    .content {
+      margin-left: var(--sidebar-width);
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+    .domaine-switch .btn {
+      border-radius: 0;
+      font-size: .8rem;
+      padding: .25rem .75rem;
+    }
+    .domaine-switch .btn:first-child { border-radius: .25rem 0 0 .25rem; }
+    .domaine-switch .btn:last-child { border-radius: 0 .25rem .25rem 0; }
+    .navbar-top {
+      background: #fff;
+      border-bottom: 1px solid #e9ecef;
+      padding: .5rem 1.5rem;
+      margin: -1.5rem -1.5rem 1.5rem;
+    }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.show { transform: translateX(0); }
+      .content { margin-left: 0; }
+    }
+    .flash-messages { position: fixed; top: 1rem; right: 1rem; z-index: 9999; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    {% if not is_landing %}
+    <nav class="sidebar shadow-sm" id="sidebar">
+      <div class="p-3">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h5 class="text-white mb-0"><i class="fas fa-shield-alt me-2 text-danger"></i>QMS</h5>
+          <button class="btn btn-sm btn-outline-light d-lg-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        {% if has_switch %}
+        <div class="domaine-switch btn-group btn-group-sm w-100 mb-3">
+          <a href="{{ url_for('main.switch_domaine', domaine='hse') }}"
+             class="btn {% if domaine_actif == 'hse' %}btn-danger{% else %}btn-outline-light{% endif %}">
+            <i class="fas fa-hard-hat"></i> HSE
+          </a>
+          <a href="{{ url_for('main.switch_domaine', domaine='qualite') }}"
+             class="btn {% if domaine_actif == 'qualite' %}btn-danger{% else %}btn-outline-light{% endif %}">
+            <i class="fas fa-certificate"></i> Qualité
+          </a>
+        </div>
+        {% else %}
+        <div class="domaine-switch btn-group btn-group-sm w-100 mb-3">
+          <button class="btn btn-secondary disabled">
+            <i class="fas fa-{% if 'hse' in modules_actifs %}hard-hat{% else %}certificate{% endif %}"></i>
+            {{ 'HSE' if 'hse' in modules_actifs else 'Qualité' }}
+          </button>
+        </div>
+        {% endif %}
+
+        <ul class="nav flex-column">
+          <!-- Super Admin -->
+          {% if current_user.role and current_user.role.est_systeme %}
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.') %}active{% endif %}"
+               href="{{ url_for('admin.dashboard') }}">
+              <i class="fas fa-crown me-2"></i><span>Administration</span>
+            </a>
+          </li>
+          {% endif %}
+
+          <!-- Commun -->
+          <li class="nav-section"><h6>Général</h6></li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint == 'main.tableau_de_bord' %}active{% endif %}"
+               href="{{ url_for('main.tableau_de_bord') }}">
+              <i class="fas fa-chart-line me-2"></i><span>Tableau de bord</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('actions.') %}active{% endif %}"
+               href="{{ url_for('actions.liste_actions') }}">
+              <i class="fas fa-tasks me-2"></i><span>Mes actions</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('documents.') %}active{% endif %}"
+               href="{{ url_for('documents.gestion') }}">
+              <i class="fas fa-folder-open me-2"></i><span>Documents</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('audit.') %}active{% endif %}"
+               href="{{ url_for('audit.index') }}">
+              <i class="fas fa-clipboard-check me-2"></i><span>Audits</span>
+            </a>
+          </li>
+
+          <!-- Section HSE -->
+          {% if domaine_actif == 'hse' %}
+          <li class="nav-section"><h6>HSE</h6></li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('textes.index') }}">
+              <i class="fas fa-scroll me-2"></i><span>Textes HSE</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.') %}active{% endif %}"
+               href="{{ url_for('conformite.index') }}">
+              <i class="fas fa-clipboard-list me-2"></i><span>Suivi conformité</span>
+            </a>
+          </li>
+          {% endif %}
+
+          <!-- Section Qualité -->
+          {% if domaine_actif == 'qualite' %}
+          <li class="nav-section"><h6>Qualité</h6></li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.risques') }}"><i class="fas fa-exclamation-triangle me-2"></i><span>Risques</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.haccp') }}"><i class="fas fa-utensils me-2"></i><span>HACCP</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.clients') }}"><i class="fas fa-users me-2"></i><span>Clients</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.fournisseurs') }}"><i class="fas fa-truck me-2"></i><span>Fournisseurs</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.formations') }}"><i class="fas fa-graduation-cap me-2"></i><span>Formations</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.equipements') }}"><i class="fas fa-tools me-2"></i><span>Équipements</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.controle') }}"><i class="fas fa-flask me-2"></i><span>Contrôle qualité</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.revue') }}"><i class="fas fa-chart-pie me-2"></i><span>Revue de direction</span></a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('qualite.nonconformites') }}"><i class="fas fa-times-circle me-2"></i><span>Non-conformités</span></a>
+          </li>
+          {% endif %}
+
+          <!-- Support -->
+          <li class="nav-section"><h6>Assistance</h6></li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('support.mes_tickets') }}"><i class="fas fa-life-ring me-2"></i><span>Support</span></a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    {% endif %}
+
+    <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        document.querySelectorAll('.flash-messages .alert').forEach(function(el) {
+          var bsAlert = new bootstrap.Alert(el);
+          setTimeout(function() { bsAlert.close(); }, 5000);
+        });
+      }, 100);
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

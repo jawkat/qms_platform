@@ -1,0 +1,38 @@
+{% extends 'layout.html' %}
+{% block title %}Nouvelle entreprise{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Nouvelle entreprise</h1>
+  <div class="card border-0 shadow-sm" style="max-width: 500px;">
+    <div class="card-body">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" name="nom" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Taille</label>
+          <select name="taille" class="form-select">
+            <option value="TPE">TPE</option>
+            <option value="PME" selected>PME</option>
+            <option value="Grande">Grande entreprise</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Pays</label>
+          <input type="text" name="pays" class="form-control" value="Maroc">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Adresse</label>
+          <textarea name="adresse" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3 form-check">
+          <input type="checkbox" name="module_qualite" class="form-check-input" id="mq">
+          <label class="form-check-label" for="mq">Activer le module Qualité</label>
+        </div>
+        <button type="submit" class="btn btn-danger w-100">Créer</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

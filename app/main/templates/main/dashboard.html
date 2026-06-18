@@ -1,0 +1,60 @@
+{% extends 'layout.html' %}
+{% block title %}Tableau de bord - {{ entreprise.nom if entreprise else 'QMS' }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="page-header mb-4">
+    <h1 class="h3 mb-1">Tableau de bord</h1>
+    <p class="text-muted mb-0">
+      {{ entreprise.nom if entreprise else 'QMS Platform' }}
+      <span class="badge bg-{{ 'danger' if domaine == 'hse' else 'primary' }} ms-2">
+        {{ domaine|upper }}
+      </span>
+    </p>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">Actions</h6>
+          <div class="h3 mb-0" id="total-actions">--</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">Documents</h6>
+          <div class="h3 mb-0" id="total-documents">--</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">Audits</h6>
+          <div class="h3 mb-0">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">Utilisateurs</h6>
+          <div class="h3 mb-0">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+fetch('/actions/api/liste').then(r=>r.json()).then(data => {
+  document.getElementById('total-actions').textContent = data.length;
+}).catch(() => document.getElementById('total-actions').textContent = '0');
+fetch('/documents/api/liste').then(r=>r.json()).then(data => {
+  document.getElementById('total-documents').textContent = data.length;
+}).catch(() => document.getElementById('total-documents').textContent = '0');
+</script>
+{% endblock %}

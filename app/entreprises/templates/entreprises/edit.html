@@ -1,0 +1,35 @@
+{% extends 'layout.html' %}
+{% block title %}Modifier {{ entreprise.nom }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Modifier {{ entreprise.nom }}</h1>
+  <div class="card border-0 shadow-sm" style="max-width: 500px;">
+    <div class="card-body">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" name="nom" class="form-control" value="{{ entreprise.nom }}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Taille</label>
+          <select name="taille" class="form-select">
+            <option value="TPE" {% if entreprise.taille == 'TPE' %}selected{% endif %}>TPE</option>
+            <option value="PME" {% if entreprise.taille == 'PME' %}selected{% endif %}>PME</option>
+            <option value="Grande" {% if entreprise.taille == 'Grande' %}selected{% endif %}>Grande entreprise</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Adresse</label>
+          <textarea name="adresse" class="form-control" rows="2">{{ entreprise.adresse or '' }}</textarea>
+        </div>
+        <div class="mb-3 form-check">
+          <input type="checkbox" name="module_qualite" class="form-check-input" id="mq"
+            {% if 'qualite' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+          <label class="form-check-label" for="mq">Activer le module Qualité</label>
+        </div>
+        <button type="submit" class="btn btn-danger w-100">Enregistrer</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

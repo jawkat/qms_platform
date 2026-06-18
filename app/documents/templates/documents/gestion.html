@@ -1,0 +1,42 @@
+{% extends 'layout.html' %}
+{% block title %}Gestion documentaire{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">GED - Documents</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#uploadModal">
+      <i class="fas fa-upload me-1"></i>Uploader
+    </button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Fichier</th>
+            <th>Type</th>
+            <th>Catégorie</th>
+            <th>Validité</th>
+            <th>Uploadé par</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proof in proofs %}
+          <tr>
+            <td>{{ proof.nom_fichier }}</td>
+            <td><span class="badge bg-info">{{ proof.type }}</span></td>
+            <td>{{ proof.categorie or '-' }}</td>
+            <td>{{ proof.validite.strftime('%d/%m/%Y') if proof.validite else '-' }}</td>
+            <td>{{ proof.uploader.prenom ~ ' ' ~ proof.uploader.nom if proof.uploader else '-' }}</td>
+            <td><a href="{{ url_for('documents.detail', proof_id=proof.id) }}" class="btn btn-sm btn-outline-primary">Détail</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">Aucun document trouvé.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

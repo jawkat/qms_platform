@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+{% block title %}Action #{{ action.id }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Action #{{ action.id }}</h1>
+    <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-secondary">Retour</a>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <p><strong>Description:</strong> {{ action.description }}</p>
+      <p><strong>Statut:</strong> <span class="badge bg-secondary">{{ action.statut_label }}</span></p>
+      <p><strong>Priorité:</strong> {{ action.priorite }}</p>
+      <p><strong>Responsable:</strong> {{ action.responsable.prenom ~ ' ' ~ action.responsable.nom if action.responsable else '-' }}</p>
+      <p><strong>Échéance:</strong> {{ action.date_echeance.strftime('%d/%m/%Y') if action.date_echeance else '-' }}</p>
+      <p><strong>Cause:</strong> {{ action.cause_identifiee or '-' }}</p>
+      {% if action.rca_pourquoi1 %}
+      <hr><h6>Analyse 5 Pourquoi</h6>
+      <ol>
+        <li>{{ action.rca_pourquoi1 }}</li>
+        <li>{{ action.rca_pourquoi2 }}</li>
+        <li>{{ action.rca_pourquoi3 }}</li>
+        <li>{{ action.rca_pourquoi4 }}</li>
+        <li>{{ action.rca_pourquoi5 }}</li>
+      </ol>
+      <p><strong>Conclusion:</strong> {{ action.rca_conclusion }}</p>
+      {% endif %}
+      {% if action.efficacite is not none %}
+      <hr><h6>Évaluation d'efficacité</h6>
+      <p><strong>Note:</strong> {{ action.efficacite }}/10</p>
+      <p><strong>Commentaire:</strong> {{ action.commentaire_efficacite or '-' }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

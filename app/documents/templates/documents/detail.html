@@ -1,0 +1,39 @@
+{% extends 'layout.html' %}
+{% block title %}{{ proof.nom_fichier }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">{{ proof.nom_fichier }}</h1>
+    <a href="{{ url_for('documents.gestion') }}" class="btn btn-outline-secondary">Retour</a>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <p><strong>Description:</strong> {{ proof.description or '-' }}</p>
+      <p><strong>Type:</strong> {{ proof.type }}</p>
+      <p><strong>Catégorie:</strong> {{ proof.categorie or '-' }}</p>
+      <p><strong>Validité:</strong> {{ proof.validite.strftime('%d/%m/%Y') if proof.validite else '-' }}</p>
+      <p><strong>Statut:</strong> {{ proof.statut }}</p>
+      <p><strong>Uploadé par:</strong> {{ proof.uploader.prenom ~ ' ' ~ proof.uploader.nom if proof.uploader else '-' }}</p>
+      <p><strong>Date:</strong> {{ proof.date_creation.strftime('%d/%m/%Y %H:%M') if proof.date_creation else '-' }}</p>
+      <div class="mt-3">
+        <a href="{{ url_for('documents.download', proof_id=proof.id) }}" class="btn btn-danger"><i class="fas fa-download me-1"></i>Télécharger</a>
+      </div>
+    </div>
+  </div>
+  {% if refs %}
+  <div class="card border-0 shadow-sm mt-3">
+    <div class="card-header bg-white"><h6 class="mb-0">Références liées</h6></div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light"><tr><th>Type</th><th>ID Entité</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for ref in refs %}
+          <tr><td>{{ ref.entity_type }}</td><td>{{ ref.entity_id }}</td><td>{{ ref.date_attached.strftime('%d/%m/%Y') if ref.date_attached else '-' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

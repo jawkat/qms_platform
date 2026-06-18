@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+{% block title %}Suivi conformité{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Suivi conformité réglementaire</h1>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr><th>Texte</th><th>Référence</th><th>Applicable</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for texte in textes %}
+          <tr>
+            <td>{{ texte.texte_version.article.texte_reglementaire.titre if texte.texte_version else '-' }}</td>
+            <td>{{ texte.texte_version.article.reference if texte.texte_version else '-' }}</td>
+            <td><span class="badge bg-{{ 'success' if texte.applicable else 'secondary' }}">{{ texte.applicable or 'Non défini' }}</span></td>
+            <td><a href="#" class="btn btn-sm btn-outline-primary">Évaluer</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">Aucun texte applicable trouvé.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends 'layout.html' %}
+{% block title %}Créer un utilisateur{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Nouvel utilisateur</h1>
+  <div class="card border-0 shadow-sm" style="max-width: 500px;">
+    <div class="card-body">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Prénom</label>
+          <input type="text" name="prenom" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" name="nom" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Rôle</label>
+          <select name="role_id" class="form-select">
+            {% for role in roles %}
+            <option value="{{ role.id }}">{{ role.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-danger w-100">Créer</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

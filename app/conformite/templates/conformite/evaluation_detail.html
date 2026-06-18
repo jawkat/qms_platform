@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+{% block title %}Évaluation #{{ evaluation.id }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Détail évaluation #{{ evaluation.id }}</h1>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <p><strong>Article:</strong> {{ evaluation.article.reference if evaluation.article else '-' }}</p>
+      <p><strong>Conforme:</strong> {{ evaluation.conforme }}</p>
+      <p><strong>Applicable:</strong> {{ evaluation.applicable }}</p>
+      <p><strong>Observation:</strong> {{ evaluation.observation or '-' }}</p>
+      <p><strong>Évalué le:</strong> {{ evaluation.date_evaluation.strftime('%d/%m/%Y') if evaluation.date_evaluation else '-' }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
