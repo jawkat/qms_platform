@@ -1,0 +1,205 @@
+{% extends 'layout.html' %}
+{% block title %}Bibliothèque HSE{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-book text-danger me-2"></i>Bibliothèque réglementaire</h4>
+    <small class="text-muted">{{ total_textes }} texte(s)</small>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link {% if tab == 'all' %}active fw-medium{% endif %}" href="{{ url_for('textes.library_all') }}">
+        Tous {% if counts.all is defined %}<span class="badge bg-secondary ms-1">{{ counts.all }}</span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if tab == 'new' %}active fw-medium{% endif %}" href="{{ url_for('textes.library_new') }}">
+        Nouveaux {% if counts.new is defined %}<span class="badge bg-danger ms-1">{{ counts.new }}</span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if tab == 'recent' %}active fw-medium{% endif %}" href="{{ url_for('textes.library_recent') }}">
+        Mises à jour {% if counts.recent is defined %}<span class="badge bg-warning ms-1">{{ counts.recent }}</span>{% endif %}
+      </a>
+    </li>
+  </ul>
+
+  <!-- Filters row -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-lg-4">
+          <input type="text" name="q" class="form-control form-control-sm" placeholder="Recherche par code, titre, domaine..." value="{{ filters.get('q','') }}">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-search me-1"></i>Rechercher</button>
+          {% if filters %}
+          <a href="{{ url_for('textes.library_all') }}" class="btn btn-sm btn-outline-secondary ms-1"><i class="fas fa-times"></i></a>
+          {% endif %}
+        </div>
+        <div class="col-auto ms-auto">
+          <div class="d-flex gap-1 align-items-center">
+            <a href="?{{ update_query_param(request, 'status', 'all') }}" class="btn btn-sm {{ 'btn-danger' if filters.get('status','all') == 'all' else 'btn-outline-secondary' }}">Tous {{ counts.all }}</a>
+            <a href="?{{ update_query_param(request, 'status', 'linked') }}" class="btn btn-sm {{ 'btn-danger' if filters.get('status') == 'linked' else 'btn-outline-secondary' }}">Liés {{ counts.linked }}</a>
+            <a href="?{{ update_query_param(request, 'status', 'unlinked') }}" class="btn btn-sm {{ 'btn-danger' if filters.get('status') == 'unlinked' else 'btn-outline-secondary' }}">Non liés {{ counts.unlinked }}</a>
+            <a href="?{{ update_query_param(request, 'status', 'to_evaluate') }}" class="btn btn-sm {{ 'btn-danger' if filters.get('status') == 'to_evaluate' else 'btn-outline-secondary' }}">À évaluer {{ counts.to_evaluate }}</a>
+            <a href="?{{ update_query_param(request, 'status', 'evaluated') }}" class="btn btn-sm {{ 'btn-danger' if filters.get('status') == 'evaluated' else 'btn-outline-secondary' }}">Évalués {{ counts.evaluated }}</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Sidebar filters -->
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+          <h6 class="mb-2"><i class="fas fa-filter me-1 text-danger"></i>Filtres</h6>
+          <div class="mb-2">
+            <label class="small text-muted">Domaine</label>
+            <select name="domaine" class="form-select form-select-sm" onchange="this.form.submit()" form="filterForm">
+              <option value="">Tous les domaines</option>
+              {% for d in domaines %}
+              <option value="{{ d.id }}" {% if filters.get('domaine_id') == d.id %}selected{% endif %}>{{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="small text-muted">Référentiel</label>
+            <select name="referentiel" class="form-select form-select-sm" onchange="this.form.submit()" form="filterForm">
+              <option value="">Tous les référentiels</option>
+              {% for r in referentiels %}
+              <option value="{{ r }}" {% if filters.get('referentiel') == r %}selected{% endif %}>{{ r|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="small text-muted">Secteurs</label>
+            {% for s in secteurs %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="secteur" value="{{ s.id }}"
+                     id="secteur{{ s.id }}" form="filterForm"
+                     {% if s.id in filters.get('secteur_ids', []) %}checked{% endif %}
+                     onchange="document.getElementById('filterForm').submit()">
+              <label class="form-check-label small" for="secteur{{ s.id }}">{{ s.nom }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="col-lg-9">
+      <form id="filterForm" method="GET" action="{{ url_for('textes.library_all') }}">
+        <input type="hidden" name="q" value="{{ filters.get('q','') }}">
+        <input type="hidden" name="status" value="{{ filters.get('status','all') }}">
+        <input type="hidden" name="sort" value="{{ filters.get('sort','updated') }}">
+        <input type="hidden" name="order" value="{{ filters.get('order','desc') }}">
+      </form>
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-muted">
+          Affichage {{ textes|length }} sur {{ total_textes }}
+          {% if pagination %} | Page {{ pagination.page }} / {{ pagination.pages }}{% endif %}
+        </small>
+        <div class="d-flex align-items-center gap-2">
+          <small class="text-muted">Par page:</small>
+          <select class="form-select form-select-sm" style="width:auto" onchange="changePerPage(this.value)">
+            {% for n in [1,10,20,50,100] %}
+            <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      {% for item in textes %}
+      {% set t = item.texte %}
+      {% set v = item.version_active %}
+      <div class="card border-0 shadow-sm mb-2">
+        <div class="card-body py-2">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="flex-grow-1 min-width-0">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                {% if item.is_new %}<span class="badge bg-danger" style="font-size:.6rem">Nouveau</span>{% endif %}
+                {% if item.has_update %}<span class="badge bg-warning text-dark" style="font-size:.6rem">Mise à jour</span>{% endif %}
+                <span class="badge bg-secondary" style="font-size:.6rem">{{ t.code or '-' }}</span>
+                <span class="badge bg-info" style="font-size:.6rem">{{ t.type or '-' }}</span>
+                <small class="text-muted">{{ t.domaine_ref.nom if t.domaine_ref else t.domaine or '' }}</small>
+              </div>
+              <a href="{{ url_for('textes.detail', texte_id=t.id) }}" class="text-decoration-none fw-medium d-block">
+                {{ t.titre[:200] }}{% if t.titre|length > 200 %}...{% endif %}
+              </a>
+              <div class="d-flex align-items-center gap-2 mt-1">
+                <small class="text-muted">{{ t.referentiel|capitalize if t.referentiel else '' }}</small>
+                {% if v %}
+                <small class="text-muted">v{{ v.numero_version }} ({{ v.date_publication.strftime('%d/%m/%Y') if v.date_publication else '' }})</small>
+                {% endif %}
+                {% if item.entreprise_count is defined %}
+                <small class="text-muted"><i class="fas fa-building me-1"></i>{{ item.entreprise_count }}</small>
+                {% endif %}
+              </div>
+            </div>
+            <div class="d-flex flex-column align-items-end gap-1" style="min-width:120px">
+              {% if item.link_state == 'linked' %}
+              <span class="badge bg-success w-100">Lié</span>
+              <form method="POST" action="{{ url_for('entreprise_textes.toggle_link') }}" class="w-100">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="version_id" value="{{ v.id if v else '' }}">
+                <input type="hidden" name="action" value="unlink">
+                <button class="btn btn-sm btn-outline-danger w-100" style="font-size:.7rem">Délier</button>
+              </form>
+              {% elif item.link_state == 'evaluated' %}
+              <span class="badge bg-primary w-100">Évalué</span>
+              <a href="{{ url_for('conformite.index') }}" class="btn btn-sm btn-outline-primary w-100" style="font-size:.7rem">Voir</a>
+              {% else %}
+              <span class="badge bg-secondary w-100">Non lié</span>
+              <form method="POST" action="{{ url_for('entreprise_textes.toggle_link') }}" class="w-100">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="version_id" value="{{ v.id if v else '' }}">
+                <input type="hidden" name="statut_obligation" value="VOLONTAIRE">
+                <input type="hidden" name="motif_obligation" value="Decision client">
+                <input type="hidden" name="mode_evaluation" value="EVALUATION_ADHOC">
+                <button class="btn btn-sm btn-outline-danger w-100" style="font-size:.7rem">Lier</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="fas fa-book-open fa-3x mb-3 d-block"></i>
+        Aucun texte trouvé.
+      </div>
+      {% endfor %}
+
+      {% if pagination and pagination.pages > 1 %}
+      <nav class="mt-3">
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+          {% for p in range(1, pagination.pages + 1) %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="?{{ update_query_param(request, 'page', p) }}">{{ p }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changePerPage(n) {
+  var url = new URL(window.location);
+  url.searchParams.set('per_page', n);
+  url.searchParams.delete('page');
+  window.location = url.toString();
+}
+</script>
+{% endblock %}

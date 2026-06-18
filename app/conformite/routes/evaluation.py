@@ -1,12 +1,13 @@
 from flask import render_template, request, jsonify, redirect, url_for
 from flask_login import login_required, current_user
 from app import db
-from app.models import EvaluationArticle, EntrepriseTexte, ActionCorrective, Utilisateur, ProofReference, Article
+from app.models import EvaluationArticle, EntrepriseTexte, ActionCorrective, Utilisateur, ProofReference, Article, TexteVersion, TexteReglementaire, ConformiteEnum
 from app.conformite import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
 from app.services.proof_service import ProofService
-from datetime import datetime
+from datetime import datetime, date
+from sqlalchemy import or_
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>', methods=['GET', 'POST'])
@@ -138,3 +139,164 @@ def list_proofs(evaluation_id):
         'nom_fichier': r.proof_master.nom_fichier if r.proof_master else '?',
         'date_attached': r.date_attached.isoformat() if r.date_attached else None,
     } for r in refs])
+
+
+# ---------------------------------------------------------------------------
+# Non-conformités HSE
+# ---------------------------------------------------------------------------
+
+@blueprint.route('/nonconformites')
+@login_required
+@has_permission('conformite.voir')
+def nonconformites():
+    eid = current_user.entreprise_id
+    q = EvaluationArticle.query.join(EntrepriseTexte).filter(
+        EntrepriseTexte.entreprise_id == eid
+    )
+
+    conforme_filter = request.args.get('conforme')
+    if conforme_filter:
+        q = q.filter(EvaluationArticle.conforme == ConformiteEnum[conforme_filter])
+    else:
+        q = q.filter(
+            db.or_(
+                EvaluationArticle.conforme == ConformiteEnum.NON_CONFORME,
+                EvaluationArticle.conforme.is_(None),
+            )
+        )
+
+    texte_id = request.args.get('texte_id', type=int)
+    if texte_id:
+        q = q.join(Article).join(TexteVersion).filter(TexteVersion.texte_id == texte_id)
+
+    search = request.args.get('q', '').strip()
+    if search:
+        like = f'%{search}%'
+        q = q.join(Article, EvaluationArticle.article_id == Article.id).filter(
+            db.or_(
+                Article.contenu.ilike(like),
+                Article.resume_article.ilike(like),
+                EvaluationArticle.observation.ilike(like),
+            )
+        )
+
+    q = q.order_by(EvaluationArticle.date_evaluation.desc().nullslast())
+    all_evals = q.all()
+
+    # Pagination
+    per_page = request.args.get('per_page', 50, type=int)
+    page = request.args.get('page', 1, type=int)
+    total = len(all_evals)
+    pages = max(1, (total + per_page - 1) // per_page)
+    start = (page - 1) * per_page
+    evals_page = all_evals[start:start + per_page]
+
+    nonconformites_data = []
+    for ev in evals_page:
+        article = Article.query.get(ev.article_id)
+        version = TexteVersion.query.get(article.texte_version_id) if article else None
+        texte = TexteReglementaire.query.get(version.texte_id) if version else None
+        nonconformites_data.append({
+            'evaluation': ev,
+            'article': article,
+            'version': version,
+            'texte_titre': texte.titre if texte else '',
+        })
+
+    entreprise_textes = EntrepriseTexte.query.filter_by(entreprise_id=eid).all()
+
+    filters = {
+        'conforme': conforme_filter or '',
+        'texte_id': texte_id or '',
+        'q': search,
+    }
+
+    return render_template(
+        'conformite/nonconformites.html',
+        nonconformites=nonconformites_data,
+        total=total,
+        filters=filters,
+        entreprise_textes=entreprise_textes,
+        pagination={'page': page, 'pages': pages, 'total': total},
+    )
+
+
+@blueprint.route('/api/nonconformites')
+@login_required
+@has_permission('conformite.voir')
+def api_nonconformites():
+    eid = current_user.entreprise_id
+    q = EvaluationArticle.query.join(EntrepriseTexte).filter(
+        EntrepriseTexte.entreprise_id == eid
+    )
+
+    conforme = request.args.get('conforme')
+    if conforme:
+        q = q.filter(EvaluationArticle.conforme == ConformiteEnum[conforme])
+
+    texte_id = request.args.get('texte_id', type=int)
+    if texte_id:
+        q = q.join(Article).join(TexteVersion).filter(TexteVersion.texte_id == texte_id)
+
+    search = request.args.get('q', '').strip()
+    if search:
+        like = f'%{search}%'
+        q = q.join(Article).filter(
+            db.or_(Article.contenu.ilike(like), EvaluationArticle.observation.ilike(like))
+        )
+
+    q = q.order_by(EvaluationArticle.date_evaluation.desc().nullslast())
+    evals = q.all()
+
+    return jsonify([{
+        'id': e.id,
+        'article_id': e.article_id,
+        'conforme': e.conforme.name if e.conforme else None,
+        'observation': e.observation,
+        'date_evaluation': e.date_evaluation.isoformat() if e.date_evaluation else None,
+    } for e in evals])
+
+
+# ---------------------------------------------------------------------------
+# Preuves de conformité (proof management in conformite)
+# ---------------------------------------------------------------------------
+
+@blueprint.route('/preuves/gestion')
+@login_required
+@has_permission('conformite.voir')
+def preuves_gestion():
+    eid = current_user.entreprise_id
+    from app.models import ProofMaster, ProofReference
+    from datetime import date, timedelta
+
+    proofs = ProofMaster.query.filter_by(
+        entreprise_id=eid, statut='ACTIF'
+    ).order_by(ProofMaster.date_creation.desc()).all()
+
+    today = date.today()
+    preuves = []
+    for p in proofs:
+        refs_count = ProofReference.query.filter_by(proof_master_id=p.id).count()
+        etat = 'valide'
+        if p.validite:
+            if p.validite < today:
+                etat = 'expire'
+            elif (p.validite - today).days <= 30:
+                etat = 'expire_bientot'
+        preuves.append({'proof': p, 'refs_count': refs_count, 'etat': etat})
+
+    search = request.args.get('q', '').strip()
+    if search:
+        like = f'%{search}%'
+        preuves = [i for i in preuves if like.lower() in (i['proof'].nom_fichier or '').lower()
+                   or like.lower() in (i['proof'].description or '').lower()]
+
+    statut_filter = request.args.get('statut')
+    if statut_filter:
+        preuves = [i for i in preuves if i['etat'] == statut_filter]
+
+    return render_template(
+        'conformite/preuves_alertes_centre.html',
+        preuves=preuves,
+        filters={'q': search, 'statut': statut_filter or ''},
+    )

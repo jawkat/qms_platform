@@ -177,7 +177,14 @@
           {% if 'hse' in modules_actifs %}
           <li class="nav-section"><h6>HSE</h6></li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('textes.index') }}">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('textes.library') %}active{% endif %}"
+               href="{{ url_for('textes.library_all') }}">
+              <i class="fas fa-book me-2"></i><span>Bibliothèque HSE</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('textes.') and not request.endpoint.startswith('textes.library') %}active{% endif %}"
+               href="{{ url_for('textes.index') }}">
               <i class="fas fa-scroll me-2"></i><span>Textes HSE</span>
             </a>
           </li>
@@ -185,6 +192,24 @@
             <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.') %}active{% endif %}"
                href="{{ url_for('conformite.index') }}">
               <i class="fas fa-clipboard-list me-2"></i><span>Suivi conformité</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.nonconformites') %}active{% endif %}"
+               href="{{ url_for('conformite.nonconformites') }}">
+              <i class="fas fa-exclamation-triangle me-2"></i><span>Constats et écarts</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.preuves') %}active{% endif %}"
+               href="{{ url_for('conformite.preuves_gestion') }}">
+              <i class="fas fa-shield-alt me-2"></i><span>Preuves de conformité</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.search') %}active{% endif %}"
+               href="{{ url_for('conformite.search') }}">
+              <i class="fas fa-search me-2"></i><span>Recherche</span>
             </a>
           </li>
           <li class="nav-item mb-1">

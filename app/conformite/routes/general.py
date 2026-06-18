@@ -1,10 +1,11 @@
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app import db
-from app.models import EvaluationArticle, EntrepriseTexte, ConformiteEnum, Article, TexteVersion
+from app.models import EvaluationArticle, EntrepriseTexte, ConformiteEnum, Article, TexteVersion, TexteReglementaire
 from app.conformite import blueprint
 from app.utils.permissions import has_permission
 from datetime import datetime, date
+from sqlalchemy import or_
 
 
 @blueprint.route('/')
@@ -159,3 +160,38 @@ def api_liste():
             'version_numero': et.version.numero_version if et.version else '',
         })
     return jsonify(data)
+
+
+@blueprint.route('/search')
+@login_required
+@has_permission('conformite.voir')
+def search():
+    query = request.args.get('q', '').strip()
+    results = []
+    if query:
+        like = f'%{query}%'
+        articles = Article.query.filter(
+            db.or_(Article.contenu.ilike(like), Article.resume_article.ilike(like))
+        ).order_by(Article.numero_article).limit(100).all()
+
+        eid = current_user.entreprise_id
+        for article in articles:
+            version = TexteVersion.query.get(article.texte_version_id)
+            texte = TexteReglementaire.query.get(version.texte_id) if version else None
+            evaluation = None
+            if texte:
+                et = EntrepriseTexte.query.filter_by(
+                    entreprise_id=eid, texte_version_id=version.id
+                ).first()
+                if et:
+                    evaluation = EvaluationArticle.query.filter_by(
+                        entreprise_texte_id=et.id, article_id=article.id
+                    ).first()
+            results.append({
+                'article': article,
+                'version': version,
+                'texte': texte,
+                'evaluation': evaluation,
+            })
+
+    return render_template('conformite/search_results.html', results=results, query=query)
