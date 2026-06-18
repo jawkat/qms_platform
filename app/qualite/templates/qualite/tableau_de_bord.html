@@ -3,11 +3,156 @@
 {% block content %}
 <div class="container-fluid">
   <h1 class="h3 mb-4">Tableau de bord Qualité</h1>
+  <div class="row g-3 mb-4" id="statsRow">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted small text-uppercase fw-semibold"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Risques</h6>
+              <div class="h2 mb-0 fw-bold" id="statRisques">--</div>
+            </div>
+            <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-2">Risques</span>
+          </div>
+          <small class="text-muted">Risques identifiés</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted small text-uppercase fw-semibold"><i class="fas fa-times-circle text-warning me-1"></i> NC Qualité</h6>
+              <div class="h2 mb-0 fw-bold" id="statNc">--</div>
+            </div>
+            <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3 py-2">Non-conformités</span>
+          </div>
+          <small class="text-muted">Non-conformités qualité</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted small text-uppercase fw-semibold"><i class="fas fa-headset text-info me-1"></i> Réclamations</h6>
+              <div class="h2 mb-0 fw-bold" id="statReclamations">--</div>
+            </div>
+            <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3 py-2">Clients</span>
+          </div>
+          <small class="text-muted">Réclamations clients</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted small text-uppercase fw-semibold"><i class="fas fa-clipboard-check text-success me-1"></i> Contrôles</h6>
+              <div class="h2 mb-0 fw-bold" id="statControles">--</div>
+            </div>
+            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">Contrôle Q.</span>
+          </div>
+          <small class="text-muted">Contrôles qualité</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-3">
-    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><h6 class="text-muted small">Risques</h6><div class="h3 mb-0">--</div></div></div></div>
-    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><h6 class="text-muted small">NC Qualité</h6><div class="h3 mb-0">--</div></div></div></div>
-    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><h6 class="text-muted small">Réclamations</h6><div class="h3 mb-0">--</div></div></div></div>
-    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body"><h6 class="text-muted small">Audits</h6><div class="h3 mb-0">--</div></div></div></div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h6 class="mb-0 fw-semibold"><i class="fas fa-clock me-2 text-danger"></i>Vue d'ensemble</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2 text-center" id="overviewRow">
+            <div class="col-4"><strong id="statHaccp">--</strong><br><small class="text-muted">HACCP</small></div>
+            <div class="col-4"><strong id="statFournisseurs">--</strong><br><small class="text-muted">Fournisseurs</small></div>
+            <div class="col-4"><strong id="statFormations">--</strong><br><small class="text-muted">Formations</small></div>
+            <div class="col-4 mt-2"><strong id="statEquipements">--</strong><br><small class="text-muted">Équipements</small></div>
+            <div class="col-4 mt-2"><strong id="statRevues">--</strong><br><small class="text-muted">Revues</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h6 class="mb-0 fw-semibold"><i class="fas fa-link me-2 text-danger"></i>Accès rapides</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.risques') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-exclamation-triangle me-1"></i> Risques
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.haccp') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-utensils me-1"></i> HACCP
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.clients') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-users me-1"></i> Clients
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.fournisseurs') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-truck me-1"></i> Fournisseurs
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.formations') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-graduation-cap me-1"></i> Formations
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.equipements') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-tools me-1"></i> Équipements
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.controle') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-flask me-1"></i> Contrôle
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.revue') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-chart-pie me-1"></i> Revue
+              </a>
+            </div>
+            <div class="col-6 col-md-4">
+              <a href="{{ url_for('qualite.nonconformites') }}" class="btn btn-outline-danger w-100 text-start py-2">
+                <i class="fas fa-times-circle me-1"></i> NC
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+fetch('{{ url_for("qualite.api_stats") }}')
+  .then(r => r.json())
+  .then(s => {
+    document.getElementById('statRisques').textContent = s.risques;
+    document.getElementById('statNc').textContent = s.nonconformites;
+    document.getElementById('statReclamations').textContent = s.reclamations;
+    document.getElementById('statControles').textContent = s.controles;
+    document.getElementById('statHaccp').textContent = s.haccp;
+    document.getElementById('statFournisseurs').textContent = s.fournisseurs;
+    document.getElementById('statFormations').textContent = s.formations;
+    document.getElementById('statEquipements').textContent = s.equipements;
+    document.getElementById('statRevues').textContent = s.revues;
+  })
+  .catch(() => {});
+</script>
 {% endblock %}

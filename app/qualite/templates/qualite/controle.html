@@ -1,3 +1,244 @@
 {% extends 'layout.html' %}
-{% block title %}Qualité - Contrôle{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Contrôle qualité</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block title %}Qualité - Contrôle qualité{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Contrôle qualité</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#controlModal">
+      <i class="fas fa-plus me-1"></i>Nouveau contrôle
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statTotal">--</div>
+          <small class="text-muted">Total</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success" id="statConformes">--</div>
+          <small class="text-muted">Conformes</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statNonConformes">--</div>
+          <small class="text-muted">Non conformes</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-info" id="statTaux">--%</div>
+          <small class="text-muted">Taux conformité</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+      <h6 class="mb-0 fw-semibold"><i class="fas fa-flask me-2 text-danger"></i>Registre des contrôles</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Produit / Lot</th>
+              <th>Type de contrôle</th>
+              <th>Résultat</th>
+              <th>Valeur mesurée</th>
+              <th>Spécification</th>
+              <th>Inspecteur</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="controleTableBody">
+            <tr id="emptyRow">
+              <td colspan="8" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucun contrôle enregistré.<br>
+                <small>Ajoutez des contrôles via le bouton "Nouveau contrôle".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="controlModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="controlModalTitle">Nouveau contrôle qualité</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="controlId" value="">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Produit <span class="text-danger">*</span></label>
+            <input type="text" id="controlProduit" class="form-control" placeholder="Nom du produit">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Lot</label>
+            <input type="text" id="controlLot" class="form-control" placeholder="Référence lot">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Date contrôle</label>
+            <input type="date" id="controlDate" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Type</label>
+            <select id="controlType" class="form-select">
+              <option>Organoleptique</option>
+              <option>Physico-chimique</option>
+              <option>Microbiologique</option>
+              <option>Dimensionnel</option>
+              <option>Visuel</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Résultat</label>
+            <select id="controlResultat" class="form-select">
+              <option value="conforme">Conforme</option>
+              <option value="non_conforme">Non conforme</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Valeur mesurée</label>
+            <input type="text" id="controlValeur" class="form-control" placeholder="Ex: 12.5%">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Spécification</label>
+            <input type="text" id="controlSpec" class="form-control" placeholder="Ex: ≤ 14%">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Inspecteur</label>
+            <input type="text" id="controlInspecteur" class="form-control" placeholder="Nom de l'inspecteur">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveControl()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadControls() {
+  fetch('{{ url_for("qualite.api_controle") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('controleTableBody');
+      const empty = document.getElementById('emptyRow');
+      if (items.length === 0) return;
+      if (empty) empty.remove();
+      let conformes = 0, nonConformes = 0;
+      tbody.innerHTML = items.map(r => {
+        if (r.resultat === 'conforme') conformes++; else nonConformes++;
+        const rc = r.resultat === 'conforme' ? 'success' : 'danger';
+        return `<tr>
+          <td>${r.date_controle || ''}</td>
+          <td>${r.produit || ''} / ${r.lot || ''}</td>
+          <td>${r.type_controle || ''}</td>
+          <td><span class="badge bg-${rc}">${r.resultat || ''}</span></td>
+          <td>${r.valeur || ''}</td>
+          <td>${r.specification || ''}</td>
+          <td>${r.inspecteur || ''}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editControl(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteControl(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      const total = items.length;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statConformes').textContent = conformes;
+      document.getElementById('statNonConformes').textContent = nonConformes;
+      document.getElementById('statTaux').textContent = total ? Math.round(conformes/total*100) + '%' : '--%';
+    });
+}
+
+function saveControl() {
+  const id = document.getElementById('controlId').value;
+  const data = {
+    produit: document.getElementById('controlProduit').value,
+    lot: document.getElementById('controlLot').value,
+    date_controle: document.getElementById('controlDate').value,
+    type_controle: document.getElementById('controlType').value,
+    resultat: document.getElementById('controlResultat').value,
+    valeur: document.getElementById('controlValeur').value,
+    specification: document.getElementById('controlSpec').value,
+    inspecteur: document.getElementById('controlInspecteur').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_controle_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_controle_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('controlModal')).hide();
+        loadControls();
+        resetControlForm();
+      }
+    });
+}
+
+function editControl(id) {
+  fetch('{{ url_for("qualite.api_controle") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('controlId').value = r.id;
+      document.getElementById('controlProduit').value = r.produit || '';
+      document.getElementById('controlLot').value = r.lot || '';
+      document.getElementById('controlDate').value = r.date_controle || '';
+      document.getElementById('controlType').value = r.type_controle || 'Organoleptique';
+      document.getElementById('controlResultat').value = r.resultat || 'conforme';
+      document.getElementById('controlValeur').value = r.valeur || '';
+      document.getElementById('controlSpec').value = r.specification || '';
+      document.getElementById('controlInspecteur').value = r.inspecteur || '';
+      document.getElementById('controlModalTitle').textContent = 'Modifier le contrôle';
+      new bootstrap.Modal(document.getElementById('controlModal')).show();
+    });
+}
+
+function deleteControl(id) {
+  if (!confirm('Supprimer ce contrôle ?')) return;
+  fetch('{{ url_for("qualite.api_controle_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadControls(); });
+}
+
+function resetControlForm() {
+  document.getElementById('controlId').value = '';
+  document.getElementById('controlProduit').value = '';
+  document.getElementById('controlLot').value = '';
+  document.getElementById('controlDate').value = '';
+  document.getElementById('controlType').value = 'Organoleptique';
+  document.getElementById('controlResultat').value = 'conforme';
+  document.getElementById('controlValeur').value = '';
+  document.getElementById('controlSpec').value = '';
+  document.getElementById('controlInspecteur').value = '';
+  document.getElementById('controlModalTitle').textContent = 'Nouveau contrôle qualité';
+}
+
+document.addEventListener('DOMContentLoaded', loadControls);
+</script>
+{% endblock %}

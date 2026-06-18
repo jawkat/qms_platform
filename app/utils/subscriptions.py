@@ -43,3 +43,46 @@ def _seed_default_plans():
             plan = SubscriptionPlan(plan_key=key, **data)
             db.session.add(plan)
     db.session.commit()
+
+
+def get_subscription_plan(plan_key):
+    if not plan_key:
+        return None
+    data = DEFAULT_SUBSCRIPTION_PLANS.get(plan_key)
+    if data:
+        return data
+    plan = SubscriptionPlan.query.filter_by(plan_key=plan_key).first()
+    if plan:
+        return {
+            'plan_key': plan.plan_key,
+            'label': plan.label,
+            'max_users': plan.max_users or 0,
+            'price_mad': plan.price_mad or 0,
+            'max_documents': plan.max_documents or 0,
+            'max_open_actions': plan.max_open_actions or 0,
+            'max_storage_mb': plan.max_storage_mb or 0,
+            'trial_days': plan.trial_days or 14,
+        }
+    return None
+
+
+def get_subscription_quota_limit(plan_key, quota_name):
+    plan = get_subscription_plan(plan_key)
+    if not plan:
+        return None
+    mapping = {
+        'max_documents': 'max_documents',
+        'max_open_actions': 'max_open_actions',
+        'max_storage_mb': 'max_storage_mb',
+    }
+    key = mapping.get(quota_name)
+    if key:
+        return plan.get(key)
+    return None
+
+
+def get_subscription_user_limit(plan_key):
+    plan = get_subscription_plan(plan_key)
+    if plan:
+        return plan.get('max_users')
+    return None

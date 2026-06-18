@@ -1,16 +1,237 @@
 {% extends 'layout.html' %}
 {% set is_landing = True %}
-{% block title %}QMS Platform - Plateforme de gestion{% endblock %}
+{% block title %}QMS Platform - HSE & Qualité{% endblock %}
 {% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center bg-dark text-white">
-  <div class="text-center">
-    <h1 class="display-4 fw-bold"><i class="fas fa-shield-alt text-danger me-2"></i>QMS Platform</h1>
-    <p class="lead text-muted mb-4">Plateforme intégrée HSE & Qualité</p>
-    <div class="d-flex gap-3 justify-content-center">
-      <a href="{{ url_for('users.login') }}" class="btn btn-danger btn-lg px-5">
-        <i class="fas fa-sign-in-alt me-2"></i>Connexion
-      </a>
+<style>
+  .landing-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+  }
+  .landing-hero h1 { font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; }
+  .landing-hero .lead { font-size: 1.2rem; color: rgba(255,255,255,.7); }
+  .feature-card {
+    border: none;
+    border-radius: 1rem;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .feature-card:hover { transform: translateY(-4px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.1); }
+  .feature-icon {
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 1rem;
+    font-size: 1.5rem;
+  }
+  .pricing-card {
+    border: none;
+    border-radius: 1rem;
+    transition: transform .2s;
+  }
+  .pricing-card:hover { transform: translateY(-4px); }
+  .pricing-card.featured {
+    border: 2px solid var(--primary);
+    transform: scale(1.02);
+  }
+  .pricing-card.featured:hover { transform: scale(1.02) translateY(-4px); }
+  .pricing-card .price { font-size: 2.5rem; font-weight: 800; }
+  .pricing-card .price small { font-size: 1rem; font-weight: 400; }
+  .pricing-card ul li { padding: .4rem 0; }
+  .pricing-card ul li i { width: 1.25rem; }
+  .section-title { font-weight: 700; letter-spacing: -0.01em; }
+  .demo-section {
+    background: linear-gradient(135deg, #e63946 0%, #b91c1c 100%);
+  }
+  footer a { color: rgba(255,255,255,.6); text-decoration: none; }
+  footer a:hover { color: #fff; }
+  html { scroll-behavior: smooth; }
+  @media (max-width: 768px) {
+    .landing-hero h1 { font-size: 2rem; }
+    .pricing-card.featured { transform: none; }
+    .pricing-card.featured:hover { transform: translateY(-4px); }
+  }
+</style>
+
+<!-- Hero -->
+<section class="landing-hero text-white">
+  <div class="container py-5">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-7">
+        <h1 class="mb-3">Plateforme QMS<br>HSE & Qualité</h1>
+        <p class="lead mb-4">Gestion intégrée des actions correctives, documents, audits et conformité réglementaire pour vos démarches HSE et Qualité.</p>
+        <div class="d-flex flex-wrap gap-3">
+          <a href="{{ url_for('users.login') }}" class="btn btn-danger btn-lg px-4">
+            <i class="fas fa-sign-in-alt me-2"></i>Connexion
+          </a>
+          <a href="{{ url_for('users.register') }}" class="btn btn-outline-light btn-lg px-4">
+            <i class="fas fa-user-plus me-2"></i>S'inscrire
+          </a>
+          <a href="{{ url_for('demo.reserver') }}" class="btn btn-outline-light btn-lg px-4">
+            <i class="fas fa-calendar-alt me-2"></i>Réserver une démo
+          </a>
+        </div>
+      </div>
+      <div class="col-lg-5 text-center">
+        <i class="fas fa-shield-alt" style="font-size: 12rem; opacity: .15;"></i>
+      </div>
     </div>
   </div>
-</div>
+</section>
+
+<!-- Features -->
+<section class="py-5" id="features">
+  <div class="container py-4">
+    <div class="text-center mb-5">
+      <h2 class="section-title display-6 mb-2">Fonctionnalités</h2>
+      <p class="text-muted">Tout ce dont vous avez besoin pour piloter votre système QMS</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-4">
+        <div class="card feature-card h-100 p-4">
+          <div class="feature-icon bg-danger bg-opacity-10 text-danger mb-3"><i class="fas fa-tasks"></i></div>
+          <h5>Actions correctives</h5>
+          <p class="text-muted mb-0 small">Suivi des actions de la création à la clôture avec planification et indicateurs de performance.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card feature-card h-100 p-4">
+          <div class="feature-icon bg-primary bg-opacity-10 text-primary mb-3"><i class="fas fa-folder-open"></i></div>
+          <h5>GED documentaire</h5>
+          <p class="text-muted mb-0 small">Gestion électronique des documents avec versioning, validation et archivage sécurisé.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card feature-card h-100 p-4">
+          <div class="feature-icon bg-success bg-opacity-10 text-success mb-3"><i class="fas fa-clipboard-check"></i></div>
+          <h5>Audits</h5>
+          <p class="text-muted mb-0 small">Planification, réalisation et suivi des audits internes et externes avec grilles personnalisables.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card feature-card h-100 p-4">
+          <div class="feature-icon bg-warning bg-opacity-10 text-warning mb-3"><i class="fas fa-clipboard-list"></i></div>
+          <h5>Suivi de conformité</h5>
+          <p class="text-muted mb-0 small">Cartographie des exigences réglementaires et évaluation de la conformité par texte et article.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card feature-card h-100 p-4">
+          <div class="feature-icon bg-info bg-opacity-10 text-info mb-3"><i class="fas fa-scroll"></i></div>
+          <h5>Textes HSE</h5>
+          <p class="text-muted mb-0 small">Base documentaire des textes réglementaires HSE avec Veille automatique et mise à jour.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card feature-card h-100 p-4">
+          <div class="feature-icon bg-secondary bg-opacity-10 text-secondary mb-3"><i class="fas fa-certificate"></i></div>
+          <h5>Module Qualité</h5>
+          <p class="text-muted mb-0 small">Gestion des risques, HACCP, non-conformités, revue de direction et contrôle qualité.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="py-5 bg-light" id="pricing">
+  <div class="container py-4">
+    <div class="text-center mb-5">
+      <h2 class="section-title display-6 mb-2">Nos offres</h2>
+      <p class="text-muted">Des formules adaptées à la taille de votre entreprise</p>
+    </div>
+    <div class="row g-4 justify-content-center">
+      <div class="col-lg-4 col-md-6">
+        <div class="card pricing-card h-100 p-4">
+          <div class="card-body text-center">
+            <h5 class="text-muted mb-1">Essential</h5>
+            <div class="price text-dark mb-3">Gratuit</div>
+            <ul class="list-unstyled text-start mb-4">
+              <li><i class="fas fa-check text-success me-2"></i>2 utilisateurs</li>
+              <li><i class="fas fa-check text-success me-2"></i>80 actions correctives</li>
+              <li><i class="fas fa-check text-success me-2"></i>200 documents</li>
+              <li><i class="fas fa-check text-success me-2"></i>512 Mo de stockage</li>
+              <li><i class="fas fa-check text-success me-2"></i>14 jours d'essai</li>
+            </ul>
+            <a href="{{ url_for('demo.reserver') }}" class="btn btn-outline-danger w-100">Démarrer</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4 col-md-6">
+        <div class="card pricing-card featured h-100 p-4">
+          <div class="card-body text-center">
+            <span class="badge bg-danger mb-2">Populaire</span>
+            <h5 class="mb-1">Professional</h5>
+            <div class="price text-danger mb-3">499 <small>MAD/an</small></div>
+            <ul class="list-unstyled text-start mb-4">
+              <li><i class="fas fa-check text-success me-2"></i>10 utilisateurs</li>
+              <li><i class="fas fa-check text-success me-2"></i>Actions illimitées</li>
+              <li><i class="fas fa-check text-success me-2"></i>1 000 documents</li>
+              <li><i class="fas fa-check text-success me-2"></i>2 Go de stockage</li>
+              <li><i class="fas fa-check text-success me-2"></i>Support prioritaire</li>
+            </ul>
+            <a href="{{ url_for('demo.reserver') }}" class="btn btn-danger w-100">Choisir</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4 col-md-6">
+        <div class="card pricing-card h-100 p-4">
+          <div class="card-body text-center">
+            <h5 class="text-muted mb-1">Premium</h5>
+            <div class="price text-dark mb-3">1 990 <small>MAD/an</small></div>
+            <ul class="list-unstyled text-start mb-4">
+              <li><i class="fas fa-check text-success me-2"></i>Utilisateurs illimités</li>
+              <li><i class="fas fa-check text-success me-2"></i>Actions illimitées</li>
+              <li><i class="fas fa-check text-success me-2"></i>Documents illimités</li>
+              <li><i class="fas fa-check text-success me-2"></i>10 Go de stockage</li>
+              <li><i class="fas fa-check text-success me-2"></i>Accompagnement dédié</li>
+            </ul>
+            <a href="{{ url_for('demo.reserver') }}" class="btn btn-outline-danger w-100">Choisir</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Demo -->
+<section class="demo-section text-white py-5" id="demander-devis">
+  <div class="container py-4 text-center">
+    <h2 class="section-title display-6 mb-3">Réserver une démonstration</h2>
+    <p class="lead mb-4 opacity-75">Découvrez la plateforme lors d'une session personnalisée avec notre équipe.</p>
+    <a href="{{ url_for('demo.reserver') }}" class="btn btn-light btn-lg px-5">
+      <i class="fas fa-calendar-alt me-2"></i>Réserver un créneau
+    </a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-dark text-white py-5">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <h5 class="mb-3"><i class="fas fa-shield-alt text-danger me-2"></i>QMS Platform</h5>
+        <p class="small text-muted mb-0">Plateforme intégrée de gestion HSE & Qualité pour les entreprises marocaines.</p>
+      </div>
+      <div class="col-md-4">
+        <h6 class="mb-3">Liens rapides</h6>
+        <ul class="list-unstyled small">
+          <li class="mb-1"><a href="#features">Fonctionnalités</a></li>
+          <li class="mb-1"><a href="#pricing">Tarifs</a></li>
+          <li class="mb-1"><a href="{{ url_for('demo.reserver') }}">Démo</a></li>
+          <li><a href="{{ url_for('users.login') }}">Connexion</a></li>
+        </ul>
+      </div>
+      <div class="col-md-4">
+        <h6 class="mb-3">Contact</h6>
+        <ul class="list-unstyled small">
+          <li class="mb-1"><i class="fas fa-envelope me-2"></i>contact@qmsplatform.ma</li>
+          <li class="mb-1"><i class="fas fa-phone me-2"></i>+212 5XX XX XX XX</li>
+          <li><i class="fas fa-map-marker-alt me-2"></i>Casablanca, Maroc</li>
+        </ul>
+      </div>
+    </div>
+    <hr class="my-4" style="border-color: rgba(255,255,255,.1);">
+    <p class="text-center text-muted small mb-0">&copy; 2026 QMS Platform. Tous droits réservés.</p>
+  </div>
+</footer>
 {% endblock %}

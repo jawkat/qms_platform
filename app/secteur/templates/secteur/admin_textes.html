@@ -1,0 +1,117 @@
+{% extends 'layout.html' %}
+
+{% block title %}Administration des Textes et Secteurs{% endblock %}
+
+{% block content %}
+<div class="container mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="m-0">Textes & Secteurs</h3>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-striped" id="textesAdminTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Titre</th>
+          <th>Secteurs liés</th>
+          <th style="width:180px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in textes %}
+        <tr id="texte-{{ t.id }}">
+          <td>{{ t.id }}</td>
+          <td>{{ t.titre }}</td>
+          <td class="texte-secteurs">
+            {% for s in t.secteurs %}
+              <span class="badge bg-secondary me-1">{{ s.nom }}</span>
+            {% else %}
+              <span class="text-muted">(aucun)</span>
+            {% endfor %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary btn-manage" data-id="{{ t.id }}">Gérer</button>
+            <a href="{{ url_for('textes.detail_texte', texte_id=t.id) }}" class="btn btn-sm btn-outline-secondary">Voir</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="manageSecteursModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Gérer les secteurs</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="manageModalBody">
+        <div class="text-center text-muted py-4">Chargement…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modalEl = document.getElementById('manageSecteursModal');
+  const modal = new bootstrap.Modal(modalEl);
+  const body = document.getElementById('manageModalBody');
+
+  function loadForm(texteId) {
+    body.innerHTML = '<div class="text-center text-muted py-4">Chargement…</div>';
+    modal.show();
+    fetch(`/secteur/admin/textes/${texteId}/edit_secteurs`, { credentials: 'same-origin' })
+      .then(r => r.text())
+      .then(html => { body.innerHTML = html; })
+      .catch(() => { body.innerHTML = '<div class="alert alert-danger">Erreur</div>'; });
+  }
+
+  document.querySelectorAll('.btn-manage').forEach(btn => {
+    btn.addEventListener('click', () => loadForm(btn.dataset.id));
+  });
+
+  // delegate form submit
+  modalEl.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (form.tagName.toLowerCase() !== 'form') return;
+    e.preventDefault();
+    const fd = new FormData(form);
+    const id = form.dataset.texteId;
+    fetch(`/secteur/admin/textes/${id}/set_secteurs`, {
+      method: 'POST',
+      body: fd,
+      credentials: 'same-origin'
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        // update badges on the row
+        const row = document.getElementById('texte-' + id);
+        const cell = row.querySelector('.texte-secteurs');
+        if (data.secteur_ids && data.secteur_ids.length) {
+          // fetch names from DOM options in the modal
+          const names = [];
+          data.secteur_ids.forEach(sid => {
+            const opt = form.querySelector(`option[value="${sid}"]`);
+            if (opt) names.push(opt.textContent);
+          });
+          cell.innerHTML = names.map(n => `<span class="badge bg-secondary me-1">${n}</span>`).join('');
+        } else {
+          cell.innerHTML = '<span class="text-muted">(aucun)</span>';
+        }
+        modal.hide();
+      } else {
+        alert(data.message || 'Erreur');
+      }
+    }).catch(() => alert('Erreur réseau'));
+  });
+});
+</script>
+{% endblock %}

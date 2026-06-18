@@ -13,35 +13,161 @@
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted text-uppercase small">Actions</h6>
-          <div class="h3 mb-0" id="total-actions">--</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Actions en cours</h6>
+              <div class="h3 mb-0 fw-bold" id="stats-actions-encours">--</div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e8f4fd;">
+              <i class="fas fa-tasks text-primary"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted text-uppercase small">Documents</h6>
-          <div class="h3 mb-0" id="total-documents">--</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Actions en retard</h6>
+              <div class="h3 mb-0 fw-bold" id="stats-actions-retard">--</div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fde8e8;">
+              <i class="fas fa-exclamation-triangle text-danger"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted text-uppercase small">Audits</h6>
-          <div class="h3 mb-0">0</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Documents</h6>
+              <div class="h3 mb-0 fw-bold" id="stats-documents">--</div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fef3e2;">
+              <i class="fas fa-folder-open text-warning"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted text-uppercase small">Utilisateurs</h6>
-          <div class="h3 mb-0">--</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Audits</h6>
+              <div class="h3 mb-0 fw-bold" id="stats-audits">--</div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e8f5e9;">
+              <i class="fas fa-clipboard-check text-success"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Utilisateurs</h6>
+              <div class="h3 mb-0 fw-bold" id="stats-utilisateurs">--</div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#f3e8ff;">
+              <i class="fas fa-users text-purple" style="color:#7c3aed;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Conformité</h6>
+              <div class="h3 mb-0 fw-bold">--</div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e0f2f1;">
+              <i class="fas fa-shield-alt" style="color:#0d9488;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+          <h5 class="mb-0"><i class="fas fa-tasks me-2 text-primary"></i>Actions récentes</h5>
+          <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:40%">Description</th>
+                  <th>Statut</th>
+                  <th>Priorité</th>
+                  <th>Échéance</th>
+                </tr>
+              </thead>
+              <tbody id="recent-actions-tbody">
+                <tr><td colspan="4" class="text-center text-muted py-3">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+          <h5 class="mb-0"><i class="fas fa-folder-open me-2 text-warning"></i>Documents récents</h5>
+          <a href="{{ url_for('documents.gestion') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush" id="recent-documents-list">
+            <li class="list-group-item text-center text-muted py-3">Chargement...</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body py-3">
+          <h6 class="text-muted text-uppercase small mb-3"><i class="fas fa-link me-1"></i>Accès rapide</h6>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-tasks me-1"></i>Actions
+            </a>
+            <a href="{{ url_for('documents.gestion') }}" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-folder-open me-1"></i>Documents
+            </a>
+            <a href="{{ url_for('audit.index') }}" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-clipboard-check me-1"></i>Audits
+            </a>
+            <a href="{{ url_for('textes.index') }}" class="btn btn-outline-info btn-sm">
+              <i class="fas fa-scroll me-1"></i>Textes
+            </a>
+            <a href="{{ url_for('conformite.index') }}" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-shield-alt me-1"></i>Conformité
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -50,11 +176,90 @@
 {% endblock %}
 {% block scripts %}
 <script>
-fetch('/actions/api/liste').then(r=>r.json()).then(data => {
-  document.getElementById('total-actions').textContent = data.length;
-}).catch(() => document.getElementById('total-actions').textContent = '0');
-fetch('/documents/api/liste').then(r=>r.json()).then(data => {
-  document.getElementById('total-documents').textContent = data.length;
-}).catch(() => document.getElementById('total-documents').textContent = '0');
+function statutBadge(statut) {
+  var map = {
+    'A_FAIRE': 'secondary', 'EN_COURS': 'info', 'REALISE': 'success',
+    'SOLDE': 'dark', 'ANNULE': 'danger'
+  };
+  var labels = {
+    'A_FAIRE': 'À faire', 'EN_COURS': 'En cours', 'REALISE': 'Réalisé',
+    'SOLDE': 'Soldé', 'ANNULE': 'Annulé'
+  };
+  var cls = map[statut] || 'secondary';
+  var label = labels[statut] || statut;
+  return '<span class="badge bg-' + cls + '">' + label + '</span>';
+}
+
+function prioriteBadge(p) {
+  var map = { 'haute': 'danger', 'critique': 'danger', 'moyenne': 'warning', 'basse': 'success' };
+  var cls = map[p] || 'secondary';
+  return '<span class="badge bg-' + cls + '">' + p + '</span>';
+}
+
+function formatDate(iso) {
+  if (!iso) return '--';
+  var d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+fetch('/api/stats').then(function(r) { return r.json(); }).then(function(data) {
+  document.getElementById('stats-actions-encours').textContent = data.actions_en_cours;
+  document.getElementById('stats-actions-retard').textContent = data.actions_en_retard;
+  document.getElementById('stats-documents').textContent = data.total_documents;
+  document.getElementById('stats-audits').textContent = data.total_audits;
+  document.getElementById('stats-utilisateurs').textContent = data.total_users;
+}).catch(function() {
+  document.getElementById('stats-actions-encours').textContent = '0';
+  document.getElementById('stats-actions-retard').textContent = '0';
+  document.getElementById('stats-documents').textContent = '0';
+  document.getElementById('stats-audits').textContent = '0';
+  document.getElementById('stats-utilisateurs').textContent = '0';
+});
+
+fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function(actions) {
+  var tbody = document.getElementById('recent-actions-tbody');
+  var recent = actions.slice(0, 5);
+  if (recent.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Aucune action récente</td></tr>';
+    return;
+  }
+  tbody.innerHTML = recent.map(function(a) {
+    return '<tr>' +
+      '<td class="text-truncate" style="max-width:260px">' + (a.description || '--') + '</td>' +
+      '<td>' + statutBadge(a.statut) + '</td>' +
+      '<td>' + prioriteBadge(a.priorite) + '</td>' +
+      '<td>' + formatDate(a.date_echeance) + '</td>' +
+    '</tr>';
+  }).join('');
+}).catch(function() {
+  document.getElementById('recent-actions-tbody').innerHTML =
+    '<tr><td colspan="4" class="text-center text-danger py-3">Erreur de chargement</td></tr>';
+});
+
+fetch('/documents/api/liste').then(function(r) { return r.json(); }).then(function(docs) {
+  var list = document.getElementById('recent-documents-list');
+  var recent = docs.slice(0, 5);
+  if (recent.length === 0) {
+    list.innerHTML = '<li class="list-group-item text-center text-muted py-3">Aucun document récent</li>';
+    return;
+  }
+  list.innerHTML = recent.map(function(d) {
+    var icon = 'fa-file';
+    if (d.type === 'pdf') icon = 'fa-file-pdf';
+    else if (d.type === 'image') icon = 'fa-file-image';
+    else if (d.type === 'word') icon = 'fa-file-word';
+    else if (d.type === 'excel') icon = 'fa-file-excel';
+    return '<li class="list-group-item d-flex align-items-center py-2">' +
+      '<i class="fas ' + icon + ' me-3 text-muted"></i>' +
+      '<div class="flex-grow-1 text-truncate">' +
+        '<div class="text-truncate small">' + (d.nom_fichier || '--') + '</div>' +
+        '<small class="text-muted">' + (d.categorie || '') + (d.categorie && d.validite ? ' &middot; ' : '') + (d.validite ? 'Validité: ' + formatDate(d.validite) : '') + '</small>' +
+      '</div>' +
+    '</li>';
+  }).join('');
+}).catch(function() {
+  document.getElementById('recent-documents-list').innerHTML =
+    '<li class="list-group-item text-center text-danger py-3">Erreur de chargement</li>';
+});
 </script>
 {% endblock %}

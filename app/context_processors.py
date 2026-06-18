@@ -7,7 +7,11 @@ from app.utils.domaine_switch import get_domaine_actif
 def inject_globals():
     from flask import current_app
     from flask_login import current_user
-    ctx = {}
+    ctx = {
+        'modules_actifs': [],
+        'domaine_actif': 'hse',
+        'has_switch': False,
+    }
 
     if current_user.is_authenticated and current_user.entreprise_id:
         entreprise = Entreprise.query.get(current_user.entreprise_id)

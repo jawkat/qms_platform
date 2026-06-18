@@ -1,0 +1,141 @@
+{% extends 'layout.html' %}
+{% block title %}Version {{ version.numero_version }} - Textes réglementaires{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Version {{ version.numero_version }}</h1>
+      <p class="text-muted mb-0">
+        <a href="{{ url_for('textes.detail', texte_id=version.texte_id) }}" class="text-decoration-none">{{ version.texte.titre if version.texte else 'Texte #' ~ version.texte_id }}</a>
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('textes.edit_version', version_id=version.id) }}" class="btn btn-outline-warning"><i class="fas fa-edit me-1"></i>Modifier</a>
+      <a href="{{ url_for('textes.create_article', version_id=version.id) }}" class="btn btn-danger"><i class="fas fa-plus me-1"></i>Nouvel article</a>
+      <form method="POST" action="{{ url_for('textes.delete_version', version_id=version.id) }}" style="display:inline"
+            onsubmit="return confirm('Supprimer cette version ?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-danger"><i class="fas fa-trash me-1"></i>Supprimer</button>
+      </form>
+      <a href="{{ url_for('textes.detail', texte_id=version.texte_id) }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Retour</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Informations version</h6>
+        </div>
+        <div class="card-body">
+          <p class="mb-1"><strong>Numéro :</strong> {{ version.numero_version }}</p>
+          <p class="mb-1"><strong>Date publication :</strong> {{ version.date_publication.strftime('%d/%m/%Y') if version.date_publication else '-' }}</p>
+          <p class="mb-1">
+            <strong>Statut :</strong>
+            <span class="badge bg-{{ 'success' if version.statut == 'actif' else 'warning' if version.statut == 'projet' else 'secondary' }}">
+              {{ version.statut or '-' }}
+            </span>
+          </p>
+          {% if version.commentaire_version %}
+          <p class="mb-0"><strong>Commentaire :</strong><br>{{ version.commentaire_version }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if version.preambule %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-align-left me-2 text-danger"></i>Préambule</h6>
+        </div>
+        <div class="card-body">
+          <p class="mb-0">{{ version.preambule }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if version.version_precedente %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-history me-2 text-danger"></i>Version précédente</h6>
+        </div>
+        <div class="card-body">
+          <a href="{{ url_for('textes.version_detail', version_id=version.version_precedente.id) }}" class="text-decoration-none">
+            v{{ version.version_precedente.numero_version }}
+          </a>
+          <small class="text-muted d-block">({{ version.version_precedente.date_publication.strftime('%d/%m/%Y') if version.version_precedente.date_publication else '-' }})</small>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-list me-2 text-danger"></i>Articles ({{ articles|length }})</h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:60px">N°</th>
+                      <th>Contenu</th>
+                      <th>Exigence</th>
+                      <th>Risque</th>
+                      <th style="width:100px">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in articles %}
+                    <tr>
+                      <td><span class="badge bg-secondary">{{ a.numero_article }}</span></td>
+                      <td>
+                        {% if a.resume_article %}
+                        <strong>{{ a.resume_article }}</strong><br>
+                        {% endif %}
+                        <small>{{ a.contenu[:300] if a.contenu }}{% if a.contenu and a.contenu|length > 300 %}...{% endif %}</small>
+                      </td>
+                      <td>
+                        {% if a.exigence_type %}
+                        <span class="badge bg-{{ 'danger' if a.exigence_type.name in ('OBLIGATION','INTERDICTION') else 'warning' if a.exigence_type.name == 'RECOMMANDATION' else 'info' }}">
+                          {{ a.exigence_type.value }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if a.niveau_risque %}
+                        <span class="badge bg-{{ 'danger' if a.niveau_risque.name in ('ELEVE','CRITIQUE') else 'warning' if a.niveau_risque.name == 'MOYEN' else 'success' }}">
+                          {{ a.niveau_risque.value }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <a href="{{ url_for('textes.edit_article', article_id=a.id) }}" class="btn btn-outline-warning" title="Modifier"><i class="fas fa-edit"></i></a>
+                          <form method="POST" action="{{ url_for('textes.delete_article', article_id=a.id) }}" style="display:inline"
+                                onsubmit="return confirm('Supprimer cet article ?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-outline-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i></button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-5">
+                      <i class="fas fa-file-alt fa-2x mb-2 d-block"></i>
+                      Aucun article dans cette version.
+                    </td></tr>
+                    {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

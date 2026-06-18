@@ -17,6 +17,12 @@
         </div>
         <button type="submit" class="btn btn-danger w-100">Se connecter</button>
       </form>
+      <div class="text-center mt-3">
+        <a href="{{ url_for('users.forgot_password') }}" class="text-muted small">Mot de passe oublié ?</a>
+      </div>
+      <div class="text-center mt-2">
+        <p class="text-muted small">Pas encore de compte ? <a href="{{ url_for('users.register') }}" class="text-danger">Creer un compte</a></p>
+      </div>
     </div>
   </div>
 </div>

@@ -27,8 +27,21 @@ class ProofMaster(db.Model):
     extra_metadata = db.Column(db.JSON, default=dict)
     reference_count = db.Column(db.Integer, default=0)
 
+    dossier_id = db.Column(db.Integer, db.ForeignKey('dossier.id', ondelete='SET NULL'), nullable=True, index=True)
+    type_document_id = db.Column(db.Integer, db.ForeignKey('type_document.id', ondelete='SET NULL'), nullable=True)
+    workflow_statut = db.Column(db.String(30), default='brouillon', index=True)
+    workflow_approbateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True)
+    date_soumission = db.Column(db.DateTime, nullable=True)
+    date_approbation = db.Column(db.DateTime, nullable=True)
+    numero_document = db.Column(db.String(50), nullable=True)
+    mots_cles = db.Column(db.String(500), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
     entreprise = db.relationship('Entreprise')
     uploader = db.relationship('Utilisateur', foreign_keys=[upload_par])
+    dossier = db.relationship('Dossier', backref='documents')
+    type_doc = db.relationship('TypeDocument', backref='documents')
+    approbateur = db.relationship('Utilisateur', foreign_keys=[workflow_approbateur_id])
 
     references = db.relationship(
         'ProofReference', back_populates='proof_master',

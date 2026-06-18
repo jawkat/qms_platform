@@ -1,0 +1,199 @@
+{% extends 'layout.html' %}
+{% block title %}Veille réglementaire{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-rss text-danger me-2"></i>Veille réglementaire</h4>
+    <div>
+      <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#sourceModal">
+        <i class="fas fa-plus"></i> Source
+      </button>
+      <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#veilleModal">
+        <i class="fas fa-plus"></i> Veille
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Source</th>
+              <th>Texte</th>
+              <th>Détection</th>
+              <th>Statut</th>
+              <th>Résumé</th>
+              <th style="width:80px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="veilleTableBody">
+            {% for v in veilles %}
+            <tr>
+              <td>{{ v.source.nom if v.source else '-' }}</td>
+              <td><small>{{ v.texte.titre if v.texte else '-' }}</small></td>
+              <td><small>{{ v.date_detection.strftime('%d/%m/%Y') if v.date_detection else '' }}</small></td>
+              <td>
+                <span class="badge bg-{{ 'warning' if v.statut == 'nouveau' else 'info' if v.statut == 'en_cours' else 'success' }}">
+                  {{ v.statut }}
+                </span>
+              </td>
+              <td><small class="text-muted">{{ v.resume[:80] if v.resume else '' }}{{ '...' if v.resume and v.resume|length > 80 }}</small></td>
+              <td>
+                <button class="btn btn-sm btn-outline-secondary" onclick="editVeille({{ v.id }})" title="Modifier"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteVeille({{ v.id }})" title="Supprimer"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Aucune veille enregistrée</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Source Modal -->
+<div class="modal fade" id="sourceModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form id="sourceForm">
+      <div class="modal-header"><h5 class="modal-title">Nouvelle source</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nom</label>
+          <input type="text" name="nom" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">URL</label>
+          <input type="url" name="url" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Type</label>
+          <select name="type_source" class="form-select">
+            <option value="jo">Journal Officiel</option>
+            <option value="bo">Bulletin Officiel</option>
+            <option value="site">Site web</option>
+            <option value="newsletter">Newsletter</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Contact</label>
+          <input type="text" name="contact" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Créer</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Veille Modal -->
+<div class="modal fade" id="veilleModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form id="veilleForm">
+      <input type="hidden" name="id" value="">
+      <div class="modal-header"><h5 class="modal-title">Nouvelle veille</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Texte réglementaire</label>
+          <select name="texte_id" class="form-select">
+            <option value="">-- Sélectionner --</option>
+            {% for t in textes %}
+            <option value="{{ t.id }}">{{ t.code }} - {{ t.titre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Source</label>
+          <select name="source_id" class="form-select">
+            <option value="">-- Sélectionner --</option>
+            {% for s in sources %}
+            <option value="{{ s.id }}">{{ s.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Date détection</label>
+          <input type="date" name="date_detection" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Statut</label>
+          <select name="statut" class="form-select">
+            <option value="nouveau">Nouveau</option>
+            <option value="en_cours">En cours</option>
+            <option value="traite">Traité</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Résumé</label>
+          <textarea name="resume" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Lien source</label>
+          <input type="url" name="lien_source" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('sourceForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = new FormData(this);
+  fetch('{{ url_for("veille.api_source_create") }}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.fromEntries(form)),
+  }).then(r => r.json()).then(d => {
+    if (d.success) { location.reload(); }
+  });
+});
+
+document.getElementById('veilleForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = new FormData(this);
+  const id = form.get('id');
+  const url = id ? `{{ url_for('veille.api_update', id=0) }}`.replace('/0', '/' + id) : '{{ url_for("veille.api_create") }}';
+  const method = id ? 'POST' : 'POST';
+  fetch(url, {
+    method,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.fromEntries(form)),
+  }).then(r => r.json()).then(d => {
+    if (d.success) { location.reload(); }
+  });
+});
+
+function editVeille(id) {
+  fetch(`/veille/api/liste`).then(r => r.json()).then(data => {
+    const v = data.find(x => x.id === id);
+    if (!v) return;
+    document.querySelector('#veilleForm [name="id"]').value = v.id;
+    document.querySelector('#veilleForm [name="texte_id"]').value = v.texte_id || '';
+    document.querySelector('#veilleForm [name="source_id"]').value = v.source_id || '';
+    document.querySelector('#veilleForm [name="statut"]').value = v.statut || 'nouveau';
+    document.querySelector('#veilleForm [name="resume"]').value = v.resume || '';
+    document.querySelector('#veilleForm [name="lien_source"]').value = v.lien_source || '';
+    document.querySelector('#veilleForm [name="date_detection"]').value = v.date_detection || '';
+    const modal = new bootstrap.Modal(document.getElementById('veilleModal'));
+    modal.show();
+  });
+}
+
+function deleteVeille(id) {
+  if (!confirm('Supprimer cette veille ?')) return;
+  fetch(`/veille/api/${id}/delete`, { method: 'POST' })
+    .then(r => r.json()).then(d => { if (d.success) { location.reload(); } });
+});
+</script>
+{% endblock %}

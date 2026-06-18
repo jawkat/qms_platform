@@ -19,6 +19,9 @@ class Entreprise(db.Model):
     montant_annuel_mad = db.Column(db.Numeric(10, 2))
     contact_facturation_email = db.Column(db.String(120))
     notes_facturation = db.Column(db.Text)
+    telephone = db.Column(db.String(20))
+    periode_essai_jours = db.Column(db.Integer, default=14)
+    date_debut_essai = db.Column(db.DateTime)
 
     utilisateurs = db.relationship('Utilisateur', back_populates='entreprise')
     secteurs = db.relationship('Secteur', secondary='entreprise_secteur', back_populates='entreprises')

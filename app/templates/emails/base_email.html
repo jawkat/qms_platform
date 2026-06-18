@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #fdf6f6;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(185, 28, 28, 0.10);
+        }
+        .header {
+            background: linear-gradient(135deg, #e63946, #b91c1c);
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .header p {
+            margin: 6px 0 0;
+            font-size: 13px;
+            opacity: 0.85;
+        }
+        .content {
+            padding: 30px;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        .footer {
+            background-color: #fdf6f6;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #e63946, #b91c1c);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-warning { background-color: #fff3cd; color: #856404; }
+        .badge-danger { background-color: #f8d7da; color: #721c24; }
+        .badge-info { background-color: #cff4fc; color: #055160; }
+        
+        .info-card {
+            background-color: #fdf6f6;
+            border-left: 4px solid #e63946;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>QMS Veille HSE</h1>
+            <p>Veille réglementaire &amp; conformité</p>
+        </div>
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 QMS Veille HSE. Tous droits réservés.</p>
+            <p>Ceci est un message automatique, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

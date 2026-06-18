@@ -1,3 +1,205 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - HACCP{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Plan HACCP</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Plan HACCP</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#haccpModal">
+      <i class="fas fa-plus me-1"></i>Nouvelle étape
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="fw-semibold"><i class="fas fa-utensils me-2 text-danger"></i>Analyse des dangers - HACCP</h6>
+      <p class="text-muted small mb-0">
+        Plan de maîtrise sanitaire basé sur les 7 principes HACCP. Identifiez les dangers, définissez les limites critiques
+        et établissez les mesures de surveillance pour chaque étape du processus.
+      </p>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Procédé / Étape</th>
+              <th>Danger</th>
+              <th>Mesure de maîtrise</th>
+              <th>Limite critique</th>
+              <th>Surveillance</th>
+              <th>Action corrective</th>
+              <th>CCP</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="haccpTableBody">
+            <tr id="emptyRow">
+              <td colspan="9" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucune étape HACCP enregistrée.<br>
+                <small>Ajoutez des étapes via le bouton "Nouvelle étape".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="haccpModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="haccpModalTitle">Nouvelle étape HACCP</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="haccpId" value="">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Étape du procédé <span class="text-danger">*</span></label>
+            <input type="text" id="haccpEtape" class="form-control" placeholder="Réception, stockage, cuisson...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Danger</label>
+            <input type="text" id="haccpDanger" class="form-control" placeholder="Description du danger...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Point critique (CCP)</label>
+            <select id="haccpCcp" class="form-select">
+              <option value="0">Non</option>
+              <option value="1">Oui</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Mesure de maîtrise</label>
+            <input type="text" id="haccpMaitrise" class="form-control" placeholder="Contrôle température, certification...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Limite critique</label>
+            <input type="text" id="haccpLimite" class="form-control" placeholder="72°C, 0-4°C...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Surveillance</label>
+            <input type="text" id="haccpSurveillance" class="form-control" placeholder="Fréquence et méthode...">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Action corrective</label>
+            <input type="text" id="haccpAction" class="form-control" placeholder="Refus lot, destruction...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Statut</label>
+            <select id="haccpStatut" class="form-select">
+              <option value="actif">Actif</option>
+              <option value="inactif">Inactif</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveHaccp()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadHaccp() {
+  fetch('{{ url_for("qualite.api_haccp") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('haccpTableBody');
+      if (items.length === 0) return;
+      const empty = document.getElementById('emptyRow');
+      if (empty) empty.remove();
+      tbody.innerHTML = items.map(r => `<tr>
+        <td>${r.etape || ''}</td>
+        <td>${r.danger || ''}</td>
+        <td>${r.maitrise || ''}</td>
+        <td>${r.limite_critique || ''}</td>
+        <td>${r.surveillance || ''}</td>
+        <td>${r.action_corrective || ''}</td>
+        <td>${r.est_ccp ? '<span class="badge bg-danger">CCP</span>' : '<span class="badge bg-secondary">Non</span>'}</td>
+        <td><span class="badge bg-${r.statut === 'actif' ? 'success' : 'secondary'}">${r.statut || ''}</span></td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editHaccp(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteHaccp(${r.id})"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`).join('');
+    });
+}
+
+function saveHaccp() {
+  const id = document.getElementById('haccpId').value;
+  const data = {
+    etape: document.getElementById('haccpEtape').value,
+    danger: document.getElementById('haccpDanger').value,
+    maitrise: document.getElementById('haccpMaitrise').value,
+    limite_critique: document.getElementById('haccpLimite').value,
+    surveillance: document.getElementById('haccpSurveillance').value,
+    action_corrective: document.getElementById('haccpAction').value,
+    est_ccp: document.getElementById('haccpCcp').value === '1',
+    statut: document.getElementById('haccpStatut').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_haccp_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_haccp_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('haccpModal')).hide();
+        loadHaccp();
+        resetHaccpForm();
+      }
+    });
+}
+
+function editHaccp(id) {
+  fetch('{{ url_for("qualite.api_haccp") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('haccpId').value = r.id;
+      document.getElementById('haccpEtape').value = r.etape || '';
+      document.getElementById('haccpDanger').value = r.danger || '';
+      document.getElementById('haccpMaitrise').value = r.maitrise || '';
+      document.getElementById('haccpLimite').value = r.limite_critique || '';
+      document.getElementById('haccpSurveillance').value = r.surveillance || '';
+      document.getElementById('haccpAction').value = r.action_corrective || '';
+      document.getElementById('haccpCcp').value = r.est_ccp ? '1' : '0';
+      document.getElementById('haccpStatut').value = r.statut || 'actif';
+      document.getElementById('haccpModalTitle').textContent = 'Modifier l\'étape HACCP';
+      new bootstrap.Modal(document.getElementById('haccpModal')).show();
+    });
+}
+
+function deleteHaccp(id) {
+  if (!confirm('Supprimer cette étape HACCP ?')) return;
+  fetch('{{ url_for("qualite.api_haccp_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadHaccp(); });
+}
+
+function resetHaccpForm() {
+  document.getElementById('haccpId').value = '';
+  document.getElementById('haccpEtape').value = '';
+  document.getElementById('haccpDanger').value = '';
+  document.getElementById('haccpMaitrise').value = '';
+  document.getElementById('haccpLimite').value = '';
+  document.getElementById('haccpSurveillance').value = '';
+  document.getElementById('haccpAction').value = '';
+  document.getElementById('haccpCcp').value = '0';
+  document.getElementById('haccpStatut').value = 'actif';
+  document.getElementById('haccpModalTitle').textContent = 'Nouvelle étape HACCP';
+}
+
+document.addEventListener('DOMContentLoaded', loadHaccp);
+</script>
+{% endblock %}

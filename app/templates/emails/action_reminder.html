@@ -1,0 +1,33 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<p>Bonjour <strong>{{ user.prenom }}</strong>,</p>
+
+<p>Ceci est un rappel automatique concernant une action corrective qui vous est assignée et qui arrive à échéance prochainement.</p>
+
+<div class="info-card">
+    <p style="margin-top: 0;"><strong>Détails de l'action :</strong></p>
+    <p style="margin-bottom: 5px;">{{ action.description }}</p>
+    <p style="margin-bottom: 0;">
+        <span class="badge {% if days_remaining <= 0 %}badge-danger{% elif days_remaining <= 3 %}badge-warning{% else %}badge-info{% endif %}">
+            {% if days_remaining < 0 %}
+                EN RETARD ({{ days_remaining|abs }} jours)
+            {% elif days_remaining == 0 %}
+                ÉCHÉANCE AUJOURD'HUI
+            {% else %}
+                Échéance dans {{ days_remaining }} jours
+            {% endif %}
+        </span>
+    </p>
+</div>
+
+<p><strong>Date d'échéance :</strong> {{ action.date_echeance.strftime('%d/%m/%Y') }}</p>
+
+<p>Il est important de mettre à jour le statut de cette action ou de renseigner les preuves de réalisation pour maintenir la conformité de votre site.</p>
+
+<div style="text-align: center;">
+    <a href="{{ action_url }}" class="btn">Voir l'action dans l'application</a>
+</div>
+
+<p style="margin-top: 30px;">Cordialement,<br>L'équipe HSE</p>
+{% endblock %}

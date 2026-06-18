@@ -1,3 +1,214 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - Équipements{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Gestion des équipements</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Gestion des équipements</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#equipModal">
+      <i class="fas fa-plus me-1"></i>Nouvel équipement
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statTotal">--</div>
+          <small class="text-muted">Équipements</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success" id="statEnService">--</div>
+          <small class="text-muted">En service</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-warning" id="statMaintenance">--</div>
+          <small class="text-muted">Maintenance à prévoir</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-info" id="statHorsService">--</div>
+          <small class="text-muted">Hors service</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Équipement</th>
+              <th>Modèle</th>
+              <th>N° série</th>
+              <th>Dernière maintenance</th>
+              <th>Prochaine maintenance</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="equipementsTableBody">
+            <tr id="emptyRow">
+              <td colspan="7" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucun équipement enregistré.<br>
+                <small>Ajoutez des équipements via le bouton "Nouvel équipement".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="equipModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="equipModalTitle">Nouvel équipement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="equipId" value="">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nom de l'équipement <span class="text-danger">*</span></label>
+            <input type="text" id="equipNom" class="form-control" placeholder="Four, balance, chambre froide...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Modèle</label>
+            <input type="text" id="equipModele" class="form-control" placeholder="Marque et modèle">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">N° série</label>
+            <input type="text" id="equipSerie" class="form-control" placeholder="SN-XXXXX">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Statut</label>
+            <select id="equipStatut" class="form-select">
+              <option value="actif">Opérationnel</option>
+              <option value="maintenance">Maintenance requise</option>
+              <option value="hors_service">Hors service</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Prochaine maintenance</label>
+            <input type="date" id="equipProchaine" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveEquip()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadEquips() {
+  fetch('{{ url_for("qualite.api_equipements") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('equipementsTableBody');
+      const empty = document.getElementById('emptyRow');
+      if (items.length === 0) return;
+      if (empty) empty.remove();
+      let enService = 0, maintenance = 0, horsService = 0;
+      tbody.innerHTML = items.map(r => {
+        if (r.statut === 'actif') enService++;
+        else if (r.statut === 'maintenance') maintenance++;
+        else horsService++;
+        const sc = r.statut === 'actif' ? 'success' : r.statut === 'maintenance' ? 'warning' : 'secondary';
+        return `<tr>
+          <td><i class="fas fa-cog me-2 text-muted"></i>${r.nom || ''}</td>
+          <td>${r.modele || ''}</td>
+          <td>${r.numero_serie || ''}</td>
+          <td>${r.derniere_maintenance || ''}</td>
+          <td>${r.prochaine_maintenance || ''}</td>
+          <td><span class="badge bg-${sc}">${r.statut || ''}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editEquip(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteEquip(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      document.getElementById('statTotal').textContent = items.length;
+      document.getElementById('statEnService').textContent = enService;
+      document.getElementById('statMaintenance').textContent = maintenance;
+      document.getElementById('statHorsService').textContent = horsService;
+    });
+}
+
+function saveEquip() {
+  const id = document.getElementById('equipId').value;
+  const data = {
+    nom: document.getElementById('equipNom').value,
+    modele: document.getElementById('equipModele').value,
+    numero_serie: document.getElementById('equipSerie').value,
+    prochaine_maintenance: document.getElementById('equipProchaine').value || null,
+    statut: document.getElementById('equipStatut').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_equipements_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_equipements_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('equipModal')).hide();
+        loadEquips();
+        resetEquipForm();
+      }
+    });
+}
+
+function editEquip(id) {
+  fetch('{{ url_for("qualite.api_equipements") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('equipId').value = r.id;
+      document.getElementById('equipNom').value = r.nom || '';
+      document.getElementById('equipModele').value = r.modele || '';
+      document.getElementById('equipSerie').value = r.numero_serie || '';
+      document.getElementById('equipProchaine').value = r.prochaine_maintenance || '';
+      document.getElementById('equipStatut').value = r.statut || 'actif';
+      document.getElementById('equipModalTitle').textContent = 'Modifier l\'équipement';
+      new bootstrap.Modal(document.getElementById('equipModal')).show();
+    });
+}
+
+function deleteEquip(id) {
+  if (!confirm('Supprimer cet équipement ?')) return;
+  fetch('{{ url_for("qualite.api_equipements_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadEquips(); });
+}
+
+function resetEquipForm() {
+  document.getElementById('equipId').value = '';
+  document.getElementById('equipNom').value = '';
+  document.getElementById('equipModele').value = '';
+  document.getElementById('equipSerie').value = '';
+  document.getElementById('equipProchaine').value = '';
+  document.getElementById('equipStatut').value = 'actif';
+  document.getElementById('equipModalTitle').textContent = 'Nouvel équipement';
+}
+
+document.addEventListener('DOMContentLoaded', loadEquips);
+</script>
+{% endblock %}

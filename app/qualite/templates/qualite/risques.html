@@ -1,3 +1,212 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - Risques{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Gestion des risques et opportunités</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Gestion des risques et opportunités</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#riskModal">
+      <i class="fas fa-plus me-1"></i>Nouveau risque
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="fw-semibold"><i class="fas fa-info-circle me-2 text-danger"></i>Contexte ISO 9001</h6>
+      <p class="text-muted small mb-0">
+        L'organisme doit déterminer les risques et opportunités à traiter pour garantir le système de management de la qualité.
+        La cotation est basée sur la criticité = Gravité &times; Probabilité &times; Détection (IPR).
+      </p>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Risque</th>
+              <th>Cause</th>
+              <th>Effet</th>
+              <th>Gravité</th>
+              <th>Probabilité</th>
+              <th>Détection</th>
+              <th>IPR</th>
+              <th>Action</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="risquesTableBody">
+            <tr id="emptyRow">
+              <td colspan="10" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucun risque enregistré.<br>
+                <small>Ajoutez des risques via le bouton "Nouveau risque".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="riskModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="riskModalTitle">Nouveau risque</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="riskId" value="">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Risque <span class="text-danger">*</span></label>
+            <input type="text" id="riskDesignation" class="form-control" placeholder="Défaut matière première...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Cause</label>
+            <input type="text" id="riskCause" class="form-control" placeholder="Cause racine...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Effet</label>
+            <input type="text" id="riskEffet" class="form-control" placeholder="Conséquence...">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Gravité (1-4)</label>
+            <select id="riskGravite" class="form-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Probabilité (1-4)</label>
+            <select id="riskProbabilite" class="form-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Détection (1-4)</label>
+            <select id="riskDetection" class="form-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Action proposée</label>
+            <textarea id="riskMaitrise" class="form-control" rows="2" placeholder="Description de l'action corrective..."></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Statut</label>
+            <select id="riskStatut" class="form-select">
+              <option value="identifie">Identifié</option>
+              <option value="en_cours">En cours</option>
+              <option value="maitrise">Maîtrisé</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveRisk()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadRisques() {
+  fetch('{{ url_for("qualite.api_risques") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('risquesTableBody');
+      if (items.length === 0) return;
+      const empty = document.getElementById('emptyRow');
+      if (empty) empty.remove();
+      tbody.innerHTML = items.map(r => {
+        const ipr = r.gravite * r.probabilite * r.detection;
+        const badgeClass = ipr >= 27 ? 'danger' : ipr >= 12 ? 'warning' : 'info';
+        const statutClass = r.statut === 'maitrise' ? 'success' : r.statut === 'en_cours' ? 'warning' : 'info';
+        return `<tr>
+          <td>${r.designation || ''}</td>
+          <td>${r.cause || ''}</td>
+          <td>${r.effet || ''}</td>
+          <td>${r.gravite}</td>
+          <td>${r.probabilite}</td>
+          <td>${r.detection}</td>
+          <td><span class="badge bg-${badgeClass}">${ipr}</span></td>
+          <td>${r.maitrise || ''}</td>
+          <td><span class="badge bg-${statutClass}">${r.statut || ''}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editRisk(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteRisk(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+    })
+    .catch(() => {});
+}
+
+function saveRisk() {
+  const id = document.getElementById('riskId').value;
+  const data = {
+    designation: document.getElementById('riskDesignation').value,
+    cause: document.getElementById('riskCause').value,
+    effet: document.getElementById('riskEffet').value,
+    gravite: document.getElementById('riskGravite').value,
+    probabilite: document.getElementById('riskProbabilite').value,
+    detection: document.getElementById('riskDetection').value,
+    maitrise: document.getElementById('riskMaitrise').value,
+    statut: document.getElementById('riskStatut').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_risques_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_risques_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('riskModal')).hide();
+        loadRisques();
+        resetRiskForm();
+      }
+    })
+    .catch(() => {});
+}
+
+function editRisk(id) {
+  fetch('{{ url_for("qualite.api_risques") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('riskId').value = r.id;
+      document.getElementById('riskDesignation').value = r.designation || '';
+      document.getElementById('riskCause').value = r.cause || '';
+      document.getElementById('riskEffet').value = r.effet || '';
+      document.getElementById('riskGravite').value = r.gravite;
+      document.getElementById('riskProbabilite').value = r.probabilite;
+      document.getElementById('riskDetection').value = r.detection;
+      document.getElementById('riskMaitrise').value = r.maitrise || '';
+      document.getElementById('riskStatut').value = r.statut || 'identifie';
+      document.getElementById('riskModalTitle').textContent = 'Modifier le risque';
+      new bootstrap.Modal(document.getElementById('riskModal')).show();
+    });
+}
+
+function deleteRisk(id) {
+  if (!confirm('Supprimer ce risque ?')) return;
+  fetch('{{ url_for("qualite.api_risques_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadRisques(); });
+}
+
+function resetRiskForm() {
+  document.getElementById('riskId').value = '';
+  document.getElementById('riskDesignation').value = '';
+  document.getElementById('riskCause').value = '';
+  document.getElementById('riskEffet').value = '';
+  document.getElementById('riskMaitrise').value = '';
+  document.getElementById('riskStatut').value = 'identifie';
+  document.getElementById('riskGravite').value = '1';
+  document.getElementById('riskProbabilite').value = '1';
+  document.getElementById('riskDetection').value = '1';
+  document.getElementById('riskModalTitle').textContent = 'Nouveau risque';
+}
+
+document.addEventListener('DOMContentLoaded', loadRisques);
+</script>
+{% endblock %}

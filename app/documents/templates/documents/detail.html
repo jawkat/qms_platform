@@ -2,38 +2,391 @@
 {% block title %}{{ proof.nom_fichier }}{% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">{{ proof.nom_fichier }}</h1>
-    <a href="{{ url_for('documents.gestion') }}" class="btn btn-outline-secondary">Retour</a>
-  </div>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <p><strong>Description:</strong> {{ proof.description or '-' }}</p>
-      <p><strong>Type:</strong> {{ proof.type }}</p>
-      <p><strong>Catégorie:</strong> {{ proof.categorie or '-' }}</p>
-      <p><strong>Validité:</strong> {{ proof.validite.strftime('%d/%m/%Y') if proof.validite else '-' }}</p>
-      <p><strong>Statut:</strong> {{ proof.statut }}</p>
-      <p><strong>Uploadé par:</strong> {{ proof.uploader.prenom ~ ' ' ~ proof.uploader.nom if proof.uploader else '-' }}</p>
-      <p><strong>Date:</strong> {{ proof.date_creation.strftime('%d/%m/%Y %H:%M') if proof.date_creation else '-' }}</p>
-      <div class="mt-3">
-        <a href="{{ url_for('documents.download', proof_id=proof.id) }}" class="btn btn-danger"><i class="fas fa-download me-1"></i>Télécharger</a>
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h4 class="mb-0"><i class="fas fa-file text-danger me-2"></i>{{ proof.nom_fichier }}</h4>
+        {% set wf = proof.workflow_statut or 'brouillon' %}
+        <span class="badge bg-{{ 'secondary' if wf == 'brouillon' else 'warning' if wf == 'soumis' else 'success' if wf == 'approuve' else 'danger' if wf == 'rejete' else 'info' }} fs-6">
+          {{ wf }}
+        </span>
+      </div>
+      <div class="d-flex align-items-center gap-2 small text-muted">
+        {% if proof.numero_document %}<span class="fw-medium">{{ proof.numero_document }}</span> · {% endif %}
+        {% if proof.dossier %}Dossier: {{ proof.dossier.nom }} · {% endif %}
+        v{{ proof.version or '1' }}
+        {% if proof.type_doc %} · {{ proof.type_doc.nom }}{% endif %}
       </div>
     </div>
-  </div>
-  {% if refs %}
-  <div class="card border-0 shadow-sm mt-3">
-    <div class="card-header bg-white"><h6 class="mb-0">Références liées</h6></div>
-    <div class="card-body p-0">
-      <table class="table table-hover mb-0">
-        <thead class="table-light"><tr><th>Type</th><th>ID Entité</th><th>Date</th></tr></thead>
-        <tbody>
-          {% for ref in refs %}
-          <tr><td>{{ ref.entity_type }}</td><td>{{ ref.entity_id }}</td><td>{{ ref.date_attached.strftime('%d/%m/%Y') if ref.date_attached else '-' }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('documents.download', proof_id=proof.id) }}" class="btn btn-sm btn-success"><i class="fas fa-download me-1"></i>Télécharger</a>
+
+      {% if proof.workflow_statut == 'brouillon' %}
+      <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#submitModal"><i class="fas fa-paper-plane me-1"></i>Soumettre</button>
+      {% endif %}
+
+      {% if proof.workflow_statut == 'soumis' and (proof.workflow_approbateur_id == current_user.id or (current_user.role and current_user.role.est_systeme)) %}
+      <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#approveModal"><i class="fas fa-check me-1"></i>Approuver</button>
+      <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="fas fa-times me-1"></i>Rejeter</button>
+      {% endif %}
+
+      {% if proof.workflow_statut == 'rejete' or proof.workflow_statut == 'approuve' %}
+      <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#revisionModal"><i class="fas fa-undo me-1"></i>Demander révision</button>
+      {% endif %}
+
+      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal"><i class="fas fa-edit"></i> Modifier</button>
+
+      {% if proof.workflow_statut == 'brouillon' or proof.workflow_statut == 'rejete' %}
+      <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#newVersionModal"><i class="fas fa-code-branch me-1"></i>Nouvelle version</button>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('documents.archiver', proof_id=proof.id) }}" style="display:inline"
+            onsubmit="return confirm('Archiver ce document ?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline-warning"><i class="fas fa-archive"></i></button>
+      </form>
+      <form method="POST" action="{{ url_for('documents.supprimer', proof_id=proof.id) }}" style="display:inline"
+            onsubmit="return confirm('Supprimer définitivement ?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+      </form>
+      <a href="{{ url_for('documents.gestion') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left"></i></a>
     </div>
   </div>
-  {% endif %}
+
+  <div class="row g-3">
+    <!-- Main info -->
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <table class="table table-sm table-borderless mb-0">
+            <tr><th style="width:160px">Description</th><td>{{ proof.description or '-' }}</td></tr>
+            <tr><th>Type</th><td><span class="badge bg-info">{{ proof.type }}</span></td></tr>
+            <tr><th>Catégorie</th><td>{{ proof.categorie or '-' }}</td></tr>
+            <tr><th>Dossier</th><td>{{ proof.dossier.nom if proof.dossier else '-' }}</td></tr>
+            <tr><th>Type document</th><td>{{ proof.type_doc.nom if proof.type_doc else '-' }}</td></tr>
+            <tr><th>Mots-clés</th><td>
+              {% if proof.mots_cles %}
+                {% for mot in proof.mots_cles.split(',') %}
+                <span class="badge bg-light text-dark me-1">{{ mot.strip() }}</span>
+                {% endfor %}
+              {% else %}-{% endif %}
+            </td></tr>
+            <tr><th>Numéro document</th><td>{{ proof.numero_document or '-' }}</td></tr>
+            <tr><th>Version</th><td>{{ proof.version or '1' }}</td></tr>
+            <tr><th>Taille</th><td>
+              {% if proof.taille_bytes %}
+                {% if proof.taille_bytes < 1024 %}{{ proof.taille_bytes }} o
+                {% elif proof.taille_bytes < 1048576 %}{{ (proof.taille_bytes / 1024)|round(1) }} Ko
+                {% else %}{{ (proof.taille_bytes / 1048576)|round(1) }} Mo{% endif %}
+              {% else %}-{% endif %}
+            </td></tr>
+            <tr><th>Validité</th><td>
+              {% if proof.validite %}
+                <span class="{% if proof.validite < today %}text-danger fw-medium{% endif %}">
+                  {{ proof.validite.strftime('%d/%m/%Y') }}
+                  {% if proof.validite < today %}<i class="fas fa-exclamation-triangle ms-1"></i> Expiré{% endif %}
+                </span>
+              {% else %}-{% endif %}
+            </td></tr>
+            <tr><th>Statut</th><td><span class="badge bg-{{ 'success' if proof.statut == 'ACTIF' else 'secondary' }}">{{ proof.statut }}</span></td></tr>
+            <tr><th>Uploadé par</th><td>{{ proof.uploader.prenom ~ ' ' ~ proof.uploader.nom if proof.uploader else '-' }}</td></tr>
+            <tr><th>Date d'upload</th><td>{{ proof.date_creation.strftime('%d/%m/%Y %H:%M') if proof.date_creation else '-' }}</td></tr>
+            {% if proof.date_soumission %}
+            <tr><th>Soumis le</th><td>{{ proof.date_soumission.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+            {% endif %}
+            {% if proof.date_approbation %}
+            <tr><th>Approuvé le</th><td>{{ proof.date_approbation.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+            {% endif %}
+            {% if proof.approbateur %}
+            <tr><th>Approbateur</th><td>{{ proof.approbateur.prenom ~ ' ' ~ proof.approbateur.nom }}</td></tr>
+            {% endif %}
+            {% if proof.notes %}
+            <tr><th>Notes</th><td>{{ proof.notes }}</td></tr>
+            {% endif %}
+          </table>
+        </div>
+      </div>
+
+      <!-- Version history -->
+      {% if versions|length > 1 %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-code-branch me-2 text-danger"></i>Historique des versions</h6></div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for v in versions %}
+            <div class="list-group-item d-flex justify-content-between align-items-center py-2 {% if v.id == proof.id %}list-group-item-secondary{% endif %}">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-{{ 'danger' if v.id == proof.id else 'secondary' }}">v{{ v.version or '?' }}</span>
+                <span>{{ v.nom_fichier }}</span>
+                <small class="text-muted">({{ v.date_creation.strftime('%d/%m/%Y') if v.date_creation else '' }})</small>
+              </div>
+              <div class="d-flex gap-1">
+                {% if v.id != proof.id %}
+                <a href="{{ url_for('documents.detail', proof_id=v.id) }}" class="btn btn-sm btn-outline-primary" title="Voir"><i class="fas fa-eye"></i></a>
+                {% endif %}
+                <a href="{{ url_for('documents.download', proof_id=v.id) }}" class="btn btn-sm btn-outline-success" title="Télécharger"><i class="fas fa-download"></i></a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Workflow log -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-history me-2 text-danger"></i>Journal du workflow</h6></div>
+        <div class="card-body p-0">
+          {% if workflow_logs %}
+          <div class="list-group list-group-flush">
+            {% for log in workflow_logs %}
+            <div class="list-group-item py-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                  {% set icone = {'soumis':'fa-paper-plane text-warning','approuve':'fa-check text-success','rejete':'fa-times text-danger','revision_demandee':'fa-undo text-info','archive':'fa-archive text-secondary','nouvelle_version':'fa-code-branch text-info'} %}
+                  <i class="fas {{ icone.get(log.action, 'fa-circle') }}"></i>
+                  <span class="fw-medium small">{{ log.action }}</span>
+                </div>
+                <small class="text-muted">{{ log.date_action.strftime('%d/%m/%Y %H:%M') if log.date_action else '' }}</small>
+              </div>
+              <small class="text-muted d-block mt-1">{{ log.utilisateur.prenom ~ ' ' ~ log.utilisateur.nom if log.utilisateur else '' }}</small>
+              {% if log.commentaire %}
+              <p class="mb-0 small mt-1 bg-light p-2 rounded">{{ log.commentaire }}</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center text-muted py-3"><small>Aucune activité.</small></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: References -->
+    <div class="col-lg-4">
+      {% if refs %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-link me-2 text-danger"></i>Références ({{ refs|length }})</h6></div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% for ref in refs %}
+            <li class="list-group-item py-2">
+              <small>
+                <span class="badge bg-secondary">{{ ref.entity_type }}</span>
+                #{{ ref.entity_id }}
+                <span class="text-muted ms-2">{{ ref.date_attached.strftime('%d/%m/%Y') if ref.date_attached else '' }}</span>
+              </small>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Submit Modal -->
+<div class="modal fade" id="submitModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.soumettre', proof_id=proof.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5>Soumettre pour approbation</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Approbateur <span class="text-danger">*</span></label>
+          <select name="approbateur_id" class="form-select" required>
+            <option value="">— Sélectionnez —</option>
+            {% for u in approbateurs %}
+            <option value="{{ u.id }}" {% if proof.workflow_approbateur_id == u.id %}selected{% endif %}>{{ u.prenom }} {{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Commentaire</label>
+          <textarea name="commentaire" class="form-control" rows="3" placeholder="Commentaire optionnel..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-warning"><i class="fas fa-paper-plane me-1"></i>Soumettre</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.approuver', proof_id=proof.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5>Approuver le document</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p>Confirmez-vous l'approbation de ce document ?</p>
+        <div class="mb-3">
+          <label class="form-label">Commentaire</label>
+          <textarea name="commentaire" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i>Approuver</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.rejeter', proof_id=proof.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5>Rejeter le document</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Motif du rejet <span class="text-danger">*</span></label>
+          <textarea name="commentaire" class="form-control" rows="3" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-danger"><i class="fas fa-times me-1"></i>Rejeter</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Revision Modal -->
+<div class="modal fade" id="revisionModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.demander_revision', proof_id=proof.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5>Demander une révision</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Instructions de révision <span class="text-danger">*</span></label>
+          <textarea name="commentaire" class="form-control" rows="3" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-warning"><i class="fas fa-undo me-1"></i>Demander révision</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.mettre_a_jour', proof_id=proof.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5>Modifier le document</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <input type="text" name="description" class="form-control" value="{{ proof.description or '' }}">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Dossier</label>
+            <select name="dossier_id" class="form-select">
+              <option value="">— Aucun —</option>
+              {% for d in dossiers %}
+              <option value="{{ d.id }}" {% if proof.dossier_id == d.id %}selected{% endif %}>{{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Type document</label>
+            <select name="type_document_id" class="form-select">
+              <option value="">— Aucun —</option>
+              {% for t in types_doc %}
+              <option value="{{ t.id }}" {% if proof.type_document_id == t.id %}selected{% endif %}>{{ t.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Catégorie</label>
+          <select name="categorie" class="form-select">
+            <option value="">-- Choisir --</option>
+            <option value="rapport" {{ 'selected' if proof.categorie == 'rapport' }}>Rapport</option>
+            <option value="certificat" {{ 'selected' if proof.categorie == 'certificat' }}>Certificat</option>
+            <option value="procedure" {{ 'selected' if proof.categorie == 'procedure' }}>Procédure</option>
+            <option value="registre" {{ 'selected' if proof.categorie == 'registre' }}>Registre</option>
+            <option value="formation" {{ 'selected' if proof.categorie == 'formation' }}>Formation</option>
+            <option value="audit" {{ 'selected' if proof.categorie == 'audit' }}>Audit</option>
+            <option value="facture" {{ 'selected' if proof.categorie == 'facture' }}>Facture</option>
+            <option value="autre" {{ 'selected' if proof.categorie == 'autre' }}>Autre</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Date de validité</label>
+          <input type="date" name="validite" class="form-control" value="{{ proof.validite.strftime('%Y-%m-%d') if proof.validite else '' }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Mots-clés</label>
+          <input type="text" name="mots_cles" class="form-control" value="{{ proof.mots_cles or '' }}" placeholder="mot1, mot2, mot3">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2">{{ proof.notes or '' }}</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-danger">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- New Version Modal -->
+<div class="modal fade" id="newVersionModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.nouvelle_version', proof_id=proof.id) }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5>Nouvelle version</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="text-muted small">Version actuelle : <strong>v{{ proof.version or '1' }}</strong></p>
+        <div class="mb-3">
+          <label class="form-label">Fichier <span class="text-danger">*</span></label>
+          <input type="file" name="file" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Notes de version</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Modifications apportées..."></textarea>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">Date de validité</label>
+            <input type="date" name="validite" class="form-control" value="{{ proof.validite.strftime('%Y-%m-%d') if proof.validite else '' }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Catégorie</label>
+            <select name="categorie" class="form-select">
+              <option value="">Même catégorie</option>
+              <option value="rapport">Rapport</option>
+              <option value="certificat">Certificat</option>
+              <option value="procedure">Procédure</option>
+              <option value="registre">Registre</option>
+              <option value="formation">Formation</option>
+              <option value="audit">Audit</option>
+              <option value="facture">Facture</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-info"><i class="fas fa-code-branch me-1"></i>Créer la version</button>
+      </div>
+    </form>
+  </div></div>
 </div>
 {% endblock %}

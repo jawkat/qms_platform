@@ -1,0 +1,76 @@
+{% extends 'layout.html' %}
+{% set is_landing = True %}
+{% block title %}Creer un compte{% endblock %}
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-light py-4">
+  <div class="card shadow" style="width: 520px;">
+    <div class="card-body p-4">
+      <h4 class="text-center mb-1"><i class="fas fa-shield-alt text-danger me-2"></i>QMS Platform</h4>
+      <p class="text-center text-muted small mb-4">Creer votre compte QMS Platform</p>
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Entreprise <span class="text-danger">*</span></label>
+          <input type="text" name="entreprise" class="form-control" required>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Prenom <span class="text-danger">*</span></label>
+            <input type="text" name="prenom" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Nom <span class="text-danger">*</span></label>
+            <input type="text" name="nom" class="form-control" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email <span class="text-danger">*</span></label>
+          <input type="email" name="email" class="form-control" required>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Mot de passe <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control" minlength="8" required>
+            <div class="form-text">Minimum 8 caracteres</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Confirmer mot de passe <span class="text-danger">*</span></label>
+            <input type="password" name="confirm_password" class="form-control" required>
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Pays <span class="text-danger">*</span></label>
+            <select name="pays" class="form-select">
+              <option value="Maroc">Maroc</option>
+              <option value="France">France</option>
+              <option value="Tunisie">Tunisie</option>
+              <option value="Algerie">Algerie</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Taille entreprise <span class="text-danger">*</span></label>
+            <select name="taille" class="form-select">
+              <option value="TPE">TPE</option>
+              <option value="PME" selected>PME</option>
+              <option value="ETI">ETI</option>
+              <option value="Grand Groupe">Grand Groupe</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label">Telephone</label>
+          <input type="tel" name="telephone" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-danger w-100 mb-3">Creer mon compte</button>
+        <p class="text-center text-muted small mb-0">
+          <i class="fas fa-gem me-1"></i>14 jours d'essai gratuit - Sans engagement
+        </p>
+      </form>
+      <div class="text-center mt-3">
+        <p class="text-muted">Deja un compte ? <a href="{{ url_for('users.login') }}" class="text-danger">Se connecter</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

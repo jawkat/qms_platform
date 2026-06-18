@@ -1,0 +1,31 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<p>Bonjour <strong>{{ recipient_name }}</strong>,</p>
+
+<p>Votre compte <strong>QMS Veille HSE</strong> a été créé avec succès.</p>
+
+{% if role_name %}
+<div class="info-card">
+    <p style="margin: 0;"><strong>Rôle attribué :</strong> {{ role_name }}</p>
+</div>
+{% endif %}
+
+<p>Pour activer votre compte et définir votre mot de passe, cliquez sur le bouton ci-dessous :</p>
+
+<div style="text-align: center;">
+    <a href="{{ activation_link }}" class="btn">Activer mon compte</a>
+</div>
+
+<p style="margin-top: 25px;">Une fois le mot de passe défini, vous pourrez vous connecter à votre espace :</p>
+
+<div style="text-align: center; margin-top: 10px;">
+    <a href="{{ login_link }}" style="color: #0d6efd; font-weight: bold; text-decoration: none;">{{ login_link }}</a>
+</div>
+
+<hr style="border: none; border-top: 1px solid #e9ecef; margin: 25px 0;">
+
+<p style="color: #6c757d; font-size: 13px;">Si vous n'avez pas demandé la création de ce compte, ignorez cet e-mail.</p>
+
+<p style="margin-top: 25px;">Cordialement,<br>L'équipe <strong>QMS Veille HSE</strong></p>
+{% endblock %}

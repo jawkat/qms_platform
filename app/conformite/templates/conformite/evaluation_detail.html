@@ -1,16 +1,619 @@
 {% extends 'layout.html' %}
-{% block title %}Évaluation #{{ evaluation.id }}{% endblock %}
+{% block title %}Évaluation article {{ evaluation.article.numero_article if evaluation.article else '' }}{% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <h1 class="h3 mb-4">Détail évaluation #{{ evaluation.id }}</h1>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <p><strong>Article:</strong> {{ evaluation.article.reference if evaluation.article else '-' }}</p>
-      <p><strong>Conforme:</strong> {{ evaluation.conforme }}</p>
-      <p><strong>Applicable:</strong> {{ evaluation.applicable }}</p>
-      <p><strong>Observation:</strong> {{ evaluation.observation or '-' }}</p>
-      <p><strong>Évalué le:</strong> {{ evaluation.date_evaluation.strftime('%d/%m/%Y') if evaluation.date_evaluation else '-' }}</p>
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">
+        {{ evaluation.entreprise_texte.version.texte.titre if evaluation.entreprise_texte.version and evaluation.entreprise_texte.version.texte else 'Évaluation' }}
+      </h1>
+      <p class="text-muted mb-0 small">
+        Article {{ evaluation.article.numero_article if evaluation.article else '?' }}
+        {% if evaluation.article and evaluation.article.resume_article %}
+        — {{ evaluation.article.resume_article[:100] }}
+        {% endif %}
+        <span class="mx-2">|</span>
+        v{{ evaluation.entreprise_texte.version.numero_version if evaluation.entreprise_texte.version else '-' }}
+      </p>
+    </div>
+    <div>
+      <a href="{{ url_for('conformite.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Retour</a>
+    </div>
+  </div>
+
+  <!-- Progress bar + Navigation -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="nav" value="save_prev">
+            {% if prev_evaluation %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-chevron-left"></i> Article précédent
+            </button>
+            {% else %}
+            <button class="btn btn-outline-secondary btn-sm" disabled><i class="fas fa-chevron-left"></i> Article précédent</button>
+            {% endif %}
+          </form>
+        </div>
+        <div class="col text-center">
+          <small class="text-muted">Article {{ stats.current }}/{{ stats.total }}</small>
+          <div class="progress" style="height:6px;max-width:400px;margin:2px auto 0">
+            <div class="progress-bar bg-danger" role="progressbar"
+                 style="width:{{ (stats.current / stats.total * 100) if stats.total else 0 }}%"></div>
+          </div>
+        </div>
+        <div class="col-auto">
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="nav" value="save_next">
+            {% if next_evaluation %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+              Article suivant <i class="fas fa-chevron-right"></i>
+            </button>
+            {% else %}
+            <button class="btn btn-outline-secondary btn-sm" disabled>Article suivant <i class="fas fa-chevron-right"></i></button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- Left: Main content -->
+    <div class="col-lg-8">
+
+      <!-- Article info -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Article {{ evaluation.article.numero_article if evaluation.article else '' }}</h6>
+          <div>
+            {% if evaluation.article and evaluation.article.exigence_type %}
+            <span class="badge bg-{{ 'danger' if evaluation.article.exigence_type.name in ('OBLIGATION','INTERDICTION') else 'warning' if evaluation.article.exigence_type.name == 'RECOMMANDATION' else 'info' }} me-1">
+              {{ evaluation.article.exigence_type.value }}
+            </span>
+            {% endif %}
+            {% if evaluation.article and evaluation.article.niveau_risque %}
+            <span class="badge bg-{{ 'danger' if evaluation.article.niveau_risque.name in ('CRITIQUE','ELEVE') else 'warning' if evaluation.article.niveau_risque.name == 'MOYEN' else 'secondary' }}">
+              {{ evaluation.article.niveau_risque.value }}
+            </span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body">
+          {% if evaluation.article %}
+          {% if evaluation.article.resume_article %}
+          <p class="fw-medium mb-2">{{ evaluation.article.resume_article }}</p>
+          {% endif %}
+          {% if evaluation.article.contenu %}
+          <div class="bg-light p-3 rounded small" style="max-height:300px;overflow-y:auto">
+            {{ evaluation.article.contenu }}
+          </div>
+          {% endif %}
+          {% else %}
+          <p class="text-muted mb-0">Article non disponible.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Tabs: Évaluation | Preuves | Actions | Historique -->
+      <ul class="nav nav-tabs mb-3" id="evalTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active" id="tab-evaluation" data-bs-toggle="tab" data-bs-target="#panel-evaluation" type="button" role="tab">
+            <i class="fas fa-clipboard-check me-1"></i>Évaluation
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-preuves" data-bs-toggle="tab" data-bs-target="#panel-preuves" type="button" role="tab">
+            <i class="fas fa-paperclip me-1"></i>Preuves
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-actions" data-bs-toggle="tab" data-bs-target="#panel-actions" type="button" role="tab">
+            <i class="fas fa-tasks me-1"></i>Actions
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" id="tab-historique" data-bs-toggle="tab" data-bs-target="#panel-historique" type="button" role="tab">
+            <i class="fas fa-history me-1"></i>Historique
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+
+        <!-- Panel: Évaluation -->
+        <div class="tab-pane fade show active" id="panel-evaluation" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <form method="POST" id="evalForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="btn-group mb-3 w-100" role="group">
+                  <button type="button" class="btn btn-outline-{{ 'success' if evaluation.applicable and evaluation.applicable.name == 'APPLICABLE' else 'secondary' }} eval-toolbar-btn"
+                    data-field="applicable" data-value="APPLICABLE"
+                    onclick="setApplicable(this, 'APPLICABLE')">
+                    <i class="fas fa-check-circle me-1"></i>Applicable
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'secondary' if evaluation.applicable and evaluation.applicable.name == 'NON_APPLICABLE' else 'secondary' }} eval-toolbar-btn"
+                    data-field="applicable" data-value="NON_APPLICABLE"
+                    onclick="setApplicable(this, 'NON_APPLICABLE')">
+                    <i class="fas fa-times-circle me-1"></i>Non applicable
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'info' if evaluation.applicable and evaluation.applicable.name == 'INFORMATION' else 'secondary' }} eval-toolbar-btn"
+                    data-field="applicable" data-value="INFORMATION"
+                    onclick="setApplicable(this, 'INFORMATION')">
+                    <i class="fas fa-info-circle me-1"></i>Information
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'warning' if evaluation.applicable and evaluation.applicable.name == 'A_CONFIRMER' else 'secondary' }} eval-toolbar-btn"
+                    data-field="applicable" data-value="A_CONFIRMER"
+                    onclick="setApplicable(this, 'A_CONFIRMER')">
+                    <i class="fas fa-question-circle me-1"></i>À confirmer
+                  </button>
+                </div>
+
+                <div class="btn-group mb-3 w-100" role="group" id="conformeGroup">
+                  <button type="button" class="btn btn-outline-{{ 'success' if evaluation.conforme and evaluation.conforme.name == 'CONFORME' else 'secondary' }} eval-toolbar-btn"
+                    data-field="conforme" data-value="CONFORME"
+                    onclick="setConforme(this, 'CONFORME')">
+                    <i class="fas fa-thumbs-up me-1"></i>Conforme
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'danger' if evaluation.conforme and evaluation.conforme.name == 'NON_CONFORME' else 'secondary' }} eval-toolbar-btn"
+                    data-field="conforme" data-value="NON_CONFORME"
+                    onclick="setConforme(this, 'NON_CONFORME')">
+                    <i class="fas fa-thumbs-down me-1"></i>Non conforme
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'warning' if evaluation.conforme and evaluation.conforme.name == 'EN_COURS' else 'secondary' }} eval-toolbar-btn"
+                    data-field="conforme" data-value="EN_COURS"
+                    onclick="setConforme(this, 'EN_COURS')">
+                    <i class="fas fa-spinner me-1"></i>En cours
+                  </button>
+                </div>
+
+                <input type="hidden" name="applicable" id="inputApplicable" value="{{ evaluation.applicable.name if evaluation.applicable else '' }}">
+                <input type="hidden" name="conforme" id="inputConforme" value="{{ evaluation.conforme.name if evaluation.conforme else '' }}">
+
+                <div class="mb-3">
+                  <label class="form-label">Observation</label>
+                  <textarea name="observation" class="form-control" rows="3" id="inputObservation">{{ evaluation.observation or '' }}</textarea>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                  <small class="text-muted" id="saveStatus">
+                    {% if evaluation.date_evaluation %}
+                    <i class="fas fa-check text-success me-1"></i>Évalué le {{ evaluation.date_evaluation.strftime('%d/%m/%Y %H:%M') }}
+                    {% else %}
+                    <i class="fas fa-clock me-1"></i>Non évalué
+                    {% endif %}
+                  </small>
+                  <div>
+                    <button type="submit" class="btn btn-danger px-4" name="nav" value="">
+                      <i class="fas fa-save me-1"></i>Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Preuves -->
+        <div class="tab-pane fade" id="panel-preuves" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+              <h6 class="mb-0"><i class="fas fa-paperclip me-2 text-danger"></i>Preuves attachées</h6>
+              <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#attachProofModal">
+                <i class="fas fa-plus"></i> Attacher
+              </button>
+            </div>
+            <div class="card-body p-0" id="proofList">
+              <div class="text-center text-muted py-4"><small>Chargement...</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Actions -->
+        <div class="tab-pane fade" id="panel-actions" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+              <h6 class="mb-0"><i class="fas fa-tasks me-2 text-danger"></i>Actions correctives</h6>
+              <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addActionModal">
+                <i class="fas fa-plus"></i> Nouvelle action
+              </button>
+            </div>
+            <div class="card-body p-0" id="actionList">
+              <div class="text-center text-muted py-4"><small>Chargement...</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Historique -->
+        <div class="tab-pane fade" id="panel-historique" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0"><i class="fas fa-history me-2 text-danger"></i>Historique des modifications</h6>
+            </div>
+            <div class="card-body p-0">
+              {% if evaluation.historique %}
+              <div class="list-group list-group-flush">
+                {% for h in evaluation.historique|sort(attribute='date_modification', reverse=True) %}
+                <div class="list-group-item py-2">
+                  <div class="d-flex justify-content-between">
+                    <small class="text-muted">{{ h.date_modification.strftime('%d/%m/%Y %H:%M') if h.date_modification else '-' }}</small>
+                    <small class="text-muted">{{ h.modificateur.prenom if h.modificateur else '' }} {{ h.modificateur.nom if h.modificateur else '' }}</small>
+                  </div>
+                  <p class="mb-0 small mt-1">
+                    {% if h.ancienne_valeur and h.nouvelle_valeur %}
+                    <span class="text-danger"><s>{{ h.ancienne_valeur.get('conforme','') or h.ancienne_valeur.get('applicable','') or h.ancienne_valeur.get('observation','') or '?' }}</s></span>
+                    →
+                    <span class="text-success">{{ h.nouvelle_valeur.get('conforme','') or h.nouvelle_valeur.get('applicable','') or h.nouvelle_valeur.get('observation','') or '?' }}</span>
+                    {% else %}
+                    Modification enregistrée
+                    {% endif %}
+                  </p>
+                  {% if h.commentaire %}
+                  <p class="mb-0 small text-muted mt-1"><i>{{ h.commentaire }}</i></p>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="text-center text-muted py-4"><small>Aucun historique.</small></div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right: Mini-map sidebar -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-2">
+          <h6 class="mb-0"><i class="fas fa-list me-2 text-danger"></i>Articles
+            <small class="text-muted">({{ stats.evalue }}/{{ stats.total }} évalués)</small>
+          </h6>
+        </div>
+        <div class="card-body p-0" style="max-height:600px;overflow-y:auto">
+          <div class="list-group list-group-flush">
+            {% for e in all_evals %}
+            <a href="{{ url_for('conformite.evaluation_detail', evaluation_id=e.id) }}"
+               class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2
+                      {% if e.id == evaluation.id %}active{% endif %}">
+              <span class="badge bg-secondary rounded-pill" style="min-width:28px">{{ e.article.numero_article if e.article else '?' }}</span>
+              <span class="small flex-grow-1 text-truncate">
+                {{ e.article.resume_article[:60] if e.article and e.article.resume_article else e.article.contenu[:60] if e.article and e.article.contenu else 'Article' }}
+              </span>
+              {% if e.date_evaluation %}
+                {% if e.conforme and e.conforme.name == 'CONFORME' %}
+                <span class="badge bg-success" title="Conforme"><i class="fas fa-check"></i></span>
+                {% elif e.conforme and e.conforme.name == 'NON_CONFORME' %}
+                <span class="badge bg-danger" title="Non conforme"><i class="fas fa-times"></i></span>
+                {% elif e.applicable and e.applicable.name == 'NON_APPLICABLE' %}
+                <span class="badge bg-secondary" title="Non applicable"><i class="fas fa-ban"></i></span>
+                {% else %}
+                <span class="badge bg-warning text-dark" title="En cours"><i class="fas fa-spinner"></i></span>
+                {% endif %}
+              {% else %}
+              <span class="badge bg-light text-muted" title="Non évalué"><i class="far fa-circle"></i></span>
+              {% endif %}
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats card -->
+      <div class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-white py-2">
+          <h6 class="mb-0"><i class="fas fa-chart-pie me-2 text-danger"></i>Statistiques</h6>
+        </div>
+        <div class="card-body py-2">
+          <div class="row g-1 text-center small">
+            <div class="col-6 mb-2">
+              <div class="text-success fw-medium">{{ stats.conforme }}</div>
+              <div class="text-muted">Conforme</div>
+            </div>
+            <div class="col-6 mb-2">
+              <div class="text-danger fw-medium">{{ stats.non_conforme }}</div>
+              <div class="text-muted">Non conforme</div>
+            </div>
+            <div class="col-6">
+              <div class="text-secondary fw-medium">{{ stats.non_applicable }}</div>
+              <div class="text-muted">Non applicable</div>
+            </div>
+            <div class="col-6">
+              <div class="fw-medium">{{ stats.total - stats.evalue }}</div>
+              <div class="text-muted">Non évalué</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Action Modal -->
+<div class="modal fade" id="addActionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nouvelle action corrective</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Description <span class="text-danger">*</span></label>
+          <textarea id="actionDescription" class="form-control" rows="3" required></textarea>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Type</label>
+            <select id="actionType" class="form-select">
+              <option value="corrective">Corrective</option>
+              <option value="preventive">Préventive</option>
+              <option value="amelioration">Amélioration</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Priorité</label>
+            <select id="actionPriorite" class="form-select">
+              <option value="haute">Haute</option>
+              <option value="moyenne" selected>Moyenne</option>
+              <option value="basse">Basse</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Responsable</label>
+            <select id="actionResponsable" class="form-select">
+              <option value="">— Non assigné —</option>
+              {% for u in responsables %}
+              <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Date échéance</label>
+            <input type="date" id="actionEcheance" class="form-control">
+          </div>
+        </div>
+
+        <hr>
+        <h6 class="text-muted">Analyse des causes (RCA — 5 Pourquoi)</h6>
+        <div class="mb-2">
+          <label class="form-label small">Pourquoi 1</label>
+          <input type="text" id="rca1" class="form-control form-control-sm" placeholder="Pourquoi le problème est-il survenu ?">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Pourquoi 2</label>
+          <input type="text" id="rca2" class="form-control form-control-sm">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Pourquoi 3</label>
+          <input type="text" id="rca3" class="form-control form-control-sm">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Pourquoi 4</label>
+          <input type="text" id="rca4" class="form-control form-control-sm">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Pourquoi 5</label>
+          <input type="text" id="rca5" class="form-control form-control-sm">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">Conclusion RCA</label>
+          <textarea id="rcaConclusion" class="form-control form-control-sm" rows="2"></textarea>
+        </div>
+
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="actionRecurrente" onchange="document.getElementById('frequenceGroup').style.display=this.checked?'block':'none'">
+          <label class="form-check-label" for="actionRecurrente">Action récurrente</label>
+        </div>
+        <div id="frequenceGroup" style="display:none">
+          <label class="form-label small">Fréquence</label>
+          <select id="actionFrequence" class="form-select form-select-sm">
+            <option value="mensuelle">Mensuelle</option>
+            <option value="trimestrielle">Trimestrielle</option>
+            <option value="semestrielle">Semestrielle</option>
+            <option value="annuelle">Annuelle</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" id="btnSaveAction">Créer l'action</button>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- Attach Proof Modal -->
+<div class="modal fade" id="attachProofModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Attacher une preuve</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <select id="proofSelect" class="form-select" size="10">
+          <option value="" disabled>Chargement...</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" id="btnAttachProof">Attacher</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// === Toolbar buttons ===
+function resetGroup(containerId) {
+  document.querySelectorAll('#' + containerId + ' .eval-toolbar-btn').forEach(function(btn) {
+    btn.className = btn.className.replace(/btn-outline-\w+/g, 'btn-outline-secondary');
+  });
+}
+
+function setApplicable(btn, value) {
+  resetGroup('panel-evaluation');
+  document.querySelectorAll('#panel-evaluation .btn-group:first-child .eval-toolbar-btn').forEach(function(b) {
+    b.className = b.className.replace(/btn-outline-\w+/g, 'btn-outline-secondary');
+  });
+  var map = {APPLICABLE:'success', NON_APPLICABLE:'secondary', INFORMATION:'info', A_CONFIRMER:'warning'};
+  btn.className = btn.className.replace(/btn-outline-\w+/g, 'btn-outline-' + (map[value] || 'secondary'));
+  document.getElementById('inputApplicable').value = value;
+  autoSavePartial();
+}
+
+function setConforme(btn, value) {
+  resetGroup('conformeGroup');
+  document.querySelectorAll('#conformeGroup .eval-toolbar-btn').forEach(function(b) {
+    b.className = b.className.replace(/btn-outline-\w+/g, 'btn-outline-secondary');
+  });
+  var map = {CONFORME:'success', NON_CONFORME:'danger', EN_COURS:'warning'};
+  btn.className = btn.className.replace(/btn-outline-\w+/g, 'btn-outline-' + (map[value] || 'secondary'));
+  document.getElementById('inputConforme').value = value;
+  autoSavePartial();
+}
+
+function autoSavePartial() {
+  var form = document.getElementById('evalForm');
+  var formData = new FormData(form);
+  var status = document.getElementById('saveStatus');
+  status.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement...';
+  fetch(window.location.href, {
+    method: 'POST',
+    body: new URLSearchParams(formData)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      status.innerHTML = '<i class="fas fa-check text-success me-1"></i>Sauvegardé';
+    } else {
+      status.innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Erreur';
+    }
+  }).catch(function() {
+    status.innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Erreur réseau';
+  });
+}
+
+// === Load Proofs ===
+function loadProofs() {
+  var container = document.getElementById('proofList');
+  fetch('/conformite/evaluation/{{ evaluation.id }}/proof/liste').then(function(r) { return r.json(); }).then(function(refs) {
+    if (!refs.length) {
+      container.innerHTML = '<div class="text-center text-muted py-4"><small>Aucune preuve attachée.</small></div>';
+      return;
+    }
+    var html = '<div class="list-group list-group-flush">';
+    refs.forEach(function(r) {
+      html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2">' +
+        '<span><i class="fas fa-file me-2 text-muted"></i>' + (r.nom_fichier || 'Document #' + r.id) + '</span>' +
+        '<small class="text-muted">' + (r.date_attached ? new Date(r.date_attached).toLocaleDateString('fr-FR') : '') + '</small>' +
+        '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function() {
+    container.innerHTML = '<div class="text-center text-muted py-4"><small>Erreur de chargement.</small></div>';
+  });
+}
+loadProofs();
+
+// === Load Actions ===
+function loadActions() {
+  var container = document.getElementById('actionList');
+  fetch('/conformite/evaluation/{{ evaluation.id }}/actions').then(function(r) { return r.json(); }).then(function(actions) {
+    if (!actions.length) {
+      container.innerHTML = '<div class="text-center text-muted py-4"><small>Aucune action corrective.</small></div>';
+      return;
+    }
+    var html = '<div class="list-group list-group-flush">';
+    actions.forEach(function(a) {
+      var priorityColor = {haute:'danger', moyenne:'warning', basse:'secondary'};
+      var statusColor = {REALISE:'success', SOLDE:'success', EN_COURS:'warning', A_FAIRE:'secondary', ANNULE:'dark'};
+      html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2">' +
+        '<div class="d-flex align-items-center gap-2">' +
+        '<span class="badge bg-' + (priorityColor[a.priorite] || 'secondary') + '">' + a.priorite + '</span>' +
+        '<span class="small">' + (a.description ? a.description.substring(0, 100) : '') + '</span>' +
+        '</div>' +
+        '<span class="badge bg-' + (statusColor[a.statut] || 'secondary') + '">' + a.statut + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function() {
+    container.innerHTML = '<div class="text-center text-muted py-4"><small>Erreur de chargement.</small></div>';
+  });
+}
+loadActions();
+
+// === Save Action ===
+document.getElementById('btnSaveAction').addEventListener('click', function() {
+  var desc = document.getElementById('actionDescription').value;
+  if (!desc.trim()) { alert('Veuillez saisir une description.'); return; }
+  var formData = new URLSearchParams();
+  formData.append('description', desc);
+  formData.append('type_action', document.getElementById('actionType').value);
+  formData.append('priorite', document.getElementById('actionPriorite').value);
+  formData.append('responsable_id', document.getElementById('actionResponsable').value);
+  formData.append('date_echeance', document.getElementById('actionEcheance').value);
+  formData.append('rca_pourquoi1', document.getElementById('rca1').value);
+  formData.append('rca_pourquoi2', document.getElementById('rca2').value);
+  formData.append('rca_pourquoi3', document.getElementById('rca3').value);
+  formData.append('rca_pourquoi4', document.getElementById('rca4').value);
+  formData.append('rca_pourquoi5', document.getElementById('rca5').value);
+  formData.append('rca_conclusion', document.getElementById('rcaConclusion').value);
+  formData.append('est_recurrente', document.getElementById('actionRecurrente').checked ? '1' : '0');
+  formData.append('frequence', document.getElementById('actionFrequence').value);
+
+  fetch('/conformite/evaluation/{{ evaluation.id }}/action/add', {
+    method: 'POST',
+    body: formData
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      var modal = bootstrap.Modal.getInstance(document.getElementById('addActionModal'));
+      if (modal) modal.hide();
+      loadActions();
+    }
+  });
+});
+
+// === Attach Proof ===
+document.getElementById('btnAttachProof').addEventListener('click', function() {
+  var sel = document.getElementById('proofSelect');
+  var proofId = sel.value;
+  if (!proofId || !proofId.startsWith('p')) return;
+  fetch('/conformite/evaluation/{{ evaluation.id }}/proof/attach', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({proof_id: parseInt(proofId.slice(1))})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      var modal = bootstrap.Modal.getInstance(document.getElementById('attachProofModal'));
+      if (modal) modal.hide();
+      loadProofs();
+    }
+  });
+});
+
+document.getElementById('attachProofModal').addEventListener('show.bs.modal', function() {
+  var sel = document.getElementById('proofSelect');
+  sel.innerHTML = '<option value="" disabled>Chargement...</option>';
+  fetch('/documents/api/actives').then(function(r) { return r.json(); }).then(function(proofs) {
+    sel.innerHTML = proofs.length
+      ? proofs.map(function(p) { return '<option value="p' + p.id + '">' + (p.nom_fichier || '') + (p.description ? ' — ' + p.description : '') + '</option>'; }).join('')
+      : '<option value="" disabled>Aucun document disponible.</option>';
+  });
+});
+</script>
 {% endblock %}

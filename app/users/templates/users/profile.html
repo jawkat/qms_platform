@@ -1,0 +1,47 @@
+{% extends 'layout.html' %}
+{% block title %}Mon Profil{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Mon Profil</h1>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Informations</h5>
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Nom</dt>
+            <dd class="col-sm-8">{{ current_user.nom }}</dd>
+            <dt class="col-sm-4">Prénom</dt>
+            <dd class="col-sm-8">{{ current_user.prenom }}</dd>
+            <dt class="col-sm-4">Email</dt>
+            <dd class="col-sm-8">{{ current_user.email }}</dd>
+            <dt class="col-sm-4">Rôle</dt>
+            <dd class="col-sm-8">{{ current_user.role.nom if current_user.role else '-' }}</dd>
+            <dt class="col-sm-4">Entreprise</dt>
+            <dd class="col-sm-8">{{ current_user.entreprise.nom if current_user.entreprise else '-' }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Modifier le profil</h5>
+          <form method="POST">
+            <div class="mb-3">
+              <label class="form-label">Prénom</label>
+              <input type="text" name="prenom" class="form-control" value="{{ current_user.prenom }}" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nom</label>
+              <input type="text" name="nom" class="form-control" value="{{ current_user.nom }}" required>
+            </div>
+            <button type="submit" class="btn btn-danger">Enregistrer</button>
+            <a href="{{ url_for('users.change_password') }}" class="btn btn-outline-secondary">Changer le mot de passe</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

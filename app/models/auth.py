@@ -53,6 +53,7 @@ class Utilisateur(UserMixin, db.Model):
     actif = db.Column(db.Boolean, default=True)
     role_id = db.Column(db.Integer, db.ForeignKey('role.id'))
     entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'))
+    telephone = db.Column(db.String(20))
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     dernier_acces = db.Column(db.DateTime)
 

@@ -1,0 +1,21 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<p><strong>Nouvelle réservation de démonstration</strong></p>
+
+<div class="info-card">
+    <p style="margin: 0;"><strong>Contact :</strong> {{ creneau.nom_contact }}</p>
+    <p style="margin: 0;"><strong>Email :</strong> {{ creneau.email_contact }}</p>
+    {% if creneau.entreprise %}
+    <p style="margin: 0;"><strong>Entreprise :</strong> {{ creneau.entreprise }}</p>
+    {% endif %}
+    <p style="margin: 0;"><strong>Créneau :</strong> {{ creneau.date_heure_debut.strftime('%d/%m/%Y à %H:%M') }}</p>
+    {% if creneau.lien_visio %}
+    <p style="margin: 5px 0 0;"><strong>Visio :</strong> <a href="{{ creneau.lien_visio }}" style="color:#e63946;">{{ creneau.lien_visio }}</a></p>
+    {% endif %}
+</div>
+
+<div style="text-align: center;">
+    <a href="{{ admin_url }}" class="btn">Voir dans l'admin</a>
+</div>
+{% endblock %}

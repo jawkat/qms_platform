@@ -1,0 +1,88 @@
+{% extends 'layout.html' %}
+{% block title %}Indicateur - {{ indicateur.nom }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('indicateurs.index') }}" class="btn btn-light me-3"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <h1 class="h3 mb-1"><i class="fas fa-chart-bar me-2"></i>{{ indicateur.nom }}</h1>
+      <p class="text-muted small mb-0">{{ indicateur.description or '' }}</p>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small mb-1">Période</div>
+          <div class="fw-semibold">{{ indicateur.periode or '-' }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small mb-1">Formule</div>
+          <div class="fw-semibold small">{{ indicateur.formule or '-' }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small mb-1">Valeur actuelle</div>
+          <div class="fw-semibold">
+            {% if valeurs %}{{ valeurs[0].valeur }}{% else %}-{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small mb-1">Calcul auto</div>
+          <div class="fw-semibold">
+            {% if indicateur.calcul_auto %}
+            <span class="text-success"><i class="fas fa-check"></i> Oui</span>
+            {% else %}
+            <span class="text-muted"><i class="fas fa-times"></i> Non</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h5 class="mb-0"><i class="fas fa-list me-2"></i>Historique des valeurs</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Valeur</th>
+              <th>Entreprise</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in valeurs %}
+            <tr>
+              <td>{{ v.date_calcul.strftime('%d/%m/%Y') if v.date_calcul else '-' }}</td>
+              <td class="fw-semibold">{{ v.valeur }}</td>
+              <td>{{ v.entreprise.nom if v.entreprise else '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">Aucune valeur enregistrée.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -2,35 +2,258 @@
 {% block title %}Action #{{ action.id }}{% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Action #{{ action.id }}</h1>
-    <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-secondary">Retour</a>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Action #{{ action.id }}</h1>
+      <p class="text-muted mb-0">Créée le {{ action.date_creation.strftime('%d/%m/%Y %H:%M') if action.date_creation else '-' }}</p>
+    </div>
+    <div class="d-flex gap-2">
+      <form method="POST" action="{{ url_for('actions.delete_action', action_id=action.id) }}"
+            onsubmit="return confirm('Supprimer cette action ?')">
+        <button class="btn btn-outline-danger"><i class="fas fa-trash me-1"></i>Supprimer</button>
+      </form>
+      <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-secondary">Retour</a>
+    </div>
   </div>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <p><strong>Description:</strong> {{ action.description }}</p>
-      <p><strong>Statut:</strong> <span class="badge bg-secondary">{{ action.statut_label }}</span></p>
-      <p><strong>Priorité:</strong> {{ action.priorite }}</p>
-      <p><strong>Responsable:</strong> {{ action.responsable.prenom ~ ' ' ~ action.responsable.nom if action.responsable else '-' }}</p>
-      <p><strong>Échéance:</strong> {{ action.date_echeance.strftime('%d/%m/%Y') if action.date_echeance else '-' }}</p>
-      <p><strong>Cause:</strong> {{ action.cause_identifiee or '-' }}</p>
-      {% if action.rca_pourquoi1 %}
-      <hr><h6>Analyse 5 Pourquoi</h6>
-      <ol>
-        <li>{{ action.rca_pourquoi1 }}</li>
-        <li>{{ action.rca_pourquoi2 }}</li>
-        <li>{{ action.rca_pourquoi3 }}</li>
-        <li>{{ action.rca_pourquoi4 }}</li>
-        <li>{{ action.rca_pourquoi5 }}</li>
-      </ol>
-      <p><strong>Conclusion:</strong> {{ action.rca_conclusion }}</p>
-      {% endif %}
-      {% if action.efficacite is not none %}
-      <hr><h6>Évaluation d'efficacité</h6>
-      <p><strong>Note:</strong> {{ action.efficacite }}/10</p>
-      <p><strong>Commentaire:</strong> {{ action.commentaire_efficacite or '-' }}</p>
-      {% endif %}
+
+  <form method="POST" id="mainForm">
+  <div class="row g-3">
+
+    <div class="col-lg-8">
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Informations générales</h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3" required>{{ action.description }}</textarea>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Type</label>
+              <select name="type_action" class="form-select">
+                <option value="corrective" {% if action.type_action == 'corrective' %}selected{% endif %}>Corrective</option>
+                <option value="preventive" {% if action.type_action == 'preventive' %}selected{% endif %}>Préventive</option>
+                <option value="amelioration" {% if action.type_action == 'amelioration' %}selected{% endif %}>Amélioration</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Priorité</label>
+              <select name="priorite" class="form-select">
+                <option value="haute" {% if action.priorite == 'haute' %}selected{% endif %}>Haute</option>
+                <option value="moyenne" {% if action.priorite == 'moyenne' %}selected{% endif %}>Moyenne</option>
+                <option value="basse" {% if action.priorite == 'basse' %}selected{% endif %}>Basse</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Statut</label>
+              <select name="statut" class="form-select statut-select">
+                {% for k, v in [('A_FAIRE','À faire'),('EN_COURS','En cours'),('REALISE','Réalisé'),('SOLDE','Soldé'),('ANNULE','Annulé')] %}
+                <option value="{{ k }}" {% if action.statut == k %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Responsable</label>
+              <select name="responsable_id" class="form-select">
+                <option value="">-- Non assigné --</option>
+                {% for u in responsables %}
+                <option value="{{ u.id }}" {% if action.responsable_id == u.id %}selected{% endif %}>{{ u.prenom }} {{ u.nom }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Date échéance</label>
+              <input type="date" name="date_echeance" class="form-control"
+                     value="{{ action.date_echeance.strftime('%Y-%m-%d') if action.date_echeance else '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Date réalisation</label>
+              <input type="date" class="form-control" value="{{ action.date_realisation.strftime('%Y-%m-%d') if action.date_realisation else '' }}" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Cause identifiée</label>
+              <input type="text" name="cause_identifiee" class="form-control" value="{{ action.cause_identifiee or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-sitemap me-2 text-danger"></i>Analyse des causes racines (5 Pourquoi)</h6>
+        </div>
+        <div class="card-body">
+          {% for i in range(1,6) %}
+          <div class="mb-2">
+            <label class="form-label small">Pourquoi {{ i }}{% if i == 1 %} (cause immédiate){% endif %}</label>
+            <input type="text" name="rca_pourquoi{{ i }}" class="form-control form-control-sm"
+                   value="{{ action['rca_pourquoi' ~ i] or '' }}">
+          </div>
+          {% endfor %}
+          <div class="mb-2">
+            <label class="form-label small">Conclusion</label>
+            <textarea name="rca_conclusion" class="form-control" rows="2">{{ action.rca_conclusion or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-check-circle me-2 text-danger"></i>Évaluation d'efficacité</h6>
+          <span class="badge bg-{{ 'success' if action.efficacite and action.efficacite >= 7 else 'warning' if action.efficacite else 'secondary' }}">
+            {{ action.efficacite or 'Non évalué' }}/10
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Note /10</label>
+              <input type="number" name="efficacite" class="form-control" min="0" max="10" step="0.5"
+                     value="{{ action.efficacite if action.efficacite is not none else '' }}">
+            </div>
+            <div class="col-md-9">
+              <label class="form-label">Critères d'évaluation</label>
+              <input type="text" name="critere_efficacite" class="form-control" value="{{ action.critere_efficacite or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Commentaire</label>
+              <textarea name="commentaire_efficacite" class="form-control" rows="2">{{ action.commentaire_efficacite or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-lg-4">
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-tags me-2 text-danger"></i>Récurrence</h6></div>
+        <div class="card-body">
+          <div class="form-check mb-2">
+            <input type="checkbox" name="est_recurrente" class="form-check-input" id="estRec"
+                   {% if action.est_recurrente %}checked{% endif %}>
+            <label class="form-check-label" for="estRec">Action récurrente</label>
+          </div>
+          <div class="mb-0">
+            <label class="form-label small">Fréquence</label>
+            <select name="frequence" class="form-select form-select-sm">
+              <option value="">--</option>
+              <option value="quotidienne" {% if action.frequence == 'quotidienne' %}selected{% endif %}>Quotidienne</option>
+              <option value="hebdomadaire" {% if action.frequence == 'hebdomadaire' %}selected{% endif %}>Hebdomadaire</option>
+              <option value="mensuelle" {% if action.frequence == 'mensuelle' %}selected{% endif %}>Mensuelle</option>
+              <option value="trimestrielle" {% if action.frequence == 'trimestrielle' %}selected{% endif %}>Trimestrielle</option>
+              <option value="annuelle" {% if action.frequence == 'annuelle' %}selected{% endif %}>Annuelle</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-paperclip me-2 text-danger"></i>Preuves</h6>
+          <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#attachProofModal">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+        <div class="card-body p-0" id="proofList">
+          <div class="text-center text-muted py-3"><small>Chargement...</small></div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-history me-2 text-danger"></i>Source</h6></div>
+        <div class="card-body">
+          {% if action.source_type %}
+          <p class="mb-1"><strong>Type:</strong> {{ action.source_type|replace('_',' ')|capitalize }}</p>
+          <p class="mb-0"><strong>ID source:</strong> #{{ action.source_id }}</p>
+          {% else %}
+          <p class="text-muted mb-0">Action créée manuellement</p>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mb-4">
+    <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-secondary">Retour à la liste</a>
+    <button type="submit" class="btn btn-danger px-4">Enregistrer</button>
+  </div>
+  </form>
+</div>
+
+<div class="modal fade" id="attachProofModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Attacher une preuve</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <select id="proofSelect" class="form-select" size="10">
+          <option value="" disabled>Sélectionnez un document...</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" id="btnAttachProof">Attacher</button>
+      </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadProofs() {
+  fetch('/actions/{{ action.id }}/proof/liste').then(r => r.json()).then(refs => {
+    const container = document.getElementById('proofList');
+    if (!refs.length) {
+      container.innerHTML = '<div class="text-center text-muted py-3"><small>Aucune preuve attachée.</small></div>';
+      return;
+    }
+    container.innerHTML = '<div class="list-group list-group-flush">' +
+      refs.map(r => `<div class="list-group-item d-flex justify-content-between align-items-center py-2">
+        <span><i class="fas fa-file me-2 text-muted"></i>${r.nom_fichier}</span>
+        <button class="btn btn-sm btn-outline-danger detach-proof" data-ref-id="${r.id}" title="Détacher">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>`).join('') + '</div>';
+    document.querySelectorAll('.detach-proof').forEach(btn => {
+      btn.addEventListener('click', function() {
+        fetch('/actions/{{ action.id }}/proof/detach/' + this.dataset.refId, {method: 'POST'})
+          .then(() => loadProofs());
+      });
+    });
+  });
+}
+loadProofs();
+
+document.getElementById('btnAttachProof').addEventListener('click', function() {
+  const sel = document.getElementById('proofSelect');
+  const proofId = sel.value;
+  if (!proofId || !proofId.startsWith('p')) return;
+  fetch('/actions/{{ action.id }}/proof/attach', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({proof_id: parseInt(proofId.slice(1))})
+  }).then(r => r.json()).then(d => {
+    if (d.success) { loadProofs(); bootstrap.Modal.getInstance(document.getElementById('attachProofModal')).hide(); }
+  });
+});
+
+document.getElementById('attachProofModal').addEventListener('show.bs.modal', function() {
+  const sel = document.getElementById('proofSelect');
+  sel.innerHTML = '<option value="" disabled>Chargement...</option>';
+  fetch('/documents/api/actives').then(r => r.json()).then(proofs => {
+    sel.innerHTML = proofs.length ? proofs.map(p =>
+      `<option value="p${p.id}">${p.nom_fichier} ${p.description ? '— ' + p.description : ''}</option>`
+    ).join('') : '<option value="" disabled>Aucun document disponible.</option>';
+  });
+});
+</script>
 {% endblock %}

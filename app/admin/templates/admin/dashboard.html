@@ -1,3 +1,153 @@
 {% extends 'layout.html' %}
-{% block title %}Administration{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Administration système</h1><p class="text-muted">Tableau de bord administrateur.</p></div>{% endblock %}
+{% block title %}Administration - Tableau de bord{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4"><i class="fas fa-crown me-2"></i>Administration système</h1>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">Entreprises</h6>
+              <h2 class="mb-0">{{ stats.entreprises }}</h2>
+            </div>
+            <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+              <i class="fas fa-building text-primary fa-lg"></i>
+            </div>
+          </div>
+          <a href="{{ url_for('admin.entreprises') }}" class="stretched-link"></a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">Utilisateurs</h6>
+              <h2 class="mb-0">{{ stats.utilisateurs }}</h2>
+            </div>
+            <div class="rounded-circle bg-success bg-opacity-10 p-3">
+              <i class="fas fa-users text-success fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">Actions en cours</h6>
+              <h2 class="mb-0">{{ stats.actions_en_cours }}</h2>
+            </div>
+            <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+              <i class="fas fa-tasks text-warning fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">Documents actifs</h6>
+              <h2 class="mb-0">{{ stats.documents_actifs }}</h2>
+            </div>
+            <div class="rounded-circle bg-info bg-opacity-10 p-3">
+              <i class="fas fa-file-alt text-info fa-lg"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Dernières entrées de sécurité</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>IP</th>
+                  <th>Détails</th>
+                  <th>Résolu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in logs %}
+                <tr>
+                  <td class="text-nowrap">{{ log.date_action.strftime('%d/%m/%Y %H:%M') if log.date_action else '-' }}</td>
+                  <td><span class="badge bg-secondary">{{ log.type_action }}</span></td>
+                  <td><code>{{ log.adresse_ip or '-' }}</code></td>
+                  <td class="text-truncate" style="max-width:250px">{{ log.details or '-' }}</td>
+                  <td>
+                    {% if log.resolu %}
+                    <span class="badge bg-success">Oui</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">Non</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted py-3">Aucune entrée de sécurité.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% if logs %}
+        <div class="card-footer bg-white text-end">
+          <a href="{{ url_for('admin.securite') }}" class="btn btn-sm btn-outline-secondary">Voir tout</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
+        </div>
+        <div class="list-group list-group-flush">
+          <a href="{{ url_for('admin.entreprises') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <i class="fas fa-building me-3 text-primary"></i>
+            <span>Gérer les entreprises</span>
+          </a>
+          <a href="{{ url_for('admin.roles') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <i class="fas fa-user-tag me-3 text-success"></i>
+            <span>Gérer les rôles et permissions</span>
+          </a>
+          <a href="{{ url_for('admin.securite') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <i class="fas fa-shield-alt me-3 text-warning"></i>
+            <span>Journal de sécurité</span>
+          </a>
+          <a href="{{ url_for('admin.notifications') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <i class="fas fa-bell me-3 text-info"></i>
+            <span>Notifications système</span>
+          </a>
+          <a href="{{ url_for('admin.plans') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <i class="fas fa-credit-card me-3 text-danger"></i>
+            <span>Plans d'abonnement</span>
+          </a>
+          <a href="{{ url_for('admin.backups') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <i class="fas fa-database me-3 text-secondary"></i>
+            <span>Sauvegardes</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

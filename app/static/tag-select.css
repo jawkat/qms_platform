@@ -1,0 +1,208 @@
+/* Tag Select Component - Modern Multi-select UI */
+/* Harmonized with design_harmony.css token system */
+
+.tag-select-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.tag-select-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  min-height: 20px;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #f0f7f6;
+  color: var(--ds-brand-strong);
+  border: 1px solid rgba(15, 139, 117, 0.2);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  animation: tag-pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes tag-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.tag-close {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 0.4rem;
+  color: var(--ds-brand);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.tag-close:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  color: var(--ds-danger);
+}
+
+.tag-select-input {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: #fff;
+  border: 1px solid #ccd9df;
+  border-radius: var(--ds-radius-sm);
+  padding: 0.45rem 0.75rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: text;
+}
+
+.tag-select-input:focus-within {
+  border-color: var(--ds-brand);
+  box-shadow: 0 0 0 0.18rem rgba(15, 139, 117, 0.15);
+}
+
+.tag-select-search {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex-grow: 1;
+  font-size: 0.88rem;
+  color: var(--ds-ink);
+  min-width: 120px;
+}
+
+.tag-select-icon {
+  margin-left: 0.5rem;
+  color: #8da2af;
+  font-size: 0.75rem;
+  transition: transform 0.3s;
+}
+
+.tag-select-wrapper.open .tag-select-icon {
+  transform: rotate(180deg);
+}
+
+.tag-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #d6e1e6;
+  border-radius: var(--ds-radius-sm);
+  margin-top: 4px;
+  box-shadow: var(--ds-shadow);
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: none;
+  animation: dropdown-slide 0.2s ease-out;
+}
+
+.tag-select-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+.tag-select-dropdown::-webkit-scrollbar-thumb {
+  background: #c5d3d9;
+  border-radius: 4px;
+}
+.tag-select-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes dropdown-slide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tag-select-dropdown.show {
+  display: block;
+}
+
+.tag-select-options {
+  padding: 0.3rem;
+}
+
+.tag-select-option {
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+  font-size: 0.88rem;
+  color: #34495e;
+  display: flex;
+  align-items: center;
+  outline: none;
+  transform-origin: left;
+}
+
+.tag-select-option:hover {
+  background: #f1f6f6;
+}
+
+.tag-select-option:focus-visible,
+.tag-select-option:focus {
+  background: #eaf3f1;
+  box-shadow: inset 0 0 0 2px rgba(15, 139, 117, 0.2);
+}
+
+.tag-select-option.selected {
+  background: #edf7f5;
+  color: var(--ds-brand-strong);
+  font-weight: 500;
+}
+
+.tag-select-option.selected:hover {
+  background: #e0f2ed;
+}
+
+.tag-select-option-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  cursor: pointer;
+  margin: 0;
+}
+
+.tag-select-option-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ds-brand);
+  cursor: pointer;
+}
+
+.tag-select-options:empty::after {
+  content: "Aucune option disponible";
+  display: block;
+  padding: 1rem 0.75rem;
+  color: var(--ds-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+@media (max-width: 576px) {
+  .tag-select-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 70vh;
+    border-radius: 0.5rem 0.5rem 0 0;
+    z-index: 1050;
+  }
+}
+
+

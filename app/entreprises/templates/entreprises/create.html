@@ -3,36 +3,67 @@
 {% block content %}
 <div class="container-fluid">
   <h1 class="h3 mb-4">Nouvelle entreprise</h1>
-  <div class="card border-0 shadow-sm" style="max-width: 500px;">
+  <div class="card border-0 shadow-sm" style="max-width: 700px;">
     <div class="card-body">
       <form method="POST">
         <div class="mb-3">
-          <label class="form-label">Nom</label>
-          <input type="text" name="nom" class="form-control" required>
+          <label class="form-label fw-semibold">Nom <span class="text-danger">*</span></label>
+          <input type="text" name="nom" class="form-control" required placeholder="Raison sociale">
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Taille</label>
+            <select name="taille" class="form-select">
+              <option value="TPE">TPE</option>
+              <option value="PME" selected>PME</option>
+              <option value="Grande">Grande entreprise</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Pays</label>
+            <input type="text" name="pays" class="form-control" value="Maroc">
+          </div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Taille</label>
-          <select name="taille" class="form-select">
-            <option value="TPE">TPE</option>
-            <option value="PME" selected>PME</option>
-            <option value="Grande">Grande entreprise</option>
+          <label class="form-label fw-semibold">Adresse</label>
+          <textarea name="adresse" class="form-control" rows="2" placeholder="Adresse complète"></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Secteurs d'activité</label>
+          <p class="text-muted small mb-2">
+            <i class="fas fa-info-circle me-1"></i>Les textes réglementaires correspondants seront liés automatiquement à l'entreprise.
+          </p>
+          <select id="secteurs" name="secteurs" class="form-select tag-select" multiple data-plural="secteurs">
+            {% for s in secteurs %}
+              <option value="{{ s.id }}">{{ s.nom }}</option>
+            {% endfor %}
           </select>
+          {% if not secteurs %}
+          <div class="text-muted small mt-1">Aucun secteur disponible. Créez des secteurs d'abord.</div>
+          {% endif %}
         </div>
-        <div class="mb-3">
-          <label class="form-label">Pays</label>
-          <input type="text" name="pays" class="form-control" value="Maroc">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Adresse</label>
-          <textarea name="adresse" class="form-control" rows="2"></textarea>
-        </div>
-        <div class="mb-3 form-check">
+
+        <div class="mb-3 form-check form-switch">
           <input type="checkbox" name="module_qualite" class="form-check-input" id="mq">
-          <label class="form-check-label" for="mq">Activer le module Qualité</label>
+          <label class="form-check-label fw-semibold" for="mq">Activer le module Qualité</label>
         </div>
-        <button type="submit" class="btn btn-danger w-100">Créer</button>
+
+        <div class="d-flex gap-2 pt-3 border-top">
+          <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>Annuler
+          </a>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-plus me-1"></i>Créer l'entreprise
+          </button>
+        </div>
       </form>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{{ url_for('static', filename='tag-select.css') }}">
+<script src="{{ url_for('static', filename='tag-select.js') }}"></script>
 {% endblock %}

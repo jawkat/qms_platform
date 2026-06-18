@@ -1,42 +1,467 @@
 {% extends 'layout.html' %}
-{% block title %}Gestion documentaire{% endblock %}
+{% block title %}GED — Gestion documentaire{% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">GED - Documents</h1>
-    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#uploadModal">
-      <i class="fas fa-upload me-1"></i>Uploader
-    </button>
-  </div>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Fichier</th>
-            <th>Type</th>
-            <th>Catégorie</th>
-            <th>Validité</th>
-            <th>Uploadé par</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for proof in proofs %}
-          <tr>
-            <td>{{ proof.nom_fichier }}</td>
-            <td><span class="badge bg-info">{{ proof.type }}</span></td>
-            <td>{{ proof.categorie or '-' }}</td>
-            <td>{{ proof.validite.strftime('%d/%m/%Y') if proof.validite else '-' }}</td>
-            <td>{{ proof.uploader.prenom ~ ' ' ~ proof.uploader.nom if proof.uploader else '-' }}</td>
-            <td><a href="{{ url_for('documents.detail', proof_id=proof.id) }}" class="btn btn-sm btn-outline-primary">Détail</a></td>
-          </tr>
-          {% else %}
-          <tr><td colspan="6" class="text-center text-muted py-4">Aucun document trouvé.</td></tr>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-folder-open text-danger me-2"></i>GED — Gestion documentaire</h4>
+    <div class="d-flex gap-2">
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="fas fa-filter me-1"></i>Filtres
+        </button>
+        <div class="dropdown-menu p-3" style="width:280px">
+          <div class="mb-2">
+            <label class="small text-muted">Statut workflow</label>
+            <select id="filterWorkflow" class="form-select form-select-sm" onchange="applyFilters()">
+              <option value="">Tous</option>
+              <option value="brouillon">Brouillon</option>
+              <option value="soumis">Soumis</option>
+              <option value="approuve">Approuvé</option>
+              <option value="rejete">Rejeté</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="small text-muted">Validité</label>
+            <select id="filterExpire" class="form-select form-select-sm" onchange="applyFilters()">
+              <option value="">Tous</option>
+              <option value="1">Expiré</option>
+              <option value="bientot">Expire bientôt (30j)</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="small text-muted">Tri</label>
+            <select id="filterSort" class="form-select form-select-sm" onchange="applyFilters()">
+              <option value="date">Date (récent)</option>
+              <option value="nom">Nom (A-Z)</option>
+              <option value="validite">Validité</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="fas fa-tag me-1"></i>Types
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item small" href="#" onclick="$('#typeModal').modal('show');return false"><i class="fas fa-plus me-2"></i>Nouveau type</a></li>
+          <li><hr class="dropdown-divider"></li>
+          {% for t in types_doc %}
+          <li><a class="dropdown-item small" href="#" onclick="filterByType({{ t.id }})">{{ t.nom }}</a></li>
           {% endfor %}
-        </tbody>
-      </table>
+        </ul>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="$('#folderModal').modal('show')">
+        <i class="fas fa-folder-plus me-1"></i>Dossier
+      </button>
+      <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#uploadModal">
+        <i class="fas fa-upload me-1"></i>Uploader
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats cards -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-2 col-4">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fw-bold text-danger">{{ stats.total }}</div>
+        <small class="text-muted">Total</small>
+      </div>
+    </div>
+    <div class="col-md-2 col-4">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fw-bold text-secondary">{{ stats.brouillon }}</div>
+        <small class="text-muted">Brouillon</small>
+      </div>
+    </div>
+    <div class="col-md-2 col-4">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fw-bold text-warning">{{ stats.soumis }}</div>
+        <small class="text-muted">Soumis</small>
+      </div>
+    </div>
+    <div class="col-md-2 col-4">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fw-bold text-success">{{ stats.approuve }}</div>
+        <small class="text-muted">Approuvé</small>
+      </div>
+    </div>
+    <div class="col-md-2 col-4">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fw-bold text-danger">{{ stats.expire }}</div>
+        <small class="text-muted">Expiré</small>
+      </div>
+    </div>
+    <div class="col-md-2 col-4">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fw-bold text-info">{{ stats.en_attente_approbation }}</div>
+        <small class="text-muted">À approuver</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Folder sidebar -->
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-folder me-2 text-danger"></i>Dossiers</h6>
+          <button class="btn btn-sm btn-link text-danger p-0" onclick="$('#folderModal').modal('show')" title="Nouveau dossier">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+        <div class="card-body p-2" id="folderTree" style="max-height:500px;overflow-y:auto">
+          <div class="text-center text-muted small py-3">Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document list -->
+    <div class="col-lg-9">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" id="docTable">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:40px"><i class="fas fa-file text-muted"></i></th>
+                  <th>Document</th>
+                  <th>Dossier</th>
+                  <th>Type</th>
+                  <th>Validité</th>
+                  <th>Statut</th>
+                  <th style="width:120px">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in proofs %}
+                <tr data-workflow="{{ p.workflow_statut }}" data-type="{{ p.type_document_id }}" data-dossier="{{ p.dossier_id }}">
+                  <td class="text-center">
+                    {% set ext = p.type|lower %}
+                    <i class="fas fa-{{ 'file-pdf' if ext == 'pdf' else 'file-word' if ext in ('doc','docx') else 'file-excel' if ext in ('xls','xlsx') else 'file-image' if ext in ('jpg','jpeg','png','gif') else 'file-alt' }} text-muted"></i>
+                  </td>
+                  <td>
+                    <a href="{{ url_for('documents.detail', proof_id=p.id) }}" class="text-decoration-none fw-medium">
+                      {{ p.nom_fichier[:60] }}{% if p.nom_fichier|length > 60 %}...{% endif %}
+                    </a>
+                    {% if p.numero_document %}
+                    <br><small class="text-muted">{{ p.numero_document }}</small>
+                    {% endif %}
+                  </td>
+                  <td><small>{{ p.dossier.nom if p.dossier else '-' }}</small></td>
+                  <td><small>{{ p.type_doc.nom if p.type_doc else '-' }}</small></td>
+                  <td>
+                    {% if p.validite %}
+                    <small class="{% if p.validite < today %}text-danger fw-medium{% else %}text-muted{% endif %}">
+                      {{ p.validite.strftime('%d/%m/%Y') }}
+                    </small>
+                    {% else %}<small class="text-muted">-</small>{% endif %}
+                  </td>
+                  <td>
+                    {% set wf = p.workflow_statut or 'brouillon' %}
+                    <span class="badge bg-{{ 'secondary' if wf == 'brouillon' else 'warning' if wf == 'soumis' else 'success' if wf == 'approuve' else 'danger' if wf == 'rejete' else 'info' }}">
+                      {{ wf }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="{{ url_for('documents.detail', proof_id=p.id) }}" class="btn btn-outline-primary" title="Détail"><i class="fas fa-eye"></i></a>
+                      <a href="{{ url_for('documents.download', proof_id=p.id) }}" class="btn btn-outline-success" title="Télécharger"><i class="fas fa-download"></i></a>
+                      <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                          <li><a class="dropdown-item" href="{{ url_for('documents.detail', proof_id=p.id) }}"><i class="fas fa-eye me-2"></i>Détail</a></li>
+                          {% if p.workflow_statut == 'brouillon' %}
+                          <li><a class="dropdown-item" href="{{ url_for('documents.detail', proof_id=p.id) }}#soumettre"><i class="fas fa-paper-plane me-2"></i>Soumettre</a></li>
+                          {% endif %}
+                          <li><hr class="dropdown-divider"></li>
+                          <li>
+                            <form method="POST" action="{{ url_for('documents.archiver', proof_id=p.id) }}" style="display:inline"
+                                  onsubmit="return confirm('Archiver ce document ?')">
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                              <button class="dropdown-item"><i class="fas fa-archive me-2"></i>Archiver</button>
+                            </form>
+                          </li>
+                          <li>
+                            <form method="POST" action="{{ url_for('documents.supprimer', proof_id=p.id) }}" style="display:inline"
+                                  onsubmit="return confirm('Supprimer définitivement ce document ?')">
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                              <button class="dropdown-item text-danger"><i class="fas fa-trash me-2"></i>Supprimer</button>
+                            </form>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-5">
+                  <i class="fas fa-folder-open fa-3x mb-3 d-block"></i>
+                  Aucun document. Cliquez sur <strong>Uploader</strong> pour ajouter un fichier.
+                </td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-upload text-danger me-1"></i>Uploader un document</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Fichier <span class="text-danger">*</span></label>
+            <input type="file" name="file" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Description</label>
+            <input type="text" name="description" class="form-control" placeholder="Description du document">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Mots-clés</label>
+            <input type="text" name="mots_cles" class="form-control" placeholder="mot1, mot2, mot3">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Dossier</label>
+            <select name="dossier_id" class="form-select" id="uploadDossier">
+              <option value="">— Aucun dossier —</option>
+              {% for d in dossiers if not d.parent_id %}
+              <option value="{{ d.id }}">{{ d.nom }}</option>
+              {% for sub in dossiers if sub.parent_id == d.id %}
+              <option value="{{ sub.id }}">&nbsp;&nbsp;{{ sub.nom }}</option>
+              {% endfor %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Type de document</label>
+            <select name="type_document_id" class="form-select">
+              <option value="">— Sélectionnez —</option>
+              {% for t in types_doc %}
+              <option value="{{ t.id }}">{{ t.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Catégorie</label>
+            <select name="categorie" class="form-select">
+              <option value="">-- Choisir --</option>
+              <option value="rapport">Rapport</option>
+              <option value="certificat">Certificat</option>
+              <option value="procedure">Procédure</option>
+              <option value="registre">Registre</option>
+              <option value="formation">Formation</option>
+              <option value="audit">Audit</option>
+              <option value="facture">Facture</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Date de validité</label>
+            <input type="date" name="validite" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Statut workflow</label>
+            <select name="workflow_statut" class="form-select">
+              <option value="brouillon">Brouillon</option>
+              <option value="soumis">Soumettre directement</option>
+            </select>
+          </div>
+          <div class="col-12" id="approbateurGroup" style="display:none">
+            <label class="form-label">Approbateur</label>
+            <select name="workflow_approbateur_id" class="form-select">
+              <option value="">— Sélectionnez —</option>
+              {% for u in approbateurs %}
+              <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-danger"><i class="fas fa-upload me-1"></i>Uploader</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Folder Modal -->
+<div class="modal fade" id="folderModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.dossier_create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-folder-plus text-danger me-1"></i>Nouveau dossier</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nom <span class="text-danger">*</span></label>
+          <input type="text" name="nom" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Dossier parent</label>
+          <select name="parent_id" class="form-select">
+            <option value="">— Aucun (dossier racine) —</option>
+            {% for d in dossiers %}
+            <option value="{{ d.id }}">{{ d.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-danger">Créer</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Type Modal -->
+<div class="modal fade" id="typeModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form id="typeForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-tag text-danger me-1"></i>Nouveau type de document</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nom <span class="text-danger">*</span></label>
+          <input type="text" name="nom" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-danger">Créer</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ========== Folder tree ==========
+function loadFolderTree() {
+  var tree = document.getElementById('folderTree');
+  fetch('/documents/api/dossiers').then(function(r){ return r.json(); }).then(function(data) {
+    tree.innerHTML = buildTreeHtml(data);
+  }).catch(function() {
+    tree.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';
+  });
+}
+
+function buildTreeHtml(nodes, depth) {
+  depth = depth || 0;
+  if (!nodes || !nodes.length) return '<div class="text-center text-muted small py-2">Aucun dossier</div>';
+  var html = '<ul class="list-unstyled mb-0" style="padding-left:' + (depth * 16) + 'px">';
+  nodes.forEach(function(n) {
+    html += '<li class="py-1">';
+    html += '<div class="d-flex align-items-center gap-1 folder-item" style="cursor:pointer" onclick="filterByFolder(' + n.id + ')">';
+    html += '<i class="fas fa-folder text-warning me-1"></i>';
+    html += '<span class="small flex-grow-1">' + n.nom + '</span>';
+    html += '<span class="badge bg-light text-muted" style="font-size:.65rem">' + (n.doc_count || 0) + '</span>';
+    html += '<a href="#" class="text-muted" style="font-size:.65rem" onclick="event.stopPropagation();renameFolder(' + n.id + ')"><i class="fas fa-edit"></i></a>';
+    html += '</div>';
+    if (n.children && n.children.length) {
+      html += buildTreeHtml(n.children, depth + 1);
+    }
+    html += '</li>';
+  });
+  html += '</ul>';
+  return html;
+}
+
+function filterByFolder(id) {
+  window.location.href = '?dossier_id=' + id;
+}
+
+function renameFolder(id) {
+  var name = prompt('Nouveau nom du dossier:');
+  if (!name) return;
+  var formData = new URLSearchParams();
+  formData.append('nom', name);
+  formData.append('csrf_token', '{{ csrf_token() }}');
+  fetch('/documents/api/dossiers/' + id + '/rename', {
+    method: 'POST', body: formData
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.success) loadFolderTree();
+  });
+}
+
+loadFolderTree();
+
+// ========== Upload workflow toggle ==========
+document.querySelector('[name="workflow_statut"]')?.addEventListener('change', function() {
+  document.getElementById('approbateurGroup').style.display = this.value === 'soumis' ? '' : 'none';
+});
+
+// ========== Type form ==========
+document.getElementById('typeForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var formData = new URLSearchParams(new FormData(this));
+  fetch('/documents/api/types/create', {method:'POST', body:formData})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('typeModal'));
+        if (modal) modal.hide();
+        location.reload();
+      } else {
+        alert(d.error || 'Erreur');
+      }
+    });
+});
+
+// ========== Filters ==========
+function applyFilters() {
+  var params = new URLSearchParams();
+  var wf = document.getElementById('filterWorkflow').value;
+  var exp = document.getElementById('filterExpire').value;
+  if (wf) params.set('workflow', wf);
+  if (exp) params.set('expire', exp);
+  params.set('sort', document.getElementById('filterSort').value);
+  window.location.href = '?' + params.toString();
+}
+
+function filterByType(id) {
+  window.location.href = '?type_id=' + id;
+}
+
+// Load filter state from URL
+(function() {
+  var url = new URL(window.location);
+  var wf = url.searchParams.get('workflow');
+  var exp = url.searchParams.get('expire');
+  var sort = url.searchParams.get('sort');
+  if (wf) document.getElementById('filterWorkflow').value = wf;
+  if (exp) document.getElementById('filterExpire').value = exp;
+  if (sort) document.getElementById('filterSort').value = sort;
+})();
+</script>
 {% endblock %}

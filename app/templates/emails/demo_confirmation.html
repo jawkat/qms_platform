@@ -1,0 +1,34 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<p>Bonjour <strong>{{ creneau.nom_contact }}</strong>,</p>
+
+<p>Votre demande de démonstration pour <strong>QMS Veille HSE</strong> a été confirmée.</p>
+
+<div class="info-card">
+    <p style="margin: 0;"><strong>Date :</strong> {{ creneau.date_heure_debut.strftime('%d/%m/%Y') }}</p>
+    <p style="margin: 0;"><strong>Horaire :</strong> {{ creneau.date_heure_debut.strftime('%H:%M') }} (durée : {{ creneau.duree_minutes }} min)</p>
+    {% if creneau.entreprise %}
+    <p style="margin: 0;"><strong>Entreprise :</strong> {{ creneau.entreprise }}</p>
+    {% endif %}
+</div>
+
+{% if creneau.lien_visio %}
+<div class="info-card" style="background:#e8f5e9;border:1px solid #a5d6a7;">
+    <p style="margin:0 0 8px;"><strong><i class="fas fa-video"></i> Lien de visioconférence</strong></p>
+    <p style="margin:0;word-break:break-all;">
+        <a href="{{ creneau.lien_visio }}" style="color:#2e7d32;">{{ creneau.lien_visio }}</a>
+    </p>
+    <p style="margin:8px 0 0;font-size:13px;color:#555;">Connectez-vous 5 minutes avant l'heure prévue.</p>
+</div>
+{% endif %}
+
+<p>Un expert HSE sera présent en ligne à l'heure convenue.</p>
+
+<p style="color: #6c757d; font-size: 13px;">
+    Si vous souhaitez annuler ou modifier ce rendez-vous,
+    <a href="{{ annulation_url }}" style="color: #dc3545;">cliquez ici</a>.
+</p>
+
+<p style="margin-top: 25px;">Cordialement,<br>L'équipe <strong>QMS Veille HSE</strong></p>
+{% endblock %}

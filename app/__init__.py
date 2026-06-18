@@ -50,6 +50,10 @@ def create_app():
     from .textes import textes as textes_bp
     from .audit import blueprint as audit_bp
     from .indicateurs import blueprint as indicateurs_bp
+    from .secteur import secteur as secteur_bp
+    from .entreprise_textes import entreprise_textes as entreprise_textes_bp
+    from .demo import demo as demo_bp
+    from .veille import veille as veille_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(entreprises_bp)
@@ -59,10 +63,22 @@ def create_app():
     app.register_blueprint(conformite_bp)
     app.register_blueprint(qualite_bp, url_prefix='/qualite')
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(support_bp)
+    app.register_blueprint(support_bp, url_prefix='/support')
     app.register_blueprint(textes_bp, url_prefix='/textes')
     app.register_blueprint(audit_bp, url_prefix='/audit')
     app.register_blueprint(indicateurs_bp, url_prefix='/indicateurs')
+    app.register_blueprint(secteur_bp, url_prefix='/secteur')
+    app.register_blueprint(entreprise_textes_bp)
+    app.register_blueprint(demo_bp)
+    app.register_blueprint(veille_bp, url_prefix='/veille')
+
+    @app.before_request
+    def set_tenant():
+        from flask_login import current_user
+        if current_user.is_authenticated and current_user.entreprise_id:
+            from app.utils.tenant_scope import set_current_entreprise
+            is_admin = current_user.role and current_user.role.est_systeme
+            set_current_entreprise(current_user.entreprise_id, is_admin)
 
     from app.context_processors import inject_globals
     app.context_processor(inject_globals)

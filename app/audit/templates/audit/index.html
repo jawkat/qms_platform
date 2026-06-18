@@ -1,3 +1,170 @@
 {% extends 'layout.html' %}
 {% block title %}Audits{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Audits</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Audits</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createModal">
+      <i class="fas fa-plus me-1"></i>Nouvel audit
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous types</option>
+            {% for v in ['interne','externe','client','fournisseur'] %}
+            <option value="{{ v }}" {% if filters.get('type') == v %}selected{% endif %}>{{ v|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <select name="resultat" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous résultats</option>
+            {% for v in ['conforme','non_conforme','partiel'] %}
+            <option value="{{ v }}" {% if filters.get('resultat') == v %}selected{% endif %}>{{ v|replace('_',' ')|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto flex-grow-1">
+          <input type="text" name="search" class="form-control form-control-sm" placeholder="Rechercher..." value="{{ filters.get('search','') }}">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+          {% if filters %}
+          <a href="{{ url_for('audit.index') }}" class="btn btn-sm btn-outline-danger ms-1"><i class="fas fa-times"></i></a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Auditeur</th>
+              <th>Résultat</th>
+              <th>Commentaire</th>
+              <th style="width:140px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for audit in audits %}
+            <tr>
+              <td>{{ audit.type|capitalize if audit.type else '-' }}</td>
+              <td>{{ audit.date_audit.strftime('%d/%m/%Y') if audit.date_audit else '-' }}</td>
+              <td>{{ audit.auditeur.prenom ~ ' ' ~ audit.auditeur.nom if audit.auditeur else '-' }}</td>
+              <td>
+                {% if audit.resultat_global %}
+                <span class="badge bg-{{ 'success' if audit.resultat_global == 'conforme' else 'danger' if audit.resultat_global == 'non_conforme' else 'warning' }} w-100">
+                  {{ audit.resultat_global|replace('_',' ')|capitalize }}
+                </span>
+                {% else %}
+                <span class="badge bg-secondary w-100">Non évalué</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="text-truncate d-inline-block" style="max-width:200px">
+                  {{ audit.commentaire[:80] }}{% if audit.commentaire and audit.commentaire|length > 80 %}...{% endif %}
+                </span>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('audit.detail', audit_id=audit.id) }}" class="btn btn-outline-primary" title="Détail"><i class="fas fa-eye"></i></a>
+                  <button class="btn btn-outline-danger delete-audit" data-id="{{ audit.id }}" title="Supprimer"><i class="fas fa-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-5">
+              <i class="fas fa-clipboard-check fa-2x mb-2 d-block"></i>
+              Aucun audit trouvé.
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="createForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Nouvel audit</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Type <span class="text-danger">*</span></label>
+              <select name="type" class="form-select" required>
+                <option value="">-- Sélectionner --</option>
+                {% for v in ['interne','externe','client','fournisseur'] %}
+                <option value="{{ v }}">{{ v|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date d'audit <span class="text-danger">*</span></label>
+              <input type="date" name="date_audit" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Auditeur</label>
+              <select name="auditeur_id" class="form-select">
+                <option value="">-- Non assigné --</option>
+                {% for u in auditeurs %}
+                <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Commentaire</label>
+              <textarea name="commentaire" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger" id="btnCreate">Créer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.delete-audit').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (confirm('Supprimer cet audit ?')) {
+      fetch('/audit/' + this.dataset.id + '/delete', {method: 'POST'}).then(() => location.reload());
+    }
+  });
+});
+
+document.getElementById('createForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  const data = Object.fromEntries(new FormData(this));
+  fetch('/audit/creer', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.href = '/audit/' + d.id;
+  }).catch(() => { btn.disabled = false; btn.textContent = 'Créer'; });
+});
+</script>
+{% endblock %}

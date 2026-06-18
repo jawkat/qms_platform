@@ -1,3 +1,123 @@
 {% extends 'layout.html' %}
 {% block title %}Textes réglementaires{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Textes réglementaires HSE</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Textes réglementaires</h1>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('textes.import_json') }}" class="btn btn-outline-danger">
+        <i class="fas fa-file-import me-1"></i>Import JSON
+      </a>
+      <a href="{{ url_for('textes.create_texte') }}" class="btn btn-danger">
+        <i class="fas fa-plus me-1"></i>Nouveau texte
+      </a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <select name="domaine" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous domaines</option>
+            {% for d in domaines %}
+            <option value="{{ d.id }}" {% if filters.get('domaine') == d.id %}selected{% endif %}>{{ d.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous types</option>
+            {% for t in types %}
+            <option value="{{ t }}" {% if filters.get('type') == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto flex-grow-1">
+          <input type="text" name="search" class="form-control form-control-sm" placeholder="Rechercher par titre, code..." value="{{ filters.get('search','') }}">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+          {% if filters %}
+          <a href="{{ url_for('textes.index') }}" class="btn btn-sm btn-outline-danger ms-1"><i class="fas fa-times"></i></a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Code</th>
+              <th>Titre</th>
+              <th>Domaine</th>
+              <th>Type</th>
+              <th>Version active</th>
+              <th style="width:160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in textes %}
+            <tr>
+              <td><span class="badge bg-secondary">{{ t.code or '-' }}</span></td>
+              <td>
+                <a href="{{ url_for('textes.detail', texte_id=t.id) }}" class="text-decoration-none fw-medium">
+                  {{ t.titre[:120] }}{% if t.titre|length > 120 %}...{% endif %}
+                </a>
+              </td>
+              <td>{{ t.domaine_ref.nom if t.domaine_ref else t.domaine or '-' }}</td>
+              <td><span class="badge bg-info">{{ t.type or '-' }}</span></td>
+              <td>
+                {% if t.version_active %}
+                v{{ t.version_active.numero_version }} <small class="text-muted">({{ t.version_active.statut }})</small>
+                {% else %}
+                <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('textes.detail', texte_id=t.id) }}" class="btn btn-outline-primary" title="Détail"><i class="fas fa-eye"></i></a>
+                  <a href="{{ url_for('textes.edit_texte', texte_id=t.id) }}" class="btn btn-outline-warning" title="Modifier"><i class="fas fa-edit"></i></a>
+                  <button type="button" class="btn btn-outline-danger" title="Supprimer"
+                    onclick="confirmDelete('{{ url_for('textes.delete_texte', texte_id=t.id) }}')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-5">
+              <i class="fas fa-scroll fa-2x mb-2 d-block"></i>
+              Aucun texte réglementaire trouvé.
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(url) {
+  if (confirm('Supprimer ce texte définitivement ? Cette action est irréversible.')) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrf_token';
+    csrf.value = '{{ csrf_token() }}';
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends 'layout.html' %}
+{% block title %}Ticket {{ ticket.reference }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ ticket.reference }}</h1>
+      <p class="text-muted mb-0">{{ ticket.sujet }}</p>
+    </div>
+    <div class="d-flex gap-2">
+      {% if ticket.statut != 'FERME' %}
+      <form method="POST" action="{{ url_for('support.fermer_ticket', ticket_id=ticket.id) }}"
+            onsubmit="return confirm('Fermer ce ticket ?')">
+        <button class="btn btn-outline-secondary"><i class="fas fa-check me-1"></i>Fermer</button>
+      </form>
+      {% endif %}
+      <a href="{{ url_for('support.mes_tickets') }}" class="btn btn-outline-secondary">Retour</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-comments me-2 text-danger"></i>Messages</h6>
+        </div>
+        <div class="card-body" style="max-height:500px;overflow-y:auto" id="messageThread">
+          {% for msg in messages %}
+          <div class="d-flex mb-3 {% if msg.est_interne %}bg-warning bg-opacity-10 rounded p-2{% endif %}">
+            <div class="flex-shrink-0 me-2">
+              <div class="rounded-circle bg-{% if msg.est_interne %}warning{% else %}danger{% endif %} text-white d-flex align-items-center justify-content-center"
+                   style="width:36px;height:36px;font-size:.8rem">
+                <i class="fas fa-{% if msg.est_interne %}lock{% else %}user{% endif %}"></i>
+              </div>
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="small">{{ msg.auteur_nom }}</strong>
+                <small class="text-muted">{{ msg.date_envoi.strftime('%d/%m/%Y %H:%M') if msg.date_envoi else '' }}</small>
+              </div>
+              {% if msg.est_interne %}
+              <span class="badge bg-warning text-dark mt-1">Interne</span>
+              {% endif %}
+              <p class="mb-0 mt-1" style="white-space:pre-wrap">{{ msg.contenu }}</p>
+            </div>
+          </div>
+          {% if not loop.last %}<hr class="my-2">{% endif %}
+          {% else %}
+          <p class="text-muted text-center py-3">Aucun message.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if ticket.statut != 'FERME' %}
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-reply me-2 text-danger"></i>Répondre</h6>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('support.ajouter_message', ticket_id=ticket.id) }}">
+            <div class="mb-3">
+              <textarea name="contenu" class="form-control" rows="4" placeholder="Votre message..." required></textarea>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="form-check">
+                <input type="checkbox" name="est_interne" class="form-check-input" id="estInterne">
+                <label class="form-check-label" for="estInterne">Message interne (non visible par le contact)</label>
+              </div>
+              <button type="submit" class="btn btn-danger"><i class="fas fa-paper-plane me-1"></i>Envoyer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Détails</h6>
+        </div>
+        <div class="card-body">
+          <dl class="mb-0">
+            <dt>Référence</dt>
+            <dd><code>{{ ticket.reference }}</code></dd>
+            <dt>Statut</dt>
+            <dd>
+              {% set statut_colors = {'OUVERT': 'success', 'EN_COURS': 'primary', 'ATTENTE': 'warning', 'FERME': 'secondary'} %}
+              <span class="badge bg-{{ statut_colors.get(ticket.statut, 'secondary') }}">{{ ticket.statut }}</span>
+            </dd>
+            <dt>Type</dt>
+            <dd><span class="badge bg-secondary">{{ ticket.type }}</span></dd>
+            <dt>Date création</dt>
+            <dd>{{ ticket.date_creation.strftime('%d/%m/%Y %H:%M') if ticket.date_creation else '-' }}</dd>
+            <dt>Dernier message</dt>
+            <dd>{{ ticket.date_dernier_message.strftime('%d/%m/%Y %H:%M') if ticket.date_dernier_message else '-' }}</dd>
+            {% if ticket.date_fermeture %}
+            <dt>Date fermeture</dt>
+            <dd>{{ ticket.date_fermeture.strftime('%d/%m/%Y %H:%M') }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-address-card me-2 text-danger"></i>Contact</h6>
+        </div>
+        <div class="card-body">
+          {% if ticket.nom_contact or ticket.email_contact or ticket.telephone %}
+          <dl class="mb-0">
+            {% if ticket.nom_contact %}<dt>Nom</dt><dd>{{ ticket.nom_contact }}</dd>{% endif %}
+            {% if ticket.email_contact %}<dt>Email</dt><dd><a href="mailto:{{ ticket.email_contact }}">{{ ticket.email_contact }}</a></dd>{% endif %}
+            {% if ticket.telephone %}<dt>Téléphone</dt><dd>{{ ticket.telephone }}</dd>{% endif %}
+          </dl>
+          {% else %}
+          <p class="text-muted mb-0">Aucune information de contact.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  var thread = document.getElementById('messageThread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
+</script>
+{% endblock %}

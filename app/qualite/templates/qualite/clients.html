@@ -1,3 +1,224 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - Clients{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Gestion des réclamations clients</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Gestion des réclamations clients</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#claimModal">
+      <i class="fas fa-plus me-1"></i>Nouvelle réclamation
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statOuvertes">--</div>
+          <small class="text-muted">Réclamations ouvertes</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success" id="statTraitees">--</div>
+          <small class="text-muted">Traitées</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-info" id="statTotal">--</div>
+          <small class="text-muted">Total</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-warning" id="statEnCours">--</div>
+          <small class="text-muted">En cours</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h6 class="mb-0 fw-semibold"><i class="fas fa-headset me-2 text-danger"></i>Réclamations clients</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Client</th>
+              <th>Produit / Service</th>
+              <th>Description</th>
+              <th>Action</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="clientsTableBody">
+            <tr id="emptyRow">
+              <td colspan="7" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucune réclamation enregistrée.<br>
+                <small>Ajoutez des réclamations via le bouton "Nouvelle réclamation".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="claimModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="claimModalTitle">Nouvelle réclamation client</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="claimId" value="">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Client <span class="text-danger">*</span></label>
+            <input type="text" id="claimClient" class="form-control" placeholder="Nom du client...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Date</label>
+            <input type="date" id="claimDate" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Produit / Référence</label>
+            <input type="text" id="claimProduit" class="form-control" placeholder="Lot, référence...">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description <span class="text-danger">*</span></label>
+            <textarea id="claimDescription" class="form-control" rows="3" placeholder="Détail de la réclamation..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Action corrective</label>
+            <textarea id="claimAction" class="form-control" rows="2" placeholder="Actions mises en place..."></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Statut</label>
+            <select id="claimStatut" class="form-select">
+              <option value="ouverte">Ouverte</option>
+              <option value="en_cours">En cours</option>
+              <option value="cloturee">Clôturée</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveClaim()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadClaims() {
+  fetch('{{ url_for("qualite.api_clients") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('clientsTableBody');
+      const empty = document.getElementById('emptyRow');
+      if (items.length === 0) return;
+      if (empty) empty.remove();
+      let ouvertes = 0, traitees = 0, encours = 0;
+      tbody.innerHTML = items.map(r => {
+        if (r.statut === 'ouverte') ouvertes++;
+        else if (r.statut === 'cloturee') traitees++;
+        else encours++;
+        const sc = r.statut === 'cloturee' ? 'success' : r.statut === 'en_cours' ? 'warning' : 'danger';
+        return `<tr>
+          <td>${r.date_reclamation || ''}</td>
+          <td>${r.client || ''}</td>
+          <td>${r.produit || ''}</td>
+          <td>${r.description || ''}</td>
+          <td>${r.action || ''}</td>
+          <td><span class="badge bg-${sc}">${r.statut || ''}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editClaim(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteClaim(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      document.getElementById('statOuvertes').textContent = ouvertes;
+      document.getElementById('statTraitees').textContent = traitees;
+      document.getElementById('statTotal').textContent = items.length;
+      document.getElementById('statEnCours').textContent = encours;
+    });
+}
+
+function saveClaim() {
+  const id = document.getElementById('claimId').value;
+  const data = {
+    client: document.getElementById('claimClient').value,
+    date_reclamation: document.getElementById('claimDate').value,
+    produit: document.getElementById('claimProduit').value,
+    description: document.getElementById('claimDescription').value,
+    action: document.getElementById('claimAction').value,
+    statut: document.getElementById('claimStatut').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_clients_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_clients_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('claimModal')).hide();
+        loadClaims();
+        resetClaimForm();
+      }
+    });
+}
+
+function editClaim(id) {
+  fetch('{{ url_for("qualite.api_clients") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('claimId').value = r.id;
+      document.getElementById('claimClient').value = r.client || '';
+      document.getElementById('claimDate').value = r.date_reclamation || '';
+      document.getElementById('claimProduit').value = r.produit || '';
+      document.getElementById('claimDescription').value = r.description || '';
+      document.getElementById('claimAction').value = r.action || '';
+      document.getElementById('claimStatut').value = r.statut || 'ouverte';
+      document.getElementById('claimModalTitle').textContent = 'Modifier la réclamation';
+      new bootstrap.Modal(document.getElementById('claimModal')).show();
+    });
+}
+
+function deleteClaim(id) {
+  if (!confirm('Supprimer cette réclamation ?')) return;
+  fetch('{{ url_for("qualite.api_clients_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadClaims(); });
+}
+
+function resetClaimForm() {
+  document.getElementById('claimId').value = '';
+  document.getElementById('claimClient').value = '';
+  document.getElementById('claimDate').value = '';
+  document.getElementById('claimProduit').value = '';
+  document.getElementById('claimDescription').value = '';
+  document.getElementById('claimAction').value = '';
+  document.getElementById('claimStatut').value = 'ouverte';
+  document.getElementById('claimModalTitle').textContent = 'Nouvelle réclamation client';
+}
+
+document.addEventListener('DOMContentLoaded', loadClaims);
+</script>
+{% endblock %}

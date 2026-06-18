@@ -1,0 +1,167 @@
+{% extends 'layout.html' %}
+{% block title %}{{ texte.titre[:80] }} - Textes réglementaires{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h1 class="h3 mb-0">{{ texte.titre }}</h1>
+        {% if texte.code %}
+        <span class="badge bg-secondary fs-6">{{ texte.code }}</span>
+        {% endif %}
+      </div>
+      <p class="text-muted mb-0">
+        <span class="badge bg-info me-1">{{ texte.type or 'Non défini' }}</span>
+        <span class="badge bg-primary me-1">{{ texte.domaine_ref.nom if texte.domaine_ref else texte.domaine or 'Non défini' }}</span>
+        {% if texte.referentiel %}<span class="badge bg-secondary">{{ texte.referentiel }}</span>{% endif %}
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('textes.edit_texte', texte_id=texte.id) }}" class="btn btn-outline-warning" title="Modifier"><i class="fas fa-edit me-1"></i>Modifier</a>
+      <a href="{{ url_for('textes.create_version', texte_id=texte.id) }}" class="btn btn-danger"><i class="fas fa-code-branch me-1"></i>Nouvelle version</a>
+      <form method="POST" action="{{ url_for('textes.delete_texte', texte_id=texte.id) }}" style="display:inline"
+            onsubmit="return confirm('Supprimer ce texte définitivement ? Cette action est irréversible.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-danger" title="Supprimer"><i class="fas fa-trash me-1"></i>Supprimer</button>
+      </form>
+      <a href="{{ url_for('textes.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Retour</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Informations</h6>
+        </div>
+        <div class="card-body">
+          {% if texte.description %}
+          <p class="mb-2"><strong>Description :</strong><br>{{ texte.description }}</p>
+          {% endif %}
+          {% if texte.referentiel %}
+          <p class="mb-1"><strong>Référentiel :</strong> {{ texte.referentiel }}</p>
+          {% endif %}
+          {% if texte.theme %}
+          <p class="mb-1"><strong>Thème :</strong> {{ texte.theme }}</p>
+          {% endif %}
+          {% if texte.sousdomaine %}
+          <p class="mb-1"><strong>Sous-domaine :</strong> {{ texte.sousdomaine }}</p>
+          {% endif %}
+          <p class="mb-0 text-muted small">Créé le {{ texte.date_creation.strftime('%d/%m/%Y') if texte.date_creation else '-' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <ul class="nav nav-tabs mb-3" id="textTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="versions-tab" data-bs-toggle="tab" data-bs-target="#versions" type="button" role="tab">
+            <i class="fas fa-code-branch me-1"></i>Versions ({{ versions|length }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="articles-tab" data-bs-toggle="tab" data-bs-target="#articles" type="button" role="tab">
+            <i class="fas fa-list me-1"></i>Articles ({{ articles|length }})
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="versions" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Version</th>
+                      <th>Date publication</th>
+                      <th>Statut</th>
+                      <th>Commentaire</th>
+                      <th style="width:160px">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for v in versions %}
+                    <tr class="{% if v.id == texte.version_active_id %}table-success{% endif %}">
+                      <td><strong>v{{ v.numero_version }}</strong></td>
+                      <td>{{ v.date_publication.strftime('%d/%m/%Y') if v.date_publication else '-' }}</td>
+                      <td>
+                        <span class="badge bg-{{ 'success' if v.statut == 'actif' else 'warning' if v.statut == 'projet' else 'secondary' }}">
+                          {{ v.statut or '-' }}
+                        </span>
+                      </td>
+                      <td><small class="text-muted">{{ v.commentaire_version[:80] if v.commentaire_version else '-' }}{% if v.commentaire_version and v.commentaire_version|length > 80 %}...{% endif %}</small></td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <a href="{{ url_for('textes.version_detail', version_id=v.id) }}" class="btn btn-outline-primary" title="Voir"><i class="fas fa-eye"></i></a>
+                          <a href="{{ url_for('textes.edit_version', version_id=v.id) }}" class="btn btn-outline-warning" title="Modifier"><i class="fas fa-edit"></i></a>
+                          <form method="POST" action="{{ url_for('textes.delete_version', version_id=v.id) }}" style="display:inline"
+                                onsubmit="return confirm('Supprimer cette version ?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-outline-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i></button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Aucune version.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="articles" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:60px">N°</th>
+                      <th>Résumé</th>
+                      <th>Exigence</th>
+                      <th>Risque</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in articles %}
+                    <tr>
+                      <td><span class="badge bg-secondary">{{ a.numero_article }}</span></td>
+                      <td>{{ a.resume_article or a.contenu[:150] }}{% if not a.resume_article and a.contenu|length > 150 %}...{% endif %}</td>
+                      <td>
+                        {% if a.exigence_type %}
+                        <span class="badge bg-{{ 'danger' if a.exigence_type.name in ('OBLIGATION','INTERDICTION') else 'warning' if a.exigence_type.name == 'RECOMMANDATION' else 'info' }}">
+                          {{ a.exigence_type.value }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if a.niveau_risque %}
+                        <span class="badge bg-{{ 'danger' if a.niveau_risque.name in ('ELEVE','CRITIQUE') else 'warning' if a.niveau_risque.name == 'MOYEN' else 'success' }}">
+                          {{ a.niveau_risque.value }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Aucun article pour la version active.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,3 +1,212 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - Fournisseurs{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Gestion des fournisseurs</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Gestion des fournisseurs</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#supplierModal">
+      <i class="fas fa-plus me-1"></i>Nouveau fournisseur
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="fw-semibold"><i class="fas fa-info-circle me-2 text-danger"></i>Évaluation fournisseurs</h6>
+          <p class="text-muted small mb-0">
+            Conformément à l'ISO 9001 §8.4, les fournisseurs externes doivent être évalués, sélectionnés et surveillés.
+            La notation est basée sur la qualité, le délai et le service.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success" id="statApprouves">--</div>
+          <small class="text-muted">Approuvés</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statNonConformes">--</div>
+          <small class="text-muted">Non conformes</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Fournisseur</th>
+              <th>Produit / Service</th>
+              <th>Évaluation</th>
+              <th>Statut</th>
+              <th>Dernier audit</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="fournisseursTableBody">
+            <tr id="emptyRow">
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucun fournisseur enregistré.<br>
+                <small>Ajoutez des fournisseurs via le bouton "Nouveau fournisseur".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="supplierModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="supplierModalTitle">Nouveau fournisseur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="supplierId" value="">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Raison sociale <span class="text-danger">*</span></label>
+            <input type="text" id="supplierNom" class="form-control" placeholder="Nom du fournisseur...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Produit / Service</label>
+            <input type="text" id="supplierProduit" class="form-control" placeholder="Matière première, transport...">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Évaluation (0-100)</label>
+            <input type="number" id="supplierEval" class="form-control" min="0" max="100">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Statut</label>
+            <select id="supplierStatut" class="form-select">
+              <option value="actif">Actif</option>
+              <option value="sous_surveillance">Sous surveillance</option>
+              <option value="inactif">Inactif</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Dernier audit</label>
+            <input type="date" id="supplierAudit" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveSupplier()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadSuppliers() {
+  fetch('{{ url_for("qualite.api_fournisseurs") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('fournisseursTableBody');
+      const empty = document.getElementById('emptyRow');
+      if (items.length === 0) return;
+      if (empty) empty.remove();
+      let approuves = 0, nonConformes = 0;
+      tbody.innerHTML = items.map(r => {
+        if (r.statut === 'actif') approuves++; else nonConformes++;
+        const evalScore = r.evaluation || 0;
+        const evalColor = evalScore >= 80 ? 'success' : evalScore >= 50 ? 'warning' : 'danger';
+        const statutColor = r.statut === 'actif' ? 'success' : r.statut === 'sous_surveillance' ? 'warning' : 'secondary';
+        return `<tr>
+          <td>${r.nom || ''}</td>
+          <td>${r.produit || ''}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold text-${evalColor}">${evalScore}/100</span>
+              <div class="progress flex-grow-1" style="height:6px">
+                <div class="progress-bar bg-${evalColor}" style="width:${evalScore}%"></div>
+              </div>
+            </div>
+          </td>
+          <td><span class="badge bg-${statutColor}">${r.statut || ''}</span></td>
+          <td>${r.dernier_audit || ''}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editSupplier(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteSupplier(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      document.getElementById('statApprouves').textContent = approuves;
+      document.getElementById('statNonConformes').textContent = nonConformes;
+    });
+}
+
+function saveSupplier() {
+  const id = document.getElementById('supplierId').value;
+  const data = {
+    nom: document.getElementById('supplierNom').value,
+    produit: document.getElementById('supplierProduit').value,
+    evaluation: parseInt(document.getElementById('supplierEval').value) || 0,
+    statut: document.getElementById('supplierStatut').value,
+    dernier_audit: document.getElementById('supplierAudit').value || null,
+  };
+  const url = id ? '{{ url_for("qualite.api_fournisseurs_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_fournisseurs_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('supplierModal')).hide();
+        loadSuppliers();
+        resetSupplierForm();
+      }
+    });
+}
+
+function editSupplier(id) {
+  fetch('{{ url_for("qualite.api_fournisseurs") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('supplierId').value = r.id;
+      document.getElementById('supplierNom').value = r.nom || '';
+      document.getElementById('supplierProduit').value = r.produit || '';
+      document.getElementById('supplierEval').value = r.evaluation || 0;
+      document.getElementById('supplierStatut').value = r.statut || 'actif';
+      document.getElementById('supplierAudit').value = r.dernier_audit || '';
+      document.getElementById('supplierModalTitle').textContent = 'Modifier le fournisseur';
+      new bootstrap.Modal(document.getElementById('supplierModal')).show();
+    });
+}
+
+function deleteSupplier(id) {
+  if (!confirm('Supprimer ce fournisseur ?')) return;
+  fetch('{{ url_for("qualite.api_fournisseurs_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadSuppliers(); });
+}
+
+function resetSupplierForm() {
+  document.getElementById('supplierId').value = '';
+  document.getElementById('supplierNom').value = '';
+  document.getElementById('supplierProduit').value = '';
+  document.getElementById('supplierEval').value = '';
+  document.getElementById('supplierStatut').value = 'actif';
+  document.getElementById('supplierAudit').value = '';
+  document.getElementById('supplierModalTitle').textContent = 'Nouveau fournisseur';
+}
+
+document.addEventListener('DOMContentLoaded', loadSuppliers);
+</script>
+{% endblock %}

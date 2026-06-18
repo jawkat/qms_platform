@@ -1,0 +1,100 @@
+{% extends 'layout.html' %}
+{% block title %}Modifier le rôle - {{ role.nom }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('admin.roles') }}" class="btn btn-light me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <div>
+      <h1 class="h3 mb-1"><i class="fas fa-pen me-2"></i>Modifier « {{ role.nom }} »</h1>
+      <p class="text-muted small mb-0">Modifiez la description et les permissions de ce rôle</p>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <form method="POST" action="{{ url_for('admin.role_update', role_id=role.id) }}">
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label fw-medium">Nom du rôle</label>
+              <input type="text" class="form-control" value="{{ role.nom }}" disabled>
+              <small class="text-muted">Le nom du rôle ne peut pas être modifié.</small>
+            </div>
+            <div>
+              <label class="form-label fw-medium">Description</label>
+              <textarea name="description" class="form-control" rows="2">{{ role.description or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-key me-2"></i>Permissions</h5>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms()">
+              Tout cocher / décocher
+            </button>
+          </div>
+          <div class="card-body p-4">
+            {% for module, perms in permission_catalog.items() %}
+            <div class="card mb-3 border">
+              <div class="card-header bg-light py-2 d-flex align-items-center">
+                <div class="form-check mb-0">
+                  <input class="form-check-input module-check" type="checkbox"
+                         data-module="{{ module }}" id="all_{{ module }}"
+                         onchange="toggleModule(this)">
+                  <label class="form-check-label fw-semibold" for="all_{{ module }}">
+                    {{ module|capitalize }}
+                  </label>
+                </div>
+                <span class="badge bg-primary bg-opacity-10 text-primary ms-auto">{{ perms|length }}</span>
+              </div>
+              <div class="card-body py-2">
+                <div class="row">
+                  {% for code, desc in perms %}
+                  <div class="col-md-6 mb-1">
+                    <div class="form-check">
+                      <input class="form-check-input perm-check perm-{{ module }}"
+                             type="checkbox" name="permissions" value="{{ code }}"
+                             id="perm_{{ code }}"
+                             {% if code in role_perm_set %}checked{% endif %}>
+                      <label class="form-check-label small" for="perm_{{ code }}">{{ desc }}</label>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+          <a href="{{ url_for('admin.roles') }}" class="btn btn-light">Annuler</a>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i>Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleModule(checkbox) {
+  var selector = '.perm-' + checkbox.dataset.module;
+  document.querySelectorAll(selector).forEach(function(cb) {
+    cb.checked = checkbox.checked;
+  });
+}
+
+function toggleAllPerms() {
+  var allChecked = true;
+  var checks = document.querySelectorAll('.perm-check');
+  checks.forEach(function(cb) { if (!cb.checked) allChecked = false; });
+  checks.forEach(function(cb) { cb.checked = !allChecked; });
+  document.querySelectorAll('.module-check').forEach(function(cb) { cb.checked = !allChecked; });
+}
+</script>
+{% endblock %}

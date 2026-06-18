@@ -1,3 +1,298 @@
 {% extends 'layout.html' %}
 {% block title %}Indicateurs{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Indicateurs</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Indicateurs</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createIndicateurModal">
+      <i class="fas fa-plus me-1"></i>Ajouter un indicateur
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <select name="periode" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Toutes périodes</option>
+            {% for p in periodes %}
+            <option value="{{ p }}" {% if filtres.get('periode') == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if filtres.get('periode') %}
+        <div class="col-auto">
+          <a href="{{ url_for('indicateurs.index') }}" class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></a>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3" id="indicateursContainer">
+    {% for card in cards %}
+    {% set ind = card.indicateur %}
+    {% set tendance = card.tendance %}
+    {% set derniere_valeur = card.derniere_valeur %}
+    {% set date_calcul = card.date_calcul %}
+    <div class="col-xl-3 col-lg-4 col-md-6">
+      <div class="card border-0 shadow-sm h-100 indicateur-card" data-id="{{ ind.id }}">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="card-title mb-0 text-truncate">{{ ind.nom }}</h6>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-link text-muted p-0" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><button class="dropdown-item edit-indicateur" data-id="{{ ind.id }}"><i class="fas fa-edit me-2"></i>Modifier</button></li>
+                <li><button class="dropdown-item text-danger delete-indicateur" data-id="{{ ind.id }}"><i class="fas fa-trash me-2"></i>Supprimer</button></li>
+              </ul>
+            </div>
+          </div>
+          <p class="card-text text-muted small mb-3 flex-grow-1">{{ (ind.description or '')|truncate(80) }}</p>
+          {% if ind.periode %}
+          <span class="badge bg-secondary align-self-start mb-2">{{ ind.periode }}</span>
+          {% endif %}
+          <div class="mt-auto">
+            <div class="d-flex align-items-baseline justify-content-between">
+              <span class="display-6 fw-bold {% if tendance is not none and tendance < 0 %}text-danger{% elif tendance is not none and tendance > 0 %}text-success{% endif %}">
+                {% if derniere_valeur is not none %}{{ derniere_valeur }}{% else %}&mdash;{% endif %}
+              </span>
+              {% if tendance is not none %}
+              <small class="{% if tendance > 0 %}text-success{% elif tendance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                <i class="fas fa-{% if tendance > 0 %}arrow-up{% elif tendance < 0 %}arrow-down{% else %}minus{% endif %} me-1"></i>{{ tendance }}%
+              </small>
+              {% endif %}
+            </div>
+            <small class="text-muted">
+              {% if date_calcul %}Dernier calcul: {{ date_calcul.strftime('%d/%m/%Y') }}{% else %}Aucune valeur{% endif %}
+            </small>
+            <button class="btn btn-sm btn-outline-danger w-100 mt-2 add-value-btn"
+                    data-indicateur-id="{{ ind.id }}" data-indicateur-nom="{{ ind.nom }}">
+              <i class="fas fa-plus-circle me-1"></i>Ajouter une valeur
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center text-muted py-5">
+          <i class="fas fa-chart-bar fa-3x mb-3 d-block"></i>
+          <p>Aucun indicateur trouvé.</p>
+          <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createIndicateurModal">
+            <i class="fas fa-plus me-1"></i>Créer le premier indicateur
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="modal fade" id="createIndicateurModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="createIndicateurForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Ajouter un indicateur</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nom <span class="text-danger">*</span></label>
+            <input type="text" name="nom" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Formule</label>
+            <input type="text" name="formule" class="form-control" placeholder="Ex: (A+B)/C">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Période</label>
+            <select name="periode" class="form-select">
+              <option value="">--</option>
+              <option value="journalier">Journalier</option>
+              <option value="hebdomadaire">Hebdomadaire</option>
+              <option value="mensuel">Mensuel</option>
+              <option value="trimestriel">Trimestriel</option>
+              <option value="annuel">Annuel</option>
+            </select>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" name="calcul_auto" class="form-check-input" id="calcAuto" value="1" checked>
+            <label class="form-check-label" for="calcAuto">Calcul automatique</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger" id="btnCreateIndicateur">Créer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addValueModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <form id="addValueForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Ajouter une valeur</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted mb-2" id="valueIndicateurName"></p>
+          <input type="hidden" name="indicateur_id" id="valueIndicateurId">
+          <div class="mb-3">
+            <label class="form-label">Date <span class="text-danger">*</span></label>
+            <input type="date" name="date_calcul" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Valeur <span class="text-danger">*</span></label>
+            <input type="number" step="any" name="valeur" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger" id="btnAddValue">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editIndicateurModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editIndicateurForm">
+        <input type="hidden" name="id" id="editIndicateurId">
+        <div class="modal-header">
+          <h5 class="modal-title">Modifier l'indicateur</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nom <span class="text-danger">*</span></label>
+            <input type="text" name="nom" id="editNom" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" id="editDescription" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Formule</label>
+            <input type="text" name="formule" id="editFormule" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Période</label>
+            <select name="periode" id="editPeriode" class="form-select">
+              <option value="">--</option>
+              <option value="journalier">Journalier</option>
+              <option value="hebdomadaire">Hebdomadaire</option>
+              <option value="mensuel">Mensuel</option>
+              <option value="trimestriel">Trimestriel</option>
+              <option value="annuel">Annuel</option>
+            </select>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" name="calcul_auto" id="editCalcAuto" class="form-check-input" value="1">
+            <label class="form-check-label" for="editCalcAuto">Calcul automatique</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger" id="btnEditIndicateur">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function headers() {
+  return {'Content-Type': 'application/json'};
+}
+
+document.getElementById('createIndicateurForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnCreateIndicateur');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  const data = Object.fromEntries(new FormData(this));
+  data.calcul_auto = !!data.calcul_auto;
+  fetch('/indicateurs/api/create', {
+    method: 'POST', headers: headers(), body: JSON.stringify(data),
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else { alert(d.erreur || 'Erreur'); btn.disabled = false; btn.textContent = 'Créer'; }
+  }).catch(() => { btn.disabled = false; btn.textContent = 'Créer'; });
+});
+
+document.querySelectorAll('.add-value-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.getElementById('valueIndicateurId').value = this.dataset.indicateurId;
+    document.getElementById('valueIndicateurName').textContent = 'Indicateur: ' + this.dataset.indicateurNom;
+    document.getElementById('addValueForm').querySelector('[name="date_calcul"]').value = new Date().toISOString().split('T')[0];
+    new bootstrap.Modal(document.getElementById('addValueModal')).show();
+  });
+});
+
+document.getElementById('addValueForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnAddValue');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  const data = Object.fromEntries(new FormData(this));
+  fetch('/indicateurs/api/valeur/add', {
+    method: 'POST', headers: headers(), body: JSON.stringify(data),
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else { alert(d.erreur || 'Erreur'); btn.disabled = false; btn.textContent = 'Ajouter'; }
+  }).catch(() => { btn.disabled = false; btn.textContent = 'Ajouter'; });
+});
+
+document.querySelectorAll('.edit-indicateur').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.id;
+    fetch('/indicateurs/api/liste').then(r => r.json()).then(list => {
+      const ind = list.find(i => i.id == id);
+      if (!ind) return;
+      document.getElementById('editIndicateurId').value = ind.id;
+      document.getElementById('editNom').value = ind.nom;
+      document.getElementById('editDescription').value = ind.description || '';
+      document.getElementById('editFormule').value = ind.formule || '';
+      document.getElementById('editPeriode').value = ind.periode || '';
+      document.getElementById('editCalcAuto').checked = ind.calcul_auto;
+      new bootstrap.Modal(document.getElementById('editIndicateurModal')).show();
+    });
+  });
+});
+
+document.getElementById('editIndicateurForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnEditIndicateur');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  const data = Object.fromEntries(new FormData(this));
+  const id = data.id; delete data.id;
+  data.calcul_auto = !!data.calcul_auto;
+  fetch('/indicateurs/api/update/' + id, {
+    method: 'POST', headers: headers(), body: JSON.stringify(data),
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else { alert(d.erreur || 'Erreur'); btn.disabled = false; btn.textContent = 'Enregistrer'; }
+  }).catch(() => { btn.disabled = false; btn.textContent = 'Enregistrer'; });
+});
+
+document.querySelectorAll('.delete-indicateur').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (!confirm('Supprimer cet indicateur ainsi que toutes ses valeurs ?')) return;
+    fetch('/indicateurs/api/delete/' + this.dataset.id, {method: 'POST'})
+      .then(r => r.json()).then(d => { if (d.success) location.reload(); });
+  });
+});
+</script>
+{% endblock %}

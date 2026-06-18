@@ -1,0 +1,97 @@
+{% extends 'layout.html' %}
+{% block title %}Aperçu import JSON - Textes réglementaires{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Aperçu de l'import JSON</h1>
+    <a href="{{ url_for('textes.import_json') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Retour
+    </a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-primary">{{ summary.files }}</div>
+          <small class="text-muted">Fichier(s)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success">{{ summary.articles }}</div>
+          <small class="text-muted">Article(s)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-warning">{{ summary.warnings }}</div>
+          <small class="text-muted">Avertissement(s)</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if link_to_enterprise %}
+  <div class="alert alert-success mb-4">
+    <i class="fas fa-link me-2"></i>
+    <strong>Liaison entreprise activée</strong> — Les textes importés seront liés à votre entreprise et les évaluations de conformité seront créées automatiquement.
+  </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+      <h6 class="mb-0 fw-semibold"><i class="fas fa-file-code me-2 text-primary"></i>Fichiers à importer</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Fichier</th>
+              <th>Articles</th>
+              <th>Avertissements</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in payloads %}
+            <tr>
+              <td><i class="fas fa-file-code me-2 text-primary"></i>{{ p.filename }}</td>
+              <td><span class="badge bg-success">{{ p.payload.rows|length if p.payload.rows else (p.payload.articles|length if p.payload.articles else 0) }}</span></td>
+              <td><span class="badge bg-secondary">0</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('textes.confirm_import_json') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="preview_token" value="{{ token }}">
+
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          En confirmant, les textes réglementaires et leurs articles seront créés dans la base de données.
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-check me-1"></i>Confirmer l'import
+          </button>
+          <a href="{{ url_for('textes.import_json') }}" class="btn btn-secondary">
+            <i class="fas fa-times me-1"></i>Annuler
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -66,6 +66,11 @@
       padding: .5rem 1.5rem;
       margin: -1.5rem -1.5rem 1.5rem;
     }
+    .notif-dropdown { width: 360px; max-height: 400px; overflow-y: auto; }
+    .notif-dropdown .notif-item { padding: .75rem 1rem; border-bottom: 1px solid #f0f0f0; }
+    .notif-dropdown .notif-item:last-child { border-bottom: none; }
+    .notif-dropdown .notif-item.unread { background: #fff5f5; }
+    .notif-badge { position: absolute; top: -4px; right: -6px; font-size: .6rem; padding: .15em .45em; }
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); }
       .sidebar.show { transform: translateX(0); }
@@ -115,6 +120,18 @@
               <i class="fas fa-crown me-2"></i><span>Administration</span>
             </a>
           </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint == 'admin.utilisateurs' %}active{% endif %}"
+               href="{{ url_for('admin.utilisateurs') }}">
+              <i class="fas fa-users-cog me-2"></i><span>Utilisateurs</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint == 'admin.admin_tickets' %}active{% endif %}"
+               href="{{ url_for('admin.admin_tickets') }}">
+              <i class="fas fa-headset me-2"></i><span>Tickets (admin)</span>
+            </a>
+          </li>
           {% endif %}
 
           <!-- Commun -->
@@ -123,6 +140,12 @@
             <a class="nav-link {% if request.endpoint == 'main.tableau_de_bord' %}active{% endif %}"
                href="{{ url_for('main.tableau_de_bord') }}">
               <i class="fas fa-chart-line me-2"></i><span>Tableau de bord</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint == 'main.search' %}active{% endif %}"
+               href="{{ url_for('main.search') }}">
+              <i class="fas fa-search me-2"></i><span>Recherche</span>
             </a>
           </li>
           <li class="nav-item mb-1">
@@ -143,9 +166,15 @@
               <i class="fas fa-clipboard-check me-2"></i><span>Audits</span>
             </a>
           </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('indicateurs.') %}active{% endif %}"
+               href="{{ url_for('indicateurs.index') }}">
+              <i class="fas fa-chart-bar me-2"></i><span>Indicateurs</span>
+            </a>
+          </li>
 
           <!-- Section HSE -->
-          {% if domaine_actif == 'hse' %}
+          {% if 'hse' in modules_actifs %}
           <li class="nav-section"><h6>HSE</h6></li>
           <li class="nav-item mb-1">
             <a class="nav-link" href="{{ url_for('textes.index') }}">
@@ -158,37 +187,52 @@
               <i class="fas fa-clipboard-list me-2"></i><span>Suivi conformité</span>
             </a>
           </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('veille.') %}active{% endif %}"
+               href="{{ url_for('veille.index') }}">
+              <i class="fas fa-satellite-dish me-2"></i><span>Veille réglementaire</span>
+            </a>
+          </li>
           {% endif %}
 
           <!-- Section Qualité -->
-          {% if domaine_actif == 'qualite' %}
+          {% if 'qualite' in modules_actifs %}
           <li class="nav-section"><h6>Qualité</h6></li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.risques') }}"><i class="fas fa-exclamation-triangle me-2"></i><span>Risques</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.risques') %}active{% endif %}"
+               href="{{ url_for('qualite.risques') }}"><i class="fas fa-exclamation-triangle me-2"></i><span>Risques</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.haccp') }}"><i class="fas fa-utensils me-2"></i><span>HACCP</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.haccp') %}active{% endif %}"
+               href="{{ url_for('qualite.haccp') }}"><i class="fas fa-utensils me-2"></i><span>HACCP</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.clients') }}"><i class="fas fa-users me-2"></i><span>Clients</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.clients') %}active{% endif %}"
+               href="{{ url_for('qualite.clients') }}"><i class="fas fa-users me-2"></i><span>Clients</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.fournisseurs') }}"><i class="fas fa-truck me-2"></i><span>Fournisseurs</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.fournisseurs') %}active{% endif %}"
+               href="{{ url_for('qualite.fournisseurs') }}"><i class="fas fa-truck me-2"></i><span>Fournisseurs</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.formations') }}"><i class="fas fa-graduation-cap me-2"></i><span>Formations</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.formations') %}active{% endif %}"
+               href="{{ url_for('qualite.formations') }}"><i class="fas fa-graduation-cap me-2"></i><span>Formations</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.equipements') }}"><i class="fas fa-tools me-2"></i><span>Équipements</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.equipements') %}active{% endif %}"
+               href="{{ url_for('qualite.equipements') }}"><i class="fas fa-tools me-2"></i><span>Équipements</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.controle') }}"><i class="fas fa-flask me-2"></i><span>Contrôle qualité</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.controle') %}active{% endif %}"
+               href="{{ url_for('qualite.controle') }}"><i class="fas fa-flask me-2"></i><span>Contrôle qualité</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.revue') }}"><i class="fas fa-chart-pie me-2"></i><span>Revue de direction</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.revue') %}active{% endif %}"
+               href="{{ url_for('qualite.revue') }}"><i class="fas fa-chart-pie me-2"></i><span>Revue de direction</span></a>
           </li>
           <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('qualite.nonconformites') }}"><i class="fas fa-times-circle me-2"></i><span>Non-conformités</span></a>
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.nonconformites') %}active{% endif %}"
+               href="{{ url_for('qualite.nonconformites') }}"><i class="fas fa-times-circle me-2"></i><span>Non-conformités</span></a>
           </li>
           {% endif %}
 
@@ -197,12 +241,51 @@
           <li class="nav-item mb-1">
             <a class="nav-link" href="{{ url_for('support.mes_tickets') }}"><i class="fas fa-life-ring me-2"></i><span>Support</span></a>
           </li>
+
+          <!-- Utilisateur -->
+          <li class="nav-section"><h6>Mon compte</h6></li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('users.profile') }}">
+              <i class="fas fa-user me-2"></i><span>{{ current_user.prenom }} {{ current_user.nom }}</span>
+            </a>
+          </li>
+          <li class="nav-item mb-1">
+            <a class="nav-link" href="{{ url_for('users.logout') }}">
+              <i class="fas fa-sign-out-alt me-2"></i><span>Déconnexion</span>
+            </a>
+          </li>
         </ul>
       </div>
     </nav>
     {% endif %}
 
     <main class="content">
+      {% if not is_landing %}
+      <div class="navbar-top d-flex align-items-center justify-content-between">
+        <div>
+          <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" onclick="document.getElementById('sidebar').classList.toggle('show')">
+            <i class="fas fa-bars"></i>
+          </button>
+          <span class="fw-semibold text-muted small">{% block page_title %}{% endblock %}</span>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-link text-dark position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="notifDropdown">
+            <i class="fas fa-bell fa-lg"></i>
+            <span class="badge bg-danger rounded-pill notif-badge" id="notifCount" style="display:none">0</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end notif-dropdown shadow" aria-labelledby="notifDropdown">
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+              <strong class="small">Notifications</strong>
+              <a href="#" class="small text-danger" id="markAllRead" style="text-decoration:none">Tout marquer lu</a>
+            </div>
+            <div id="notifList">
+              <div class="text-center text-muted small py-3">Chargement...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       <div class="flash-messages">
@@ -229,7 +312,71 @@
           setTimeout(function() { bsAlert.close(); }, 5000);
         });
       }, 100);
+
+      loadNotifications();
+      if (document.getElementById('notifDropdown')) {
+        document.getElementById('notifDropdown').addEventListener('shown.bs.dropdown', loadNotifications);
+      }
+      var markAllBtn = document.getElementById('markAllRead');
+      if (markAllBtn) {
+        markAllBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          fetch('/api/notifications/read-all', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
+            .then(function(r){ return r.json(); })
+            .then(function(){ loadNotifications(); });
+        });
+      }
     });
+
+    function loadNotifications() {
+      var list = document.getElementById('notifList');
+      var count = document.getElementById('notifCount');
+      if (!list) return;
+      list.innerHTML = '<div class="text-center text-muted small py-3">Chargement...</div>';
+      fetch('/api/notifications', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){ return r.json(); })
+        .then(function(notifs) {
+          if (!notifs.length) {
+            list.innerHTML = '<div class="text-center text-muted small py-3">Aucune notification</div>';
+            if (count) count.style.display = 'none';
+            return;
+          }
+          var unread = notifs.filter(function(n){ return !n.lu; }).length;
+          if (count) {
+            count.textContent = unread;
+            count.style.display = unread ? '' : 'none';
+          }
+          var html = '';
+          var show = notifs.slice(0, 5);
+          show.forEach(function(n) {
+            var cls = n.lu ? '' : 'unread';
+            html += '<div class="notif-item ' + cls + '">';
+            html += '<small class="text-muted d-block mb-1">' + (n.type || 'info') + '</small>';
+            html += '<div class="small mb-1">' + n.message + '</div>';
+            html += '<div class="d-flex justify-content-between align-items-center">';
+            html += '<small class="text-muted">' + (n.date_envoi ? new Date(n.date_envoi).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '') + '</small>';
+            if (!n.lu) {
+              html += '<button class="btn btn-sm btn-link text-danger p-0 notif-read-btn" data-id="' + n.id + '" style="text-decoration:none;font-size:.75rem">Lu</button>';
+            }
+            html += '</div></div>';
+          });
+          if (notifs.length > 5) {
+            html += '<div class="text-center py-2"><a href="#" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
+          }
+          list.innerHTML = html;
+          list.querySelectorAll('.notif-read-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var id = this.getAttribute('data-id');
+              fetch('/api/notifications/' + id + '/read', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
+                .then(function(r){ return r.json(); })
+                .then(function(){ loadNotifications(); });
+            });
+          });
+        })
+        .catch(function() {
+          list.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';
+        });
+    }
   </script>
   {% block scripts %}{% endblock %}
 </body>

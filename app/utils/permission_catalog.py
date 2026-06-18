@@ -15,6 +15,7 @@ PERMISSION_CATALOG = {
         ('documents.voir', 'Voir la bibliotheque documents'),
         ('documents.upload', 'Uploader un document'),
         ('documents.archiver', 'Archiver/Supprimer un document'),
+        ('documents.workflow', 'Soumettre/Approuver/Rejeter (workflow documentaire)'),
     ],
     'textes': [
         ('textes.voir', 'Voir les textes reglementaires'),
@@ -31,6 +32,23 @@ PERMISSION_CATALOG = {
     ],
     'secteur': [
         ('secteur.voir', 'Voir les secteurs'),
+        ('secteur.cree', 'Creer un secteur'),
+        ('secteur.modifier', 'Modifier/Supprimer un secteur'),
+        ('secteur.gerer_textes', 'Gerer les textes lies aux secteurs'),
+    ],
+    'entreprise_textes': [
+        ('entreprise_textes.lier', 'Lier/Delier des textes'),
+        ('entreprise_textes.evaluate', 'Lancer des evaluations'),
+    ],
+    'support': [
+        ('support.voir', 'Voir les tickets'),
+        ('support.cree', 'Creer un ticket'),
+        ('support.fermer', 'Fermer un ticket'),
+    ],
+    'indicateurs': [
+        ('indicateurs.voir', 'Voir les indicateurs'),
+        ('indicateurs.cree', 'Creer un indicateur'),
+        ('indicateurs.modifier', 'Modifier/Supprimer un indicateur'),
     ],
     'admin': [
         ('admin.voir_roles', 'Gerer les roles et permissions'),
@@ -50,6 +68,7 @@ PERMISSION_CATALOG = {
         ('qualite.gerer_equipements', 'Gerer les equipements'),
         ('qualite.gerer_controle', 'Gerer le controle qualite'),
         ('qualite.gerer_revue', 'Gerer la revue de direction'),
+        ('qualite.gerer_nonconformites', 'Gerer les non-conformites qualite'),
     ],
 }
 
@@ -62,14 +81,19 @@ DEFAULT_ENTERPRISE_ROLE_PERMISSIONS = {
     'Manager': (
         'users.voir', 'users.cree', 'users.modifier',
         'actions.voir', 'actions.cree', 'actions.modifier',
-        'documents.voir', 'documents.upload', 'documents.archiver',
+        'documents.voir', 'documents.upload', 'documents.archiver', 'documents.workflow',
         'textes.voir', 'textes.modifier',
         'conformite.voir', 'conformite.modifier',
+        'secteur.voir', 'secteur.cree', 'secteur.modifier', 'secteur.gerer_textes',
+        'entreprise_textes.lier', 'entreprise_textes.evaluate',
+        'support.voir', 'support.cree', 'support.fermer',
+        'indicateurs.voir', 'indicateurs.cree', 'indicateurs.modifier',
         'audit.voir', 'audit.cree', 'audit.modifier',
         'qualite.voir', 'qualite.gerer_risques', 'qualite.gerer_haccp',
         'qualite.gerer_clients', 'qualite.gerer_fournisseurs',
         'qualite.gerer_formations', 'qualite.gerer_equipements',
         'qualite.gerer_controle', 'qualite.gerer_revue',
+        'qualite.gerer_nonconformites',
     ),
     'Auditeur': (
         'actions.voir',

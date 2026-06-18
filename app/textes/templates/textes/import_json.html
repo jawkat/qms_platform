@@ -1,0 +1,108 @@
+{% extends 'layout.html' %}
+{% block title %}Import JSON - Textes réglementaires{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Import JSON des textes réglementaires</h1>
+    <a href="{{ url_for('textes.download_json_template') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-download me-1"></i>Télécharger le template
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="fw-semibold"><i class="fas fa-info-circle me-2 text-primary"></i>Format JSON accepté</h6>
+      <p class="text-muted small mb-3">
+        Chaque fichier JSON doit contenir un objet avec les clés <code>texte</code>, <code>version</code> et <code>rows</code> (ou <code>articles</code>).
+        Le tableau <code>rows</code> contient les articles avec les champs obligatoires : <code>ARTICLE</code>, <code>CONTENU</code>, <code>TYPE_OBLIGATION</code>.
+      </p>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="card bg-light border-0">
+            <div class="card-body py-2">
+              <h6 class="card-title small mb-1"><code>texte</code></h6>
+              <p class="card-text small text-muted mb-0">code, titre, type (obligatoires), domaine, sousdomaine, theme, referentiel, secteurs</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light border-0">
+            <div class="card-body py-2">
+              <h6 class="card-title small mb-1"><code>version</code></h6>
+              <p class="card-text small text-muted mb-0">numero_version (obligatoire), date_publication, statut, preambule</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light border-0">
+            <div class="card-body py-2">
+              <h6 class="card-title small mb-1"><code>rows</code></h6>
+              <p class="card-text small text-muted mb-0">ARTICLE, CONTENU, TYPE_OBLIGATION, RISQUE, MOTS_CLES, RESUME, PREUVE_CONFORMITE</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('textes.import_json') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Fichiers JSON <span class="text-danger">*</span></label>
+          <input type="file" class="form-control" name="files" accept=".json" multiple required
+                 id="jsonFiles" onchange="updateFileInfo()">
+          <div class="form-text">Vous pouvez sélectionner plusieurs fichiers JSON à importer en même temps.</div>
+          <div id="fileInfo" class="mt-2"></div>
+        </div>
+
+        <div class="mb-4">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="linkToEnterprise" name="link_to_enterprise" value="1">
+            <label class="form-check-label fw-semibold" for="linkToEnterprise">
+              <i class="fas fa-link me-1 text-primary"></i>Lier les textes importés à mon entreprise pour évaluation
+            </label>
+          </div>
+          <div class="form-text">Si coché, chaque texte importé sera automatiquement lié à votre entreprise et les évaluations de conformité seront créées.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" name="preview" value="1" class="btn btn-warning">
+            <i class="fas fa-eye me-1"></i>Prévisualiser
+          </button>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-upload me-1"></i>Importer directement
+          </button>
+          <a href="{{ url_for('textes.index') }}" class="btn btn-secondary">
+            <i class="fas fa-times me-1"></i>Annuler
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateFileInfo() {
+  const input = document.getElementById('jsonFiles');
+  const info = document.getElementById('fileInfo');
+  const files = input.files;
+  if (files.length === 0) {
+    info.innerHTML = '';
+    return;
+  }
+  let html = '<div class="list-group list-group-flush">';
+  for (let i = 0; i < files.length; i++) {
+    const size = (files[i].size / 1024).toFixed(1);
+    html += `<div class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
+      <span><i class="fas fa-file-code me-2 text-primary"></i>${files[i].name}</span>
+      <span class="badge bg-secondary">${size} KB</span>
+    </div>`;
+  }
+  html += '</div>';
+  info.innerHTML = html;
+}
+</script>
+{% endblock %}

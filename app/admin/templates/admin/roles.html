@@ -1,0 +1,226 @@
+{% extends 'layout.html' %}
+{% block title %}Administration - Rôles{% endblock %}
+{% block content %}
+<style>
+  .role-card { transition: transform .2s, box-shadow .2s; border-radius: .75rem !important; }
+  .role-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.08) !important; }
+  .permissions-preview { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .perm-module-tag {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .25rem .6rem; border-radius: 999px;
+    background: #f1f5f9; color: #475569; font-size: .75rem;
+  }
+  .perm-module-tag .perm-count { font-size: .65rem; color: #94a3b8; }
+  .modal-content { border-radius: 1rem; border: none; }
+  .modal-header { border-radius: 1rem 1rem 0 0; }
+  #searchRoles:focus { box-shadow: none; border-color: #dee2e6; }
+</style>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1"><i class="fas fa-user-tag me-2"></i>Rôles et permissions</h1>
+      <p class="text-muted small mb-0">Gérez les rôles et définissez les accès de chaque profil</p>
+    </div>
+    <div class="d-flex gap-2">
+      <div class="input-group" style="width:280px">
+        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+        <input type="text" class="form-control border-start-0" id="searchRoles" placeholder="Rechercher un rôle…">
+      </div>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+        <i class="fas fa-plus me-1"></i>Créer un rôle
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {% for role in roles %}
+    {% set role_perm_set = role_perms.get(role.id, []) %}
+    {% set perm_count = role_perm_set|length %}
+    <div class="col-xl-4 col-lg-6 role-card-col" data-role-name="{{ role.nom|lower }}">
+      <div class="card border-0 shadow-sm h-100 role-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width:48px;height:48px;{% if role.est_systeme %}background:linear-gradient(135deg,#e63946,#b91c1c);{% else %}background:linear-gradient(135deg,#6366f1,#4f46e5);{% endif %}">
+                <i class="fas {% if role.est_systeme %}fa-crown{% else %}fa-shield-halved{% endif %} text-white"></i>
+              </div>
+              <div>
+                <h5 class="mb-0 fw-semibold">{{ role.nom }}</h5>
+                <small class="text-muted">{{ role.description or 'Aucune description' }}</small>
+              </div>
+            </div>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-light" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('admin.role_edit', role_id=role.id) }}">
+                    <i class="fas fa-pen me-2"></i>Modifier
+                  </a>
+                </li>
+                {% if role.personnalisable %}
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <form method="POST" action="{{ url_for('admin.role_delete', role_id=role.id) }}"
+                        onsubmit="return confirm('Supprimer le rôle « {{ role.nom }} » ?')">
+                    <button class="dropdown-item text-danger" type="submit"><i class="fas fa-trash me-2"></i>Supprimer</button>
+                  </form>
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            {% if role.est_systeme %}
+            <span class="badge bg-warning text-dark"><i class="fas fa-gear me-1"></i>Système</span>
+            {% endif %}
+            {% if not role.personnalisable %}
+            <span class="badge bg-secondary"><i class="fas fa-lock me-1"></i>Non modifiable</span>
+            {% endif %}
+            <span class="badge bg-light text-dark"><i class="fas fa-key me-1"></i>{{ perm_count }} permission{{ 's' if perm_count != 1 }}</span>
+          </div>
+
+          <div class="permissions-preview">
+            {% set ns = namespace(modules_used=[]) %}
+            {% for module, perms in permission_catalog.items() %}
+              {% set codes = [] %}
+              {% for code, desc in perms %}
+                {% if code in role_perm_set %}
+                  {% if codes.append(code) %}{% endif %}
+                {% endif %}
+              {% endfor %}
+              {% if codes %}
+                <div class="perm-module-tag">
+                  <span class="fw-medium">{{ module|capitalize }}</span>
+                  <span class="perm-count">{{ codes|length }}</span>
+                </div>
+                {% if ns.modules_used.append(module) %}{% endif %}
+              {% endif %}
+            {% endfor %}
+            {% if not ns.modules_used %}
+            <p class="text-muted small fst-italic mb-0">Aucune permission assignée</p>
+            {% endif %}
+          </div>
+
+          {% if role.cree_par %}
+          <div class="mt-3 pt-3 border-top">
+            <small class="text-muted">
+              <i class="fas fa-user me-1"></i>Créé par {{ role.createur.prenom ~ ' ' ~ role.createur.nom if role.createur else role.cree_par }}
+              {% if role.date_creation %}· {{ role.date_creation.strftime('%d/%m/%Y') }}{% endif %}
+            </small>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="col-12">
+      <div class="text-center py-5">
+        <div class="mb-3"><i class="fas fa-user-tag fa-3x text-muted opacity-25"></i></div>
+        <p class="text-muted">Aucun rôle défini.</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createRoleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('admin.role_create') }}">
+        <div class="modal-header border-0">
+          <h5 class="modal-title"><i class="fas fa-plus-circle me-2 text-success"></i>Créer un rôle</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-medium">Nom du rôle <span class="text-danger">*</span></label>
+              <input type="text" name="nom" class="form-control" required placeholder="Ex: Auditeur, Manager…">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-medium">Description</label>
+              <textarea name="description" class="form-control" rows="1" placeholder="Décrivez le rôle…"></textarea>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <h6 class="fw-semibold mb-0"><i class="fas fa-key me-2"></i>Permissions</h6>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms(this, 'create', 0)">
+                Tout cocher / décocher
+              </button>
+            </div>
+          </div>
+          {% for module, perms in permission_catalog.items() %}
+          <div class="card mb-3 border">
+            <div class="card-header bg-light py-2 d-flex align-items-center">
+              <div class="form-check mb-0">
+                <input class="form-check-input module-check" type="checkbox"
+                       data-module="{{ module }}" id="create_all_{{ module }}"
+                       onchange="toggleModule(this, 'create', 0)">
+                <label class="form-check-label fw-semibold" for="create_all_{{ module }}">
+                  {{ module|capitalize }}
+                </label>
+              </div>
+              <span class="badge bg-primary bg-opacity-10 text-primary ms-auto">{{ perms|length }}</span>
+            </div>
+            <div class="card-body py-2">
+              <div class="row">
+                {% for code, desc in perms %}
+                <div class="col-md-6 mb-1">
+                  <div class="form-check">
+                    <input class="form-check-input perm-check create-0-{{ module }}"
+                           type="checkbox" name="permissions" value="{{ code }}"
+                           id="create_perm_{{ code }}">
+                    <label class="form-check-label small" for="create_perm_{{ code }}">{{ desc }}</label>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Créer le rôle</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleModule(checkbox, prefix, roleId) {
+  var selector = '.' + prefix + '-' + roleId + '-' + checkbox.dataset.module;
+  document.querySelectorAll(selector).forEach(function(cb) {
+    cb.checked = checkbox.checked;
+  });
+}
+
+function toggleAllPerms(btn, prefix, roleId) {
+  var modal = btn.closest('.modal');
+  var allChecked = true;
+  var checks = modal.querySelectorAll('.perm-check');
+  checks.forEach(function(cb) { if (!cb.checked) allChecked = false; });
+  checks.forEach(function(cb) { cb.checked = !allChecked; });
+  modal.querySelectorAll('.module-check').forEach(function(cb) { cb.checked = !allChecked; });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('searchRoles').addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.role-card-col').forEach(function(col) {
+      var name = col.getAttribute('data-role-name') || '';
+      col.style.display = name.indexOf(q) !== -1 ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

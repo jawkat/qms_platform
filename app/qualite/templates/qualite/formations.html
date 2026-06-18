@@ -1,3 +1,222 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - Formations{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Gestion des formations</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Gestion des formations</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#trainingModal">
+      <i class="fas fa-plus me-1"></i>Nouvelle formation
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statPlanifiees">--</div>
+          <small class="text-muted">Planifiées</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success" id="statRealisees">--</div>
+          <small class="text-muted">Réalisées</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-info" id="statParticipants">--</div>
+          <small class="text-muted">Participants</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-warning" id="statHeures">--</div>
+          <small class="text-muted">Heures dispensées</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Formation</th>
+              <th>Formateur</th>
+              <th>Participants</th>
+              <th>Date</th>
+              <th>Durée (h)</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="formationsTableBody">
+            <tr id="emptyRow">
+              <td colspan="7" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucune formation enregistrée.<br>
+                <small>Ajoutez des formations via le bouton "Nouvelle formation".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="trainingModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="trainingModalTitle">Nouvelle formation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="trainingId" value="">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Intitulé <span class="text-danger">*</span></label>
+            <input type="text" id="trainingTitre" class="form-control" placeholder="Titre de la formation...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Formateur</label>
+            <input type="text" id="trainingFormateur" class="form-control" placeholder="Nom du formateur ou organisme">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Date</label>
+            <input type="date" id="trainingDate" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Durée (heures)</label>
+            <input type="number" id="trainingDuree" class="form-control" min="0" step="0.5">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Participants</label>
+            <input type="text" id="trainingParticipants" class="form-control" placeholder="Nombres ou noms...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Statut</label>
+            <select id="trainingStatut" class="form-select">
+              <option value="planifiee">Planifiée</option>
+              <option value="realisee">Réalisée</option>
+              <option value="annulee">Annulée</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveTraining()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadTrainings() {
+  fetch('{{ url_for("qualite.api_formations") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('formationsTableBody');
+      const empty = document.getElementById('emptyRow');
+      if (items.length === 0) return;
+      if (empty) empty.remove();
+      let planifiees = 0, realisees = 0, totalParticipants = 0, totalHeures = 0;
+      tbody.innerHTML = items.map(r => {
+        if (r.statut === 'planifiee') planifiees++;
+        else if (r.statut === 'realisee') realisees++;
+        if (r.participants) totalParticipants += parseInt(r.participants) || 0;
+        if (r.duree_heures) totalHeures += parseFloat(r.duree_heures) || 0;
+        const sc = r.statut === 'realisee' ? 'success' : r.statut === 'planifiee' ? 'info' : 'secondary';
+        return `<tr>
+          <td>${r.titre || ''}</td>
+          <td>${r.formateur || ''}</td>
+          <td>${r.participants || ''}</td>
+          <td>${r.date_formation || ''}</td>
+          <td>${r.duree_heures || ''}</td>
+          <td><span class="badge bg-${sc}">${r.statut || ''}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editTraining(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteTraining(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      document.getElementById('statPlanifiees').textContent = planifiees;
+      document.getElementById('statRealisees').textContent = realisees;
+      document.getElementById('statParticipants').textContent = totalParticipants;
+      document.getElementById('statHeures').textContent = totalHeures;
+    });
+}
+
+function saveTraining() {
+  const id = document.getElementById('trainingId').value;
+  const data = {
+    titre: document.getElementById('trainingTitre').value,
+    formateur: document.getElementById('trainingFormateur').value,
+    date_formation: document.getElementById('trainingDate').value || null,
+    duree_heures: parseFloat(document.getElementById('trainingDuree').value) || null,
+    participants: document.getElementById('trainingParticipants').value,
+    statut: document.getElementById('trainingStatut').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_formations_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_formations_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('trainingModal')).hide();
+        loadTrainings();
+        resetTrainingForm();
+      }
+    });
+}
+
+function editTraining(id) {
+  fetch('{{ url_for("qualite.api_formations") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('trainingId').value = r.id;
+      document.getElementById('trainingTitre').value = r.titre || '';
+      document.getElementById('trainingFormateur').value = r.formateur || '';
+      document.getElementById('trainingDate').value = r.date_formation || '';
+      document.getElementById('trainingDuree').value = r.duree_heures || '';
+      document.getElementById('trainingParticipants').value = r.participants || '';
+      document.getElementById('trainingStatut').value = r.statut || 'planifiee';
+      document.getElementById('trainingModalTitle').textContent = 'Modifier la formation';
+      new bootstrap.Modal(document.getElementById('trainingModal')).show();
+    });
+}
+
+function deleteTraining(id) {
+  if (!confirm('Supprimer cette formation ?')) return;
+  fetch('{{ url_for("qualite.api_formations_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadTrainings(); });
+}
+
+function resetTrainingForm() {
+  document.getElementById('trainingId').value = '';
+  document.getElementById('trainingTitre').value = '';
+  document.getElementById('trainingFormateur').value = '';
+  document.getElementById('trainingDate').value = '';
+  document.getElementById('trainingDuree').value = '';
+  document.getElementById('trainingParticipants').value = '';
+  document.getElementById('trainingStatut').value = 'planifiee';
+  document.getElementById('trainingModalTitle').textContent = 'Nouvelle formation';
+}
+
+document.addEventListener('DOMContentLoaded', loadTrainings);
+</script>
+{% endblock %}

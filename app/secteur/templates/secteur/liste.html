@@ -1,0 +1,245 @@
+{% extends 'layout.html' %}
+
+{% block title %}Secteurs{% endblock %}
+
+{% block content %}
+<div class="container mt-3">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Secteurs</h1>
+        </div>
+        <div class="page-actions">
+            {% if current_user.has_permission('secteur.gerer_textes') %}
+            <a href="{{ url_for('secteur.admin_textes') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-sitemap me-1"></i>Gérer Textes
+            </a>
+            {% endif %}
+            {% if current_user.has_permission('secteur.cree') %}
+            <button id="addSecteurBtn" type="button" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i>Ajouter
+            </button>
+            {% endif %}
+            {% if current_user.has_permission('secteur.modifier') %}
+            <button id="deleteAllSecteursBtn" type="button" class="btn btn-danger">
+                <i class="fas fa-trash-alt me-1"></i>Tout Supprimer
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover" id="secteursTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:60px">#</th>
+                    <th>Nom</th>
+                    <th>Description</th>
+                    <th style="width:160px">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in secteurs %}
+                <tr id="secteur-{{ s.id }}">
+                    <td>{{ s.id }}</td>
+                    <td>{{ s.nom }}</td>
+                    <td>{{ s.description or '-' }}</td>
+                    <td class="d-flex flex-inline">
+                        {% if current_user.has_permission('secteur.modifier') %}
+                        <button class="btn btn-sm btn-outline-primary btn-edit me-2" data-id="{{ s.id }}"
+                            data-url="/secteur/{{ s.id }}/edit">
+                            <i class="fas fa-edit"></i> Modifier
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete me-2" data-id="{{ s.id }}">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>
+                        {% endif %}
+                        {% if current_user.has_permission('secteur.voir') %}
+                        <a href="/secteur/{{ s.id }}" class="btn btn-sm btn-outline-secondary ms-2">
+                            <i class="fas fa-eye"></i> Voir
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Aucun secteur trouvé.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal dynamique pour Create/Edit -->
+<div class="modal fade" id="secteurModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="secteurModalLabel">...</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="secteurModalBody" class="p-1">
+                    <!-- contenu chargé via AJAX -->
+                    <div class="text-center text-muted py-4" id="modalLoading">Chargement…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalEl = document.getElementById('secteurModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const modalTitle = modalEl.querySelector('.modal-title');
+        const modalBody = document.getElementById('secteurModalBody');
+
+        function showLoading() {
+            modalBody.innerHTML = '<div class="text-center text-muted py-4">Chargement…</div>';
+        }
+
+        // Ouvre modal et charge le formulaire via GET
+        async function openModal(url, title) {
+            modalTitle.textContent = title || '';
+            showLoading();
+            modal.show();
+            try {
+                const res = await fetch(url, { credentials: 'same-origin' });
+                // si on reçoit du HTML (formulaire), injecter
+                const text = await res.text();
+                modalBody.innerHTML = text;
+            } catch (err) {
+                modalBody.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement du formulaire.</div>';
+                console.error(err);
+            }
+        }
+
+        // click sur Ajouter
+        document.getElementById('addSecteurBtn').addEventListener('click', function () {
+            // Assumption: create form is available at /secteur/create (GET)
+            openModal('/secteur/create', 'Ajouter un secteur');
+        });
+
+        // click sur Supprimer tout
+        const deleteAllBtn = document.getElementById('deleteAllSecteursBtn');
+        if (deleteAllBtn) {
+            deleteAllBtn.addEventListener('click', async function () {
+                if (confirm('Êtes-vous sûr de vouloir supprimer TOUS les secteurs ? Cette action est irréversible.')) {
+                    try {
+                        const res = await fetch('/secteur/delete_all', { method: 'POST', credentials: 'same-origin' });
+                        const data = await res.json();
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert(data.message || 'Erreur lors de la suppression.');
+                        }
+                    } catch (err) {
+                        alert('Erreur réseau.');
+                    }
+                }
+            });
+        }
+
+        // click sur Edit ou Supprimer (event delegation)
+        document.getElementById('secteursTable').addEventListener('click', async function (e) {
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                const url = editBtn.dataset.url || ('/secteur/' + editBtn.dataset.id + '/edit');
+                openModal(url, 'Modifier le secteur');
+                return;
+            }
+
+            const deleteBtn = e.target.closest('.btn-delete');
+            if (deleteBtn) {
+                if (confirm('Voulez-vous vraiment supprimer ce secteur ?')) {
+                    const sId = deleteBtn.dataset.id;
+                    try {
+                        const res = await fetch('/secteur/' + sId + '/delete', { method: 'POST', credentials: 'same-origin' });
+                        const data = await res.json();
+                        if (data.success) {
+                            document.getElementById('secteur-' + sId).remove();
+                        } else {
+                            alert(data.message || 'Erreur lors de la suppression du secteur.');
+                        }
+                    } catch (err) {
+                        alert('Erreur réseau.');
+                    }
+                }
+                return;
+            }
+        });
+
+        // Soumission du formulaire dans le modal (event delegation)
+        modalEl.addEventListener('submit', async function (e) {
+            const form = e.target;
+            if (form.tagName.toLowerCase() !== 'form') return;
+            e.preventDefault();
+            const action = form.action || window.location.pathname;
+            const method = (form.method || 'post').toUpperCase();
+            const formData = new FormData(form);
+
+            // envoyer la requête via fetch
+            try {
+                const res = await fetch(action, {
+                    method: method,
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                const contentType = res.headers.get('content-type') || '';
+
+                if (contentType.includes('application/json')) {
+                    const data = await res.json();
+                    if (data.success) {
+                        // si backend renvoie l'objet secteur, on met à jour la table sinon reload
+                        if (data.secteur) {
+                            const s = data.secteur;
+                            const row = document.getElementById('secteur-' + s.id);
+                            const htmlRow = `
+                            <td>${s.id}</td>
+                            <td>${s.nom}</td>
+                            <td>${s.description || '-'} </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary btn-edit me-2" data-id="${s.id}" data-url="/secteur/${s.id}/edit"><i class="fas fa-edit"></i> Modifier</button>
+                                <button class="btn btn-sm btn-outline-danger btn-delete me-2" data-id="${s.id}"><i class="fas fa-trash"></i> Supprimer</button>
+                                <a href="/secteur/${s.id}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i> Voir</a>
+                            </td>`;
+                            if (row) {
+                                row.innerHTML = htmlRow;
+                            } else {
+                                // append
+                                const tr = document.createElement('tr');
+                                tr.id = 'secteur-' + s.id;
+                                tr.innerHTML = htmlRow;
+                                document.querySelector('#secteursTable tbody').prepend(tr);
+                            }
+                            modal.hide();
+                            return;
+                        }
+                        // fallback
+                        location.reload();
+                    } else {
+                        // afficher erreurs si présentes
+                        modalBody.querySelectorAll('.alert').forEach(n => n.remove());
+                        const err = data.message || 'Erreur de validation';
+                        modalBody.insertAdjacentHTML('afterbegin', `<div class="alert alert-danger">${err}</div>`);
+                    }
+                } else {
+                    // si renvoi HTML (par ex formulaire avec erreurs), remplacer le contenu du modal
+                    const text = await res.text();
+                    modalBody.innerHTML = text;
+                }
+            } catch (err) {
+                console.error(err);
+                modalBody.insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">Erreur réseau.</div>');
+            }
+        });
+
+    });
+</script>
+{% endblock %}

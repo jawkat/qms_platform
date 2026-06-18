@@ -9,17 +9,63 @@ from flask_migrate import stamp
 from app.utils.permission_catalog import iter_permission_rows
 
 
+def _run_migrations():
+    """Ajoute les colonnes manquantes si la table existe déjà (migration sans Alembic)."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    existing_tables = set(inspector.get_table_names())
+
+    if 'entreprise' in existing_tables:
+        cols = {c['name'] for c in inspector.get_columns('entreprise')}
+        with db.engine.connect() as conn:
+            if 'telephone' not in cols:
+                conn.execute(text('ALTER TABLE entreprise ADD COLUMN telephone VARCHAR(20)'))
+            if 'periode_essai_jours' not in cols:
+                conn.execute(text('ALTER TABLE entreprise ADD COLUMN periode_essai_jours INTEGER DEFAULT 14'))
+            if 'date_debut_essai' not in cols:
+                conn.execute(text('ALTER TABLE entreprise ADD COLUMN date_debut_essai TIMESTAMP'))
+            conn.commit()
+
+    if 'utilisateur' in existing_tables:
+        cols = {c['name'] for c in inspector.get_columns('utilisateur')}
+        with db.engine.connect() as conn:
+            if 'telephone' not in cols:
+                conn.execute(text('ALTER TABLE utilisateur ADD COLUMN telephone VARCHAR(20)'))
+            conn.commit()
+
+    if 'proof_master' in existing_tables:
+        cols = {c['name'] for c in inspector.get_columns('proof_master')}
+        with db.engine.connect() as conn:
+            if 'dossier_id' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN dossier_id INTEGER REFERENCES dossier(id) ON DELETE SET NULL'))
+                conn.execute(text('CREATE INDEX ix_proof_master_dossier_id ON proof_master(dossier_id)'))
+            if 'type_document_id' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN type_document_id INTEGER REFERENCES type_document(id) ON DELETE SET NULL'))
+            if 'workflow_statut' not in cols:
+                conn.execute(text("ALTER TABLE proof_master ADD COLUMN workflow_statut VARCHAR(30) DEFAULT 'brouillon'"))
+                conn.execute(text('CREATE INDEX ix_proof_master_workflow_statut ON proof_master(workflow_statut)'))
+            if 'workflow_approbateur_id' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN workflow_approbateur_id INTEGER REFERENCES utilisateur(id)'))
+            if 'date_soumission' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN date_soumission TIMESTAMP'))
+            if 'date_approbation' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN date_approbation TIMESTAMP'))
+            if 'numero_document' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN numero_document VARCHAR(50)'))
+            if 'mots_cles' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN mots_cles VARCHAR(500)'))
+            if 'notes' not in cols:
+                conn.execute(text('ALTER TABLE proof_master ADD COLUMN notes TEXT'))
+            conn.commit()
+
+
 def init_db():
     app = create_app()
     with app.app_context():
+        _run_migrations()
+
         # Créer les tables si elles n'existent pas
         db.create_all()
-
-        # Marquer la version Alembic
-        try:
-            stamp(revision='head')
-        except Exception:
-            pass
 
         # Créer l'entreprise par défaut
         entreprise = Entreprise.query.filter_by(nom="Entreprise par défaut").first()
@@ -29,7 +75,7 @@ def init_db():
                 taille="PME",
                 pays="Maroc",
                 date_inscription=date.today(),
-                modules_actifs=['hse'],
+                modules_actifs=['hse', 'qualite'],
                 statut="Actif"
             )
             db.session.add(entreprise)

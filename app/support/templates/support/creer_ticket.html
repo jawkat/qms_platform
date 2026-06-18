@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+{% block title %}Nouveau ticket{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Nouveau ticket</h1>
+    <a href="{{ url_for('support.mes_tickets') }}" class="btn btn-outline-secondary">Retour</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Type <span class="text-danger">*</span></label>
+            <select name="type" class="form-select" required>
+              <option value="">Sélectionner...</option>
+              {% for t in types %}
+              <option value="{{ t }}">{{ t|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Sujet <span class="text-danger">*</span></label>
+            <input type="text" name="sujet" class="form-control" placeholder="Résumé du problème" required maxlength="200">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description <span class="text-danger">*</span></label>
+            <textarea name="contenu" class="form-control" rows="6" placeholder="Décrivez votre problème en détail..." required></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email de contact</label>
+            <input type="email" name="email_contact" class="form-control" placeholder="contact@exemple.com">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Nom du contact</label>
+            <input type="text" name="nom_contact" class="form-control" placeholder="Nom prénom">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Téléphone</label>
+            <input type="text" name="telephone" class="form-control" placeholder="+33 6 XX XX XX XX">
+          </div>
+        </div>
+        <div class="mt-4 d-flex justify-content-end gap-2">
+          <a href="{{ url_for('support.mes_tickets') }}" class="btn btn-outline-secondary">Annuler</a>
+          <button type="submit" class="btn btn-danger px-4"><i class="fas fa-check me-1"></i>Créer le ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

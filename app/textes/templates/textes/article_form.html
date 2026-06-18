@@ -1,0 +1,67 @@
+{% extends 'layout.html' %}
+{% block title %}{{ 'Modifier' if article else 'Nouvel' }} article{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ 'Modifier' if article else 'Nouvel' }} article</h1>
+      <p class="text-muted mb-0">
+        <a href="{{ url_for('textes.version_detail', version_id=version.id) }}" class="text-decoration-none">
+          v{{ version.numero_version }} — {{ version.texte.titre if version.texte else '' }}
+        </a>
+      </p>
+    </div>
+    <a href="{{ url_for('textes.version_detail', version_id=version.id) }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Retour</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Numéro article</label>
+            <input type="number" name="numero_article" class="form-control" value="{{ article.numero_article if article else '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Type d'exigence</label>
+            <select name="exigence_type" class="form-select">
+              <option value="">— Sélectionnez —</option>
+              {% for k, v in [('DEFINITION','Definition'),('OBLIGATION','Obligation'),('INTERDICTION','Interdiction'),('RECOMMANDATION','Recommandation'),('INFORMATION','Information')] %}
+              <option value="{{ k }}" {% if article and article.exigence_type.name == k %}selected{% endif %}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Niveau de risque</label>
+            <select name="niveau_risque" class="form-select">
+              <option value="">— Sélectionnez —</option>
+              {% for k, v in [('FAIBLE','Faible'),('MOYEN','Moyen'),('ELEVE','Élevé'),('CRITIQUE','Critique')] %}
+              <option value="{{ k }}" {% if article and article.niveau_risque.name == k %}selected{% endif %}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Résumé</label>
+            <textarea name="resume_article" class="form-control" rows="2">{{ article.resume_article if article else '' }}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Contenu</label>
+            <textarea name="contenu" class="form-control" rows="8">{{ article.contenu if article else '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Acteur</label>
+            <input type="text" name="acteur" class="form-control" value="{{ article.acteur if article else '' }}" placeholder="e.g. Employeur, Direction">
+          </div>
+          <div class="col-12 pt-3 border-top">
+            <button type="submit" class="btn btn-danger px-4">
+              <i class="fas fa-save me-1"></i>{{ 'Enregistrer' if article else 'Créer l\'article' }}
+            </button>
+            <a href="{{ url_for('textes.version_detail', version_id=version.id) }}" class="btn btn-outline-secondary ms-2">Annuler</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

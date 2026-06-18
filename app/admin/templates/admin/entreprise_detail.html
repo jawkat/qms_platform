@@ -1,0 +1,194 @@
+{% extends 'layout.html' %}
+{% block title %}Administration - {{ entreprise.nom }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('admin.entreprises') }}">Entreprises</a></li>
+      <li class="breadcrumb-item active">{{ entreprise.nom }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-5">Nom</dt>
+            <dd class="col-sm-7">{{ entreprise.nom }}</dd>
+            <dt class="col-sm-5">Statut</dt>
+            <dd class="col-sm-7">
+              {% if entreprise.statut == 'Actif' %}
+              <span class="badge bg-success">Actif</span>
+              {% elif entreprise.statut == 'Suspendu' %}
+              <span class="badge bg-danger">Suspendu</span>
+              {% else %}
+              <span class="badge bg-warning text-dark">{{ entreprise.statut }}</span>
+              {% endif %}
+            </dd>
+            <dt class="col-sm-5">Adresse</dt>
+            <dd class="col-sm-7">{{ entreprise.adresse or '-' }}</dd>
+            <dt class="col-sm-5">Pays</dt>
+            <dd class="col-sm-7">{{ entreprise.pays or '-' }}</dd>
+            <dt class="col-sm-5">Taille</dt>
+            <dd class="col-sm-7">{{ entreprise.taille or '-' }}</dd>
+            <dt class="col-sm-5">Inscription</dt>
+            <dd class="col-sm-7">{{ entreprise.date_inscription.strftime('%d/%m/%Y') if entreprise.date_inscription else '-' }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Abonnement</h5>
+        </div>
+        <div class="card-body">
+          {% if plan %}
+          <dl class="row mb-0">
+            <dt class="col-sm-5">Plan</dt>
+            <dd class="col-sm-7"><span class="badge bg-info">{{ plan.label }}</span></dd>
+            <dt class="col-sm-5">Montant</dt>
+            <dd class="col-sm-7">{{ plan.price_mad }} MAD / an</dd>
+            <dt class="col-sm-5">Max utilisateurs</dt>
+            <dd class="col-sm-7">{{ plan.max_users }}</dd>
+            <dt class="col-sm-5">Documents</dt>
+            <dd class="col-sm-7">{{ plan.max_documents }}</dd>
+            <dt class="col-sm-5">Stockage</dt>
+            <dd class="col-sm-7">{{ plan.max_storage_mb }} Mo</dd>
+          </dl>
+          {% else %}
+          <p class="text-muted mb-0">Aucun plan défini.</p>
+          {% endif %}
+          <hr>
+          <dl class="row mb-0">
+            <dt class="col-sm-5">Échéance</dt>
+            <dd class="col-sm-7">{{ entreprise.abonnement_prochaine_echeance.strftime('%d/%m/%Y') if entreprise.abonnement_prochaine_echeance else '-' }}</dd>
+            <dt class="col-sm-5">Paiement</dt>
+            <dd class="col-sm-7">
+              {% if entreprise.abonnement_paye %}
+              <span class="badge bg-success">À jour</span>
+              {% else %}
+              <span class="badge bg-danger">En retard</span>
+              {% endif %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-cubes me-2"></i>Modules</h5>
+        </div>
+        <div class="card-body">
+          {% set modules = ['hse', 'qualite'] %}
+          {% set actifs = entreprise.modules_actifs or ['hse'] %}
+          <div class="mb-3">
+            {% for m in modules %}
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="mod_{{ m }}" disabled
+                     {% if m in actifs %}checked{% endif %}>
+              <label class="form-check-label" for="mod_{{ m }}">
+                {{ m|capitalize }}
+                {% if m in actifs %}<span class="badge bg-success ms-1">Actif</span>
+                {% else %}<span class="badge bg-secondary ms-1">Inactif</span>{% endif %}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-users me-2"></i>Utilisateurs ({{ utilisateurs|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Actif</th></tr>
+            </thead>
+            <tbody>
+              {% for u in utilisateurs %}
+              <tr>
+                <td>{{ u.prenom }} {{ u.nom }}</td>
+                <td>{{ u.email }}</td>
+                <td>{{ u.role.nom if u.role else '-' }}</td>
+                <td>
+                  {% if u.actif %}
+                  <span class="badge bg-success">Oui</span>
+                  {% else %}
+                  <span class="badge bg-danger">Non</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-center text-muted py-3">Aucun utilisateur.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Mise à jour</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}">
+            <div class="mb-3">
+              <label class="form-label">Abonnement</label>
+              <select name="abonnement_type" class="form-select">
+                {% for p in plans %}
+                <option value="{{ p.plan_key }}" {% if entreprise.abonnement_type == p.plan_key %}selected{% endif %}>
+                  {{ p.label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Modules actifs</label>
+              <div>
+                {% for m in ['hse', 'qualite'] %}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" name="modules_actifs" value="{{ m }}"
+                         id="mod_edit_{{ m }}"
+                         {% if m in (entreprise.modules_actifs or ['hse']) %}checked{% endif %}>
+                  <label class="form-check-label" for="mod_edit_{{ m }}">{{ m|capitalize }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Statut</label>
+              <select name="statut" class="form-select">
+                <option value="Actif" {% if entreprise.statut == 'Actif' %}selected{% endif %}>Actif</option>
+                <option value="Suspendu" {% if entreprise.statut == 'Suspendu' %}selected{% endif %}>Suspendu</option>
+                <option value="En_attente" {% if entreprise.statut == 'En_attente' %}selected{% endif %}>En attente</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Motif suspension</label>
+              <input type="text" name="motif_suspension" class="form-control"
+                     value="{{ entreprise.motif_suspension or '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Enregistrer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

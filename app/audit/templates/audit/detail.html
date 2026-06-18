@@ -1,0 +1,242 @@
+{% extends 'layout.html' %}
+{% block title %}Audit #{{ audit.id }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Audit #{{ audit.id }}</h1>
+      <p class="text-muted mb-0">
+        {{ audit.type|capitalize if audit.type else '-' }} —
+        {{ audit.date_audit.strftime('%d/%m/%Y') if audit.date_audit else 'Date non définie' }} —
+        Créé le {{ audit.date_creation.strftime('%d/%m/%Y %H:%M') if audit.date_creation else '-' }}
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <form method="POST" action="{{ url_for('audit.delete', audit_id=audit.id) }}"
+            onsubmit="return confirm('Supprimer cet audit ?')">
+        <button class="btn btn-outline-danger"><i class="fas fa-trash me-1"></i>Supprimer</button>
+      </form>
+      <a href="{{ url_for('audit.index') }}" class="btn btn-outline-secondary">Retour</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Informations générales</h6>
+          <span class="badge bg-{{ 'success' if audit.resultat_global == 'conforme' else 'danger' if audit.resultat_global == 'non_conforme' else 'warning' if audit.resultat_global else 'secondary' }} fs-6">
+            {{ audit.resultat_global|replace('_',' ')|capitalize if audit.resultat_global else 'Non évalué' }}
+          </span>
+        </div>
+        <div class="card-body">
+          <form id="updateForm">
+            <input type="hidden" name="audit_id" value="{{ audit.id }}">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Type</label>
+                <p class="form-control-plaintext">{{ audit.type|capitalize if audit.type else '-' }}</p>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Date d'audit</label>
+                <p class="form-control-plaintext">{{ audit.date_audit.strftime('%d/%m/%Y') if audit.date_audit else '-' }}</p>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Auditeur</label>
+                <p class="form-control-plaintext">{{ audit.auditeur.prenom ~ ' ' ~ audit.auditeur.nom if audit.auditeur else 'Non assigné' }}</p>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Résultat global</label>
+                <select name="resultat_global" class="form-select">
+                  <option value="">-- Non évalué --</option>
+                  {% for v in ['conforme','non_conforme','partiel'] %}
+                  <option value="{{ v }}" {% if audit.resultat_global == v %}selected{% endif %}>{{ v|replace('_',' ')|capitalize }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Commentaire</label>
+                <textarea name="commentaire" class="form-control" rows="3">{{ audit.commentaire or '' }}</textarea>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="submit" class="btn btn-danger px-4">Enregistrer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-list me-2 text-danger"></i>Observations</h6>
+          <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#addObsForm">
+            <i class="fas fa-plus me-1"></i>Ajouter observation
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="collapse" id="addObsForm">
+            <div class="p-3 border-bottom bg-light">
+              <form id="addObsFormInner">
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <label class="form-label small">Texte réglementaire</label>
+                    <select name="texte_id" class="form-select form-select-sm">
+                      <option value="">-- Sélectionner --</option>
+                      {% for t in textes %}
+                      <option value="{{ t.id }}">{{ t.code ~ ' — ' ~ t.titre[:60] if t.code else t.titre[:60] }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small">Article</label>
+                    <select name="article_id" class="form-select form-select-sm">
+                      <option value="">-- Sélectionner --</option>
+                      {% for a in articles %}
+                      <option value="{{ a.id }}">Article {{ a.numero_article }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small">Niveau de conformité</label>
+                    <select name="niveau_conformite" class="form-select form-select-sm">
+                      <option value="">--</option>
+                      {% for v in ['conforme','non_conforme','partiel','sans_objet'] %}
+                      <option value="{{ v }}">{{ v|replace('_',' ')|capitalize }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small">Constat</label>
+                    <textarea name="constat" class="form-control form-control-sm" rows="2"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small">Action recommandée</label>
+                    <textarea name="action_recommandee" class="form-control form-control-sm" rows="2"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-sm btn-danger" id="btnAddObs">Ajouter</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Texte</th>
+                  <th>Article</th>
+                  <th>Constat</th>
+                  <th>Niveau</th>
+                  <th>Action recommandée</th>
+                  <th style="width:60px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="obsTableBody">
+                {% for obs in audit.observations %}
+                <tr id="obs-{{ obs.id }}">
+                  <td>{{ obs.texte.titre[:50] ~ '...' if obs.texte and obs.texte.titre|length > 50 else obs.texte.titre if obs.texte else '-' }}</td>
+                  <td>{% if obs.article %}Article {{ obs.article.numero_article }}{% else %}-{% endif %}</td>
+                  <td>{{ obs.constat[:80] }}{% if obs.constat and obs.constat|length > 80 %}...{% endif %}</td>
+                  <td>
+                    {% if obs.niveau_conformite %}
+                    <span class="badge bg-{{ 'success' if obs.niveau_conformite == 'conforme' else 'danger' if obs.niveau_conformite == 'non_conforme' else 'warning' }}">
+                      {{ obs.niveau_conformite|replace('_',' ')|capitalize }}
+                    </span>
+                    {% else %}-{% endif %}
+                  </td>
+                  <td>{{ obs.action_recommandee[:80] }}{% if obs.action_recommandee and obs.action_recommandee|length > 80 %}...{% endif %}</td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-danger delete-obs" data-obs-id="{{ obs.id }}" title="Supprimer">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr id="noObsRow">
+                  <td colspan="6" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                    Aucune observation.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-lg-4">
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-user me-2 text-danger"></i>Auditeur</h6></div>
+        <div class="card-body">
+          <p class="mb-1"><strong>Nom:</strong> {{ audit.auditeur.prenom ~ ' ' ~ audit.auditeur.nom if audit.auditeur else 'Non assigné' }}</p>
+          {% if audit.auditeur and audit.auditeur.email %}
+          <p class="mb-0"><strong>Email:</strong> {{ audit.auditeur.email }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0"><i class="fas fa-clipboard-list me-2 text-danger"></i>Synthèse</h6></div>
+        <div class="card-body">
+          <p class="mb-1"><strong>Observations:</strong> {{ audit.observations|length }}</p>
+          {% set nc = audit.observations|selectattr('niveau_conformite','equalto','non_conforme')|list %}
+          <p class="mb-1"><strong>Non conformités:</strong> {{ nc|length }}</p>
+          {% set c = audit.observations|selectattr('niveau_conformite','equalto','conforme')|list %}
+          <p class="mb-0"><strong>Conformes:</strong> {{ c|length }}</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('updateForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(this));
+  fetch('/audit/{{ audit.id }}/update', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+  });
+});
+
+document.getElementById('addObsFormInner').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnAddObs');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  const data = Object.fromEntries(new FormData(this));
+  fetch('/audit/{{ audit.id }}/observation/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+  }).catch(() => { btn.disabled = false; btn.textContent = 'Ajouter'; });
+});
+
+document.querySelectorAll('.delete-obs').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (confirm('Supprimer cette observation ?')) {
+      fetch('/audit/{{ audit.id }}/observation/' + this.dataset.obsId + '/delete', {method: 'POST'})
+        .then(r => r.json()).then(d => {
+          if (d.success) location.reload();
+        });
+    }
+  });
+});
+</script>
+{% endblock %}

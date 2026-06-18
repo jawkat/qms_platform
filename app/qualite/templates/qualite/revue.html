@@ -1,3 +1,213 @@
 {% extends 'layout.html' %}
 {% block title %}Qualité - Revue de direction{% endblock %}
-{% block content %}<div class="container-fluid"><h1 class="h3 mb-4">Revue de direction</h1><p class="text-muted">Module en construction.</p></div>{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Revue de direction</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#revueModal">
+      <i class="fas fa-plus me-1"></i>Nouveau compte-rendu
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="fw-semibold"><i class="fas fa-chart-pie me-2 text-danger"></i>Contexte ISO 9001 §9.3</h6>
+      <p class="text-muted small mb-0">
+        La direction doit revoir le système de management de la qualité à intervalles planifiés.
+        Les comptes-rendus de revue incluent l'analyse des résultats d'audit, la satisfaction client,
+        les non-conformités, les tendances des processus et les décisions d'amélioration.
+      </p>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-danger" id="statTotal">--</div>
+          <small class="text-muted">Revues réalisées</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-warning" id="statEnCours">--</div>
+          <small class="text-muted">En cours</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="h3 mb-0 text-success" id="statCloturees">--</div>
+          <small class="text-muted">Clôturées</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Participants</th>
+              <th>Décisions / Sujets</th>
+              <th>Suivi</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="revueTableBody">
+            <tr id="emptyRow">
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                Aucun compte-rendu enregistré.<br>
+                <small>Ajoutez des comptes-rendus via le bouton "Nouveau compte-rendu".</small>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="revueModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="revueModalTitle">Nouveau compte-rendu de revue de direction</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="revueId" value="">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Date <span class="text-danger">*</span></label>
+            <input type="date" id="revueDate" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Participants</label>
+            <input type="text" id="revueParticipants" class="form-control" placeholder="Direction, RQ, Resp. Production...">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Décisions / Sujets</label>
+            <textarea id="revueDecisions" class="form-control" rows="3" placeholder="Décisions et sujets abordés..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Suivi</label>
+            <textarea id="revueSuivi" class="form-control" rows="2" placeholder="Actions de suivi..."></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Statut</label>
+            <select id="revueStatut" class="form-select">
+              <option value="realisee">Réalisée</option>
+              <option value="en_cours">En cours</option>
+              <option value="cloturee">Clôturée</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveRevue()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadRevues() {
+  fetch('{{ url_for("qualite.api_revue") }}')
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('revueTableBody');
+      const empty = document.getElementById('emptyRow');
+      if (items.length === 0) return;
+      if (empty) empty.remove();
+      let enCours = 0, cloturees = 0;
+      tbody.innerHTML = items.map(r => {
+        if (r.statut === 'en_cours') enCours++;
+        else if (r.statut === 'cloturee') cloturees++;
+        const sc = r.statut === 'cloturee' ? 'success' : r.statut === 'en_cours' ? 'warning' : 'info';
+        return `<tr>
+          <td>${r.date_revue || ''}</td>
+          <td>${r.participants || ''}</td>
+          <td>${r.decisions || ''}</td>
+          <td>${r.suivi || ''}</td>
+          <td><span class="badge bg-${sc}">${r.statut || ''}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editRevue(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteRevue(${r.id})"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      document.getElementById('statTotal').textContent = items.length;
+      document.getElementById('statEnCours').textContent = enCours;
+      document.getElementById('statCloturees').textContent = cloturees;
+    });
+}
+
+function saveRevue() {
+  const id = document.getElementById('revueId').value;
+  const data = {
+    date_revue: document.getElementById('revueDate').value,
+    participants: document.getElementById('revueParticipants').value,
+    decisions: document.getElementById('revueDecisions').value,
+    suivi: document.getElementById('revueSuivi').value,
+    statut: document.getElementById('revueStatut').value,
+  };
+  const url = id ? '{{ url_for("qualite.api_revue_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_revue_create") }}';
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('revueModal')).hide();
+        loadRevues();
+        resetRevueForm();
+      }
+    });
+}
+
+function editRevue(id) {
+  fetch('{{ url_for("qualite.api_revue") }}')
+    .then(r => r.json())
+    .then(items => {
+      const r = items.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('revueId').value = r.id;
+      document.getElementById('revueDate').value = r.date_revue || '';
+      document.getElementById('revueParticipants').value = r.participants || '';
+      document.getElementById('revueDecisions').value = r.decisions || '';
+      document.getElementById('revueSuivi').value = r.suivi || '';
+      document.getElementById('revueStatut').value = r.statut || 'realisee';
+      document.getElementById('revueModalTitle').textContent = 'Modifier le compte-rendu';
+      new bootstrap.Modal(document.getElementById('revueModal')).show();
+    });
+}
+
+function deleteRevue(id) {
+  if (!confirm('Supprimer ce compte-rendu ?')) return;
+  fetch('{{ url_for("qualite.api_revue_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => { if (resp.success) loadRevues(); });
+}
+
+function resetRevueForm() {
+  document.getElementById('revueId').value = '';
+  document.getElementById('revueDate').value = '';
+  document.getElementById('revueParticipants').value = '';
+  document.getElementById('revueDecisions').value = '';
+  document.getElementById('revueSuivi').value = '';
+  document.getElementById('revueStatut').value = 'realisee';
+  document.getElementById('revueModalTitle').textContent = 'Nouveau compte-rendu de revue de direction';
+}
+
+document.addEventListener('DOMContentLoaded', loadRevues);
+</script>
+{% endblock %}

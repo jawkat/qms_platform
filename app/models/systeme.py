@@ -22,3 +22,12 @@ class JournalSecurite(db.Model):
     resolu = db.Column(db.Boolean, default=False)
     resolved_at = db.Column(db.DateTime)
     resolved_by = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
+
+
+class TacheSysteme(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    type_tache = db.Column(db.String(50))
+    date_execution = db.Column(db.DateTime)
+    statut = db.Column(db.String(50))
+    resultat = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)

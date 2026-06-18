@@ -1,0 +1,80 @@
+{% extends 'layout.html' %}
+{% block title %}{{ 'Modifier' if texte else 'Nouveau' }} texte réglementaire{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ 'Modifier' if texte else 'Nouveau' }} texte réglementaire</h1>
+      {% if texte %}<p class="text-muted mb-0">{{ texte.code }} — {{ texte.titre[:80] }}</p>{% endif %}
+    </div>
+    <a href="{{ url_for('textes.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Retour</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Code <span class="text-danger">*</span></label>
+            <input type="text" name="code" class="form-control" value="{{ texte.code if texte else '' }}" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Titre <span class="text-danger">*</span></label>
+            <input type="text" name="titre" class="form-control" value="{{ texte.titre if texte else '' }}" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ texte.description if texte else '' }}</textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Type</label>
+            <select name="type" class="form-select">
+              <option value="">— Sélectionnez —</option>
+              {% for t in ['Loi', 'Règlement', 'Norme', 'Décret', 'Arrêté', 'Circulaire', 'Directive', 'Convention'] %}
+              <option value="{{ t }}" {% if texte and texte.type == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Domaine</label>
+            <select name="domaine_id" class="form-select">
+              <option value="">— Sélectionnez —</option>
+              {% for d in domaines %}
+              <option value="{{ d.id }}" {% if texte and texte.domaine_id == d.id %}selected{% endif %}>{{ d.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Référentiel</label>
+            <input type="text" name="referentiel" class="form-control" value="{{ texte.referentiel if texte else '' }}" placeholder="e.g. ISO 9001">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Sous-domaine</label>
+            <input type="text" name="sousdomaine" class="form-control" value="{{ texte.sousdomaine if texte else '' }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Thème</label>
+            <input type="text" name="theme" class="form-control" value="{{ texte.theme if texte else '' }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Secteurs</label>
+            <select name="secteurs" class="form-select" multiple size="5">
+              {% for s in secteurs %}
+              <option value="{{ s.id }}" {% if texte and s in texte.secteurs %}selected{% endif %}>{{ s.nom }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Maintenez Ctrl pour sélectionner plusieurs secteurs.</div>
+          </div>
+          <div class="col-12 pt-3 border-top">
+            <button type="submit" class="btn btn-danger px-4">
+              <i class="fas fa-save me-1"></i>{{ 'Enregistrer' if texte else 'Créer le texte' }}
+            </button>
+            <a href="{{ url_for('textes.index') }}" class="btn btn-outline-secondary ms-2">Annuler</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
