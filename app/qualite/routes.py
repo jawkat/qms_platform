@@ -1,103 +1,87 @@
-from flask import render_template, request, jsonify, abort, Response
+from flask import render_template, request, jsonify, abort, Response, redirect, url_for
 from flask_login import login_required, current_user
+from app.utils.permissions import module_access_required
 from app import db
-from app.models import (Risque, ProcessusHaccp, ReclamationClient, Fournisseur,
-    Formation, Equipement, ControleQualite, RevueDirection, NonConformiteQualite,
+from app.models import (Risque, ReclamationClient, Fournisseur,
+    Formation, Equipement, ControleQualite, RevueDirection,
     Entreprise)
+from app.models.nonconformite import NonConformite
 from app.qualite import blueprint
 from datetime import date, datetime
 import csv
 import io
 
 
-def _check_qualite_access():
-    entreprise = db.session.get(Entreprise, current_user.entreprise_id)
-    if not entreprise or 'qualite' not in (entreprise.modules_actifs or []):
-        abort(403)
-    if not current_user.has_permission('qualite.voir', current_user.entreprise_id):
-        abort(403)
 
 
 # --- Page routes ---
 
 @blueprint.route('/')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def tableau_de_bord():
-    _check_qualite_access()
     return render_template('qualite/tableau_de_bord.html')
 
 @blueprint.route('/risques')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def risques():
-    _check_qualite_access()
     return render_template('qualite/risques.html')
 
-@blueprint.route('/haccp')
-@login_required
-def haccp():
-    _check_qualite_access()
-    return render_template('qualite/haccp.html')
 
 @blueprint.route('/clients')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def clients():
-    _check_qualite_access()
-    return render_template('qualite/clients.html')
+    return redirect(url_for('reclamations.index'))
 
 @blueprint.route('/fournisseurs')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def fournisseurs():
-    _check_qualite_access()
-    return render_template('qualite/fournisseurs.html')
+    return redirect(url_for('fournisseurs.index'))
 
 @blueprint.route('/formations')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def formations():
-    _check_qualite_access()
-    return render_template('qualite/formations.html')
+    return redirect(url_for('formations.index'))
 
 @blueprint.route('/equipements')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def equipements():
-    _check_qualite_access()
     return render_template('qualite/equipements.html')
 
 @blueprint.route('/controle')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def controle():
-    _check_qualite_access()
     return render_template('qualite/controle.html')
 
 @blueprint.route('/revue')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def revue():
-    _check_qualite_access()
     return render_template('qualite/revue.html')
-
-@blueprint.route('/nonconformites')
-@login_required
-def nonconformites():
-    _check_qualite_access()
-    return render_template('qualite/nonconformites.html')
-
 
 # --- API: Stats ---
 
 @blueprint.route('/api/stats')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_stats():
-    _check_qualite_access()
     eid = current_user.entreprise_id
     return jsonify({
         'risques': Risque.query.filter_by(entreprise_id=eid).count(),
-        'haccp': ProcessusHaccp.query.filter_by(entreprise_id=eid).count(),
+
         'reclamations': ReclamationClient.query.filter_by(entreprise_id=eid).count(),
         'fournisseurs': Fournisseur.query.filter_by(entreprise_id=eid).count(),
         'formations': Formation.query.filter_by(entreprise_id=eid).count(),
         'equipements': Equipement.query.filter_by(entreprise_id=eid).count(),
         'controles': ControleQualite.query.filter_by(entreprise_id=eid).count(),
         'revues': RevueDirection.query.filter_by(entreprise_id=eid).count(),
-        'nonconformites': NonConformiteQualite.query.filter_by(entreprise_id=eid).count(),
+        'nonconformites': NonConformite.query.filter_by(entreprise_id=eid, domaine='qualite').count(),
     })
 
 
@@ -105,8 +89,8 @@ def api_stats():
 
 @blueprint.route('/api/risques')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_risques():
-    _check_qualite_access()
     items = Risque.query.filter_by(entreprise_id=current_user.entreprise_id)\
         .order_by(Risque.date_creation.desc()).all()
     return jsonify([{
@@ -128,8 +112,8 @@ def api_risques():
 
 @blueprint.route('/api/risques/create', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_risques_create():
-    _check_qualite_access()
     data = request.get_json()
     item = Risque(
         entreprise_id=current_user.entreprise_id,
@@ -141,7 +125,7 @@ def api_risques_create():
         detection=int(data.get('detection', 1)),
         maitrise=data.get('maitrise'),
         statut=data.get('statut', 'identifie'),
-        responsable_id=data.get('responsable_id', type=int),
+        responsable_id=data.get('responsable_id'),
     )
     db.session.add(item)
     db.session.commit()
@@ -150,8 +134,8 @@ def api_risques_create():
 
 @blueprint.route('/api/risques/<int:item_id>/update', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_risques_update(item_id):
-    _check_qualite_access()
     item = Risque.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
     item.designation = data.get('designation', item.designation)
@@ -169,282 +153,9 @@ def api_risques_update(item_id):
 
 @blueprint.route('/api/risques/<int:item_id>/delete', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_risques_delete(item_id):
-    _check_qualite_access()
     item = Risque.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-# --- API: HACCP ---
-
-@blueprint.route('/api/haccp')
-@login_required
-def api_haccp():
-    _check_qualite_access()
-    items = ProcessusHaccp.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(ProcessusHaccp.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'etape': r.etape,
-        'danger': r.danger,
-        'maitrise': r.maitrise,
-        'limite_critique': r.limite_critique,
-        'surveillance': r.surveillance,
-        'action_corrective': r.action_corrective,
-        'est_ccp': r.est_ccp,
-        'statut': r.statut,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
-
-
-@blueprint.route('/api/haccp/create', methods=['POST'])
-@login_required
-def api_haccp_create():
-    _check_qualite_access()
-    data = request.get_json()
-    item = ProcessusHaccp(
-        entreprise_id=current_user.entreprise_id,
-        etape=data.get('etape'),
-        danger=data.get('danger'),
-        maitrise=data.get('maitrise'),
-        limite_critique=data.get('limite_critique'),
-        surveillance=data.get('surveillance'),
-        action_corrective=data.get('action_corrective'),
-        est_ccp=data.get('est_ccp', type=bool),
-        statut=data.get('statut', 'actif'),
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
-
-
-@blueprint.route('/api/haccp/<int:item_id>/update', methods=['POST'])
-@login_required
-def api_haccp_update(item_id):
-    _check_qualite_access()
-    item = ProcessusHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    item.etape = data.get('etape', item.etape)
-    item.danger = data.get('danger', item.danger)
-    item.maitrise = data.get('maitrise', item.maitrise)
-    item.limite_critique = data.get('limite_critique', item.limite_critique)
-    item.surveillance = data.get('surveillance', item.surveillance)
-    item.action_corrective = data.get('action_corrective', item.action_corrective)
-    item.est_ccp = data.get('est_ccp', item.est_ccp)
-    item.statut = data.get('statut', item.statut)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@blueprint.route('/api/haccp/<int:item_id>/delete', methods=['POST'])
-@login_required
-def api_haccp_delete(item_id):
-    _check_qualite_access()
-    item = ProcessusHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-# --- API: Réclamations clients ---
-
-@blueprint.route('/api/clients')
-@login_required
-def api_clients():
-    _check_qualite_access()
-    items = ReclamationClient.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(ReclamationClient.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'date_reclamation': r.date_reclamation.isoformat() if r.date_reclamation else None,
-        'client': r.client,
-        'produit': r.produit,
-        'description': r.description,
-        'action': r.action,
-        'statut': r.statut,
-        'responsable': f'{r.responsable.prenom} {r.responsable.nom}' if r.responsable else '',
-        'responsable_id': r.responsable_id,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
-
-
-@blueprint.route('/api/clients/create', methods=['POST'])
-@login_required
-def api_clients_create():
-    _check_qualite_access()
-    data = request.get_json()
-    date_val = datetime.strptime(data['date_reclamation'], '%Y-%m-%d').date() if data.get('date_reclamation') else date.today()
-    item = ReclamationClient(
-        entreprise_id=current_user.entreprise_id,
-        date_reclamation=date_val,
-        client=data.get('client'),
-        produit=data.get('produit'),
-        description=data.get('description'),
-        action=data.get('action'),
-        statut=data.get('statut', 'ouverte'),
-        responsable_id=data.get('responsable_id', type=int),
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
-
-
-@blueprint.route('/api/clients/<int:item_id>/update', methods=['POST'])
-@login_required
-def api_clients_update(item_id):
-    _check_qualite_access()
-    item = ReclamationClient.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    if data.get('date_reclamation'):
-        item.date_reclamation = datetime.strptime(data['date_reclamation'], '%Y-%m-%d').date()
-    item.client = data.get('client', item.client)
-    item.produit = data.get('produit', item.produit)
-    item.description = data.get('description', item.description)
-    item.action = data.get('action', item.action)
-    item.statut = data.get('statut', item.statut)
-    item.responsable_id = data.get('responsable_id', item.responsable_id)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@blueprint.route('/api/clients/<int:item_id>/delete', methods=['POST'])
-@login_required
-def api_clients_delete(item_id):
-    _check_qualite_access()
-    item = ReclamationClient.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-# --- API: Fournisseurs ---
-
-@blueprint.route('/api/fournisseurs')
-@login_required
-def api_fournisseurs():
-    _check_qualite_access()
-    items = Fournisseur.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(Fournisseur.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'nom': r.nom,
-        'produit': r.produit,
-        'evaluation': r.evaluation,
-        'statut': r.statut,
-        'dernier_audit': r.dernier_audit.isoformat() if r.dernier_audit else None,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
-
-
-@blueprint.route('/api/fournisseurs/create', methods=['POST'])
-@login_required
-def api_fournisseurs_create():
-    _check_qualite_access()
-    data = request.get_json()
-    item = Fournisseur(
-        entreprise_id=current_user.entreprise_id,
-        nom=data.get('nom'),
-        produit=data.get('produit'),
-        evaluation=data.get('evaluation', type=int),
-        statut=data.get('statut', 'actif'),
-        dernier_audit=datetime.strptime(data['dernier_audit'], '%Y-%m-%d').date()
-        if data.get('dernier_audit') else None,
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
-
-
-@blueprint.route('/api/fournisseurs/<int:item_id>/update', methods=['POST'])
-@login_required
-def api_fournisseurs_update(item_id):
-    _check_qualite_access()
-    item = Fournisseur.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    item.nom = data.get('nom', item.nom)
-    item.produit = data.get('produit', item.produit)
-    item.evaluation = data.get('evaluation', item.evaluation)
-    item.statut = data.get('statut', item.statut)
-    if data.get('dernier_audit'):
-        item.dernier_audit = datetime.strptime(data['dernier_audit'], '%Y-%m-%d').date()
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@blueprint.route('/api/fournisseurs/<int:item_id>/delete', methods=['POST'])
-@login_required
-def api_fournisseurs_delete(item_id):
-    _check_qualite_access()
-    item = Fournisseur.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-# --- API: Formations ---
-
-@blueprint.route('/api/formations')
-@login_required
-def api_formations():
-    _check_qualite_access()
-    items = Formation.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(Formation.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'titre': r.titre,
-        'formateur': r.formateur,
-        'participants': r.participants,
-        'date_formation': r.date_formation.isoformat() if r.date_formation else None,
-        'duree_heures': r.duree_heures,
-        'statut': r.statut,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
-
-
-@blueprint.route('/api/formations/create', methods=['POST'])
-@login_required
-def api_formations_create():
-    _check_qualite_access()
-    data = request.get_json()
-    item = Formation(
-        entreprise_id=current_user.entreprise_id,
-        titre=data.get('titre'),
-        formateur=data.get('formateur'),
-        participants=data.get('participants'),
-        date_formation=datetime.strptime(data['date_formation'], '%Y-%m-%d').date()
-        if data.get('date_formation') else None,
-        duree_heures=data.get('duree_heures', type=float),
-        statut=data.get('statut', 'planifiee'),
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
-
-
-@blueprint.route('/api/formations/<int:item_id>/update', methods=['POST'])
-@login_required
-def api_formations_update(item_id):
-    _check_qualite_access()
-    item = Formation.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    item.titre = data.get('titre', item.titre)
-    item.formateur = data.get('formateur', item.formateur)
-    item.participants = data.get('participants', item.participants)
-    if data.get('date_formation'):
-        item.date_formation = datetime.strptime(data['date_formation'], '%Y-%m-%d').date()
-    item.duree_heures = data.get('duree_heures', item.duree_heures)
-    item.statut = data.get('statut', item.statut)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@blueprint.route('/api/formations/<int:item_id>/delete', methods=['POST'])
-@login_required
-def api_formations_delete(item_id):
-    _check_qualite_access()
-    item = Formation.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return jsonify({'success': True})
@@ -454,8 +165,8 @@ def api_formations_delete(item_id):
 
 @blueprint.route('/api/equipements')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_equipements():
-    _check_qualite_access()
     items = Equipement.query.filter_by(entreprise_id=current_user.entreprise_id)\
         .order_by(Equipement.date_creation.desc()).all()
     return jsonify([{
@@ -472,8 +183,8 @@ def api_equipements():
 
 @blueprint.route('/api/equipements/create', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_equipements_create():
-    _check_qualite_access()
     data = request.get_json()
     item = Equipement(
         entreprise_id=current_user.entreprise_id,
@@ -493,8 +204,8 @@ def api_equipements_create():
 
 @blueprint.route('/api/equipements/<int:item_id>/update', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_equipements_update(item_id):
-    _check_qualite_access()
     item = Equipement.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
     item.nom = data.get('nom', item.nom)
@@ -511,8 +222,8 @@ def api_equipements_update(item_id):
 
 @blueprint.route('/api/equipements/<int:item_id>/delete', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_equipements_delete(item_id):
-    _check_qualite_access()
     item = Equipement.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
@@ -523,8 +234,8 @@ def api_equipements_delete(item_id):
 
 @blueprint.route('/api/controle')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_controle():
-    _check_qualite_access()
     items = ControleQualite.query.filter_by(entreprise_id=current_user.entreprise_id)\
         .order_by(ControleQualite.date_creation.desc()).all()
     return jsonify([{
@@ -543,8 +254,8 @@ def api_controle():
 
 @blueprint.route('/api/controle/create', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_controle_create():
-    _check_qualite_access()
     data = request.get_json()
     date_val = datetime.strptime(data['date_controle'], '%Y-%m-%d').date() if data.get('date_controle') else date.today()
     item = ControleQualite(
@@ -565,8 +276,8 @@ def api_controle_create():
 
 @blueprint.route('/api/controle/<int:item_id>/update', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_controle_update(item_id):
-    _check_qualite_access()
     item = ControleQualite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
     if data.get('date_controle'):
@@ -584,8 +295,8 @@ def api_controle_update(item_id):
 
 @blueprint.route('/api/controle/<int:item_id>/delete', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_controle_delete(item_id):
-    _check_qualite_access()
     item = ControleQualite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
@@ -596,8 +307,8 @@ def api_controle_delete(item_id):
 
 @blueprint.route('/api/revue')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_revue():
-    _check_qualite_access()
     items = RevueDirection.query.filter_by(entreprise_id=current_user.entreprise_id)\
         .order_by(RevueDirection.date_creation.desc()).all()
     return jsonify([{
@@ -613,8 +324,8 @@ def api_revue():
 
 @blueprint.route('/api/revue/create', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_revue_create():
-    _check_qualite_access()
     data = request.get_json()
     date_val = datetime.strptime(data['date_revue'], '%Y-%m-%d').date() if data.get('date_revue') else date.today()
     item = RevueDirection(
@@ -632,8 +343,8 @@ def api_revue_create():
 
 @blueprint.route('/api/revue/<int:item_id>/update', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_revue_update(item_id):
-    _check_qualite_access()
     item = RevueDirection.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
     if data.get('date_revue'):
@@ -648,89 +359,19 @@ def api_revue_update(item_id):
 
 @blueprint.route('/api/revue/<int:item_id>/delete', methods=['POST'])
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def api_revue_delete(item_id):
-    _check_qualite_access()
     item = RevueDirection.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return jsonify({'success': True})
 
 
-# --- API: Non-conformités qualité ---
-
-@blueprint.route('/api/nonconformites')
-@login_required
-def api_nonconformites():
-    _check_qualite_access()
-    items = NonConformiteQualite.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(NonConformiteQualite.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'date_nc': r.date_nc.isoformat() if r.date_nc else None,
-        'reference': r.reference,
-        'produit_processus': r.produit_processus,
-        'description': r.description,
-        'action_corrective': r.action_corrective,
-        'responsable': f'{r.responsable.prenom} {r.responsable.nom}' if r.responsable else '',
-        'responsable_id': r.responsable_id,
-        'statut': r.statut,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
-
-
-@blueprint.route('/api/nonconformites/create', methods=['POST'])
-@login_required
-def api_nonconformites_create():
-    _check_qualite_access()
-    data = request.get_json()
-    date_val = datetime.strptime(data['date_nc'], '%Y-%m-%d').date() if data.get('date_nc') else date.today()
-    item = NonConformiteQualite(
-        entreprise_id=current_user.entreprise_id,
-        date_nc=date_val,
-        reference=data.get('reference'),
-        produit_processus=data.get('produit_processus'),
-        description=data.get('description'),
-        action_corrective=data.get('action_corrective'),
-        responsable_id=data.get('responsable_id', type=int),
-        statut=data.get('statut', 'ouverte'),
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
-
-
-@blueprint.route('/api/nonconformites/<int:item_id>/update', methods=['POST'])
-@login_required
-def api_nonconformites_update(item_id):
-    _check_qualite_access()
-    item = NonConformiteQualite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    if data.get('date_nc'):
-        item.date_nc = datetime.strptime(data['date_nc'], '%Y-%m-%d').date()
-    item.reference = data.get('reference', item.reference)
-    item.produit_processus = data.get('produit_processus', item.produit_processus)
-    item.description = data.get('description', item.description)
-    item.action_corrective = data.get('action_corrective', item.action_corrective)
-    item.responsable_id = data.get('responsable_id', item.responsable_id)
-    item.statut = data.get('statut', item.statut)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@blueprint.route('/api/nonconformites/<int:item_id>/delete', methods=['POST'])
-@login_required
-def api_nonconformites_delete(item_id):
-    _check_qualite_access()
-    item = NonConformiteQualite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
-
 
 @blueprint.route('/api/risques/export')
 @login_required
+@module_access_required('qualite', 'qualite.voir')
 def export_risques():
-    _check_qualite_access()
     risques = Risque.query.filter_by(entreprise_id=current_user.entreprise_id)\
         .order_by(Risque.date_creation.desc()).all()
 

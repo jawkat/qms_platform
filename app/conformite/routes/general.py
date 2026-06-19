@@ -20,9 +20,10 @@ def index():
     textes_data = []
     for et in textes:
         total_articles = Article.query.filter_by(texte_version_id=et.texte_version_id).count()
-        eval_count = len(et.evaluations)
-        conformes = sum(1 for e in et.evaluations if e.conforme == ConformiteEnum.CONFORME)
-        non_conformes = sum(1 for e in et.evaluations if e.conforme == ConformiteEnum.NON_CONFORME)
+        evaluated = [e for e in et.evaluations if e.conforme is not None]
+        eval_count = len(evaluated)
+        conformes = sum(1 for e in evaluated if e.conforme == ConformiteEnum.CONFORME)
+        non_conformes = sum(1 for e in evaluated if e.conforme == ConformiteEnum.NON_CONFORME)
 
         if total_articles == 0:
             progress_pct = 0
@@ -136,9 +137,10 @@ def api_liste():
     data = []
     for et in textes:
         total_articles = Article.query.filter_by(texte_version_id=et.texte_version_id).count()
-        eval_count = len(et.evaluations)
-        conformes = sum(1 for e in et.evaluations if e.conforme == ConformiteEnum.CONFORME)
-        non_conformes = sum(1 for e in et.evaluations if e.conforme == ConformiteEnum.NON_CONFORME)
+        evaluated = [e for e in et.evaluations if e.conforme is not None]
+        eval_count = len(evaluated)
+        conformes = sum(1 for e in evaluated if e.conforme == ConformiteEnum.CONFORME)
+        non_conformes = sum(1 for e in evaluated if e.conforme == ConformiteEnum.NON_CONFORME)
 
         data.append({
             'id': et.id,

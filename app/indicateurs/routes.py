@@ -1,6 +1,6 @@
 from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
-from app import db, csrf
+from app import db
 from app.indicateurs import blueprint
 from app.models.indicateurs import Indicateur, IndicateurValeur
 from app.utils.permissions import has_permission
@@ -85,7 +85,6 @@ def api_liste():
 @blueprint.route('/api/create', methods=['POST'])
 @login_required
 @has_permission('indicateurs.cree')
-@csrf.exempt
 def api_create():
     data = request.get_json()
     ind = Indicateur(
@@ -103,7 +102,6 @@ def api_create():
 @blueprint.route('/api/update/<int:id>', methods=['POST'])
 @login_required
 @has_permission('indicateurs.modifier')
-@csrf.exempt
 def api_update(id):
     ind = db.session.get(Indicateur, id)
     if not ind:
@@ -121,7 +119,6 @@ def api_update(id):
 @blueprint.route('/api/delete/<int:id>', methods=['POST'])
 @login_required
 @has_permission('indicateurs.modifier')
-@csrf.exempt
 def api_delete(id):
     ind = db.session.get(Indicateur, id)
     if not ind:
@@ -135,7 +132,6 @@ def api_delete(id):
 @blueprint.route('/api/valeur/add', methods=['POST'])
 @login_required
 @has_permission('indicateurs.modifier')
-@csrf.exempt
 def api_valeur_add():
     data = request.get_json()
     indicateur = db.session.get(Indicateur, data.get('indicateur_id'))

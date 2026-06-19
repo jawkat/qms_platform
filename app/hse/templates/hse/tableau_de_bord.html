@@ -1,0 +1,62 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - Tableau de bord{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h3 class="mb-4"><i class="fas fa-hard-hat me-2 text-danger"></i>Tableau de bord HSE</h3>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center">
+      <div class="h3 mb-0 text-danger" id="statIncidents">--</div><small class="text-muted">Incidents</small>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center">
+      <div class="h3 mb-0 text-warning" id="statPresquAccidents">--</div><small class="text-muted">Presqu'accidents</small>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center">
+      <div class="h3 mb-0 text-info" id="statEpi">--</div><small class="text-muted">EPI actifs</small>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center">
+      <div class="h3 mb-0 text-success" id="statPermis">--</div><small class="text-muted">Permis en cours</small>
+    </div></div></div>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6><i class="fas fa-bug me-2 text-danger"></i>Incidents récents</h6>
+          <div id="recentIncidents" class="small">Chargement...</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6><i class="fas fa-hard-hat me-2 text-warning"></i>EPI à contrôler</h6>
+          <div id="epiToCheck" class="small">Chargement...</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h6><i class="fas fa-clipboard-check me-2 text-info"></i>Inspections à venir</h6>
+          <div id="upcomingInspections" class="small">Chargement...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+fetch('{{ url_for("hse.api_stats") }}').then(r=>r.json()).then(s=>{
+  document.getElementById('statIncidents').textContent = s.incidents_total;
+  document.getElementById('statPresquAccidents').textContent = s.incidents_presqu_accidents;
+  document.getElementById('statEpi').textContent = s.epi_total - s.epi_perimes;
+  document.getElementById('statPermis').textContent = s.permis_en_cours;
+});
+fetch('{{ url_for("hse.api_incidents") }}').then(r=>r.json()).then(items=>{
+  const el = document.getElementById('recentIncidents');
+  const recent = items.slice(0,5);
+  el.innerHTML = recent.length ? recent.map(r=>`<div class="py-1 border-bottom">${r.date_incident||''} - ${r.type_incident} <span class="badge bg-${r.statut==='ouvert'?'danger':'success'}">${r.statut}</span></div>`).join('') : '<div class="text-muted">Aucun incident</div>';
+});
+</script>
+{% endblock %}

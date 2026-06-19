@@ -14,94 +14,94 @@
 
   <div class="row g-3 mb-4">
     <div class="col-md-4 col-lg-2">
-      <div class="card border-0 shadow-sm h-100">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('actions.liste_actions') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Actions en cours</h6>
-              <div class="h3 mb-0 fw-bold" id="stats-actions-encours">--</div>
+              <div class="h3 mb-0 fw-bold" id="stats-actions-encours"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#e8f4fd;">
               <i class="fas fa-tasks text-primary"></i>
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
     <div class="col-md-4 col-lg-2">
-      <div class="card border-0 shadow-sm h-100">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('actions.liste_actions') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Actions en retard</h6>
-              <div class="h3 mb-0 fw-bold" id="stats-actions-retard">--</div>
+              <div class="h3 mb-0 fw-bold" id="stats-actions-retard"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#fde8e8;">
               <i class="fas fa-exclamation-triangle text-danger"></i>
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
     <div class="col-md-4 col-lg-2">
-      <div class="card border-0 shadow-sm h-100">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('documents.gestion') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Documents</h6>
-              <div class="h3 mb-0 fw-bold" id="stats-documents">--</div>
+              <div class="h3 mb-0 fw-bold" id="stats-documents"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#fef3e2;">
               <i class="fas fa-folder-open text-warning"></i>
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
     <div class="col-md-4 col-lg-2">
-      <div class="card border-0 shadow-sm h-100">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('audit.index') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Audits</h6>
-              <div class="h3 mb-0 fw-bold" id="stats-audits">--</div>
+              <div class="h3 mb-0 fw-bold" id="stats-audits"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#e8f5e9;">
               <i class="fas fa-clipboard-check text-success"></i>
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
     <div class="col-md-4 col-lg-2">
-      <div class="card border-0 shadow-sm h-100">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('users.list_users') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Utilisateurs</h6>
-              <div class="h3 mb-0 fw-bold" id="stats-utilisateurs">--</div>
+              <div class="h3 mb-0 fw-bold" id="stats-utilisateurs"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#f3e8ff;">
-              <i class="fas fa-users text-purple" style="color:#7c3aed;"></i>
+              <i class="fas fa-users" style="color:#7c3aed;"></i>
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
     <div class="col-md-4 col-lg-2">
-      <div class="card border-0 shadow-sm h-100">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('conformite.index') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Conformité</h6>
-              <div class="h3 mb-0 fw-bold">--</div>
+              <div class="h3 mb-0 fw-bold" id="stats-conformite"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#e0f2f1;">
               <i class="fas fa-shield-alt" style="color:#0d9488;"></i>
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
   </div>
 
@@ -167,6 +167,12 @@
             <a href="{{ url_for('conformite.index') }}" class="btn btn-outline-secondary btn-sm">
               <i class="fas fa-shield-alt me-1"></i>Conformité
             </a>
+            <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-building me-1"></i>Entreprises
+            </a>
+            <a href="{{ url_for('plans.index') }}" class="btn btn-outline-info btn-sm">
+              <i class="fas fa-box me-1"></i>Abonnement
+            </a>
           </div>
         </div>
       </div>
@@ -202,18 +208,25 @@ function formatDate(iso) {
   return d.toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function setStat(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.innerHTML = val;
+}
+
 fetch('/api/stats').then(function(r) { return r.json(); }).then(function(data) {
-  document.getElementById('stats-actions-encours').textContent = data.actions_en_cours;
-  document.getElementById('stats-actions-retard').textContent = data.actions_en_retard;
-  document.getElementById('stats-documents').textContent = data.total_documents;
-  document.getElementById('stats-audits').textContent = data.total_audits;
-  document.getElementById('stats-utilisateurs').textContent = data.total_users;
+  setStat('stats-actions-encours', data.actions_en_cours);
+  setStat('stats-actions-retard', data.actions_en_retard);
+  setStat('stats-documents', data.total_documents);
+  setStat('stats-audits', data.total_audits);
+  setStat('stats-utilisateurs', data.total_users);
+  setStat('stats-conformite', '--');
 }).catch(function() {
-  document.getElementById('stats-actions-encours').textContent = '0';
-  document.getElementById('stats-actions-retard').textContent = '0';
-  document.getElementById('stats-documents').textContent = '0';
-  document.getElementById('stats-audits').textContent = '0';
-  document.getElementById('stats-utilisateurs').textContent = '0';
+  setStat('stats-actions-encours', '0');
+  setStat('stats-actions-retard', '0');
+  setStat('stats-documents', '0');
+  setStat('stats-audits', '0');
+  setStat('stats-utilisateurs', '0');
+  setStat('stats-conformite', '--');
 });
 
 fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function(actions) {
@@ -224,7 +237,7 @@ fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function
     return;
   }
   tbody.innerHTML = recent.map(function(a) {
-    return '<tr>' +
+    return '<tr class="cursor-pointer" onclick="window.location.href=\'/actions/' + a.id + '\'" style="cursor:pointer">' +
       '<td class="text-truncate" style="max-width:260px">' + (a.description || '--') + '</td>' +
       '<td>' + statutBadge(a.statut) + '</td>' +
       '<td>' + prioriteBadge(a.priorite) + '</td>' +
@@ -249,7 +262,7 @@ fetch('/documents/api/liste').then(function(r) { return r.json(); }).then(functi
     else if (d.type === 'image') icon = 'fa-file-image';
     else if (d.type === 'word') icon = 'fa-file-word';
     else if (d.type === 'excel') icon = 'fa-file-excel';
-    return '<li class="list-group-item d-flex align-items-center py-2">' +
+    return '<li class="list-group-item d-flex align-items-center py-2" onclick="window.location.href=\'{{ url_for('documents.gestion') }}\'" style="cursor:pointer">' +
       '<i class="fas ' + icon + ' me-3 text-muted"></i>' +
       '<div class="flex-grow-1 text-truncate">' +
         '<div class="text-truncate small">' + (d.nom_fichier || '--') + '</div>' +

@@ -29,12 +29,15 @@
         <div class="row g-3 mb-3">
           <div class="col-md-6">
             <label class="form-label">Mot de passe <span class="text-danger">*</span></label>
-            <input type="password" name="password" class="form-control" minlength="8" required>
-            <div class="form-text">Minimum 8 caracteres</div>
+            <div class="password-wrapper">
+              <input type="password" name="password" class="form-control" minlength="8" required placeholder="Minimum 8 caractères">
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Confirmer mot de passe <span class="text-danger">*</span></label>
-            <input type="password" name="confirm_password" class="form-control" required>
+            <div class="password-wrapper">
+              <input type="password" name="confirm_password" class="form-control" required placeholder="Confirmer le mot de passe">
+            </div>
           </div>
         </div>
         <div class="row g-3 mb-3">

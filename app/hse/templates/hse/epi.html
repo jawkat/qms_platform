@@ -1,0 +1,47 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - EPI{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="fas fa-hard-hat me-2 text-warning"></i>Équipements de Protection (EPI)</h3>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel EPI</button>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle"><thead class="table-light">
+        <tr><th>Type</th><th>Désignation</th><th>Marque</th><th>Norme</th><th>Peremption</th><th>Statut</th><th>Actions</th></tr>
+      </thead><tbody id="tableBody"></tbody></table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel EPI</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId" value="">
+    <div class="row g-3">
+      <div class="col-md-4"><label class="form-label">Type <span class="text-danger">*</span></label><select id="fType" class="form-select"><option value="casque">Casque</option><option value="gant">Gant</option><option value="lunette">Lunette</option><option value="chaussure">Chaussure</option><option value="harnais">Harnais</option><option value="gilet">Gilet</option><option value="masque">Masque</option><option value="bouchon">Bouchon</option><option value="autre">Autre</option></select></div>
+      <div class="col-md-4"><label class="form-label">Désignation <span class="text-danger">*</span></label><input type="text" id="fDesignation" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Statut</label><select id="fStatut" class="form-select"><option value="en_service">En service</option><option value="a_remplacer">À remplacer</option><option value="perime">Périmé</option><option value="retire">Retiré</option></select></div>
+      <div class="col-md-3"><label class="form-label">Marque</label><input type="text" id="fMarque" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">Modèle</label><input type="text" id="fModele" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">N° série</label><input type="text" id="fSerie" class="form-control"></div>
+      <div class="col-md-3"><label class="form-label">Norme</label><input type="text" id="fNorme" class="form-control" placeholder="EN 397"></div>
+      <div class="col-md-4"><label class="form-label">Date fabrication</label><input type="date" id="fFab" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Date péremption</label><input type="date" id="fPeremption" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Prochain contrôle</label><input type="date" id="fControle" class="form-control"></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("hse.api_epi") }}', CREATE='{{ url_for("hse.api_epi_create") }}', UPDATE='{{ url_for("hse.api_epi_update", item_id=0) }}', DELETE='{{ url_for("hse.api_epi_delete", item_id=0) }}';
+const sc={'en_service':'success','a_remplacer':'warning','perime':'danger','retire':'secondary'};
+function loadItems(){fetch(API).then(r=>r.json()).then(items=>{document.getElementById('tableBody').innerHTML=items.map(r=>`<tr><td><span class="badge bg-secondary">${r.type_epi}</span></td><td>${r.designation}</td><td>${r.marque||''}</td><td>${r.norme_reference||''}</td><td><small>${r.date_peremption||''}</small></td><td><span class="badge bg-${sc[r.statut]||'secondary'}">${r.statut||''}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="editItem(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const data={type_epi:document.getElementById('fType').value,designation:document.getElementById('fDesignation').value,marque:document.getElementById('fMarque').value,modele:document.getElementById('fModele').value,numero_serie:document.getElementById('fSerie').value,norme_reference:document.getElementById('fNorme').value,date_fabrication:document.getElementById('fFab').value,date_peremption:document.getElementById('fPeremption').value,prochain_controle:document.getElementById('fControle').value,statut:document.getElementById('fStatut').value};const url=id?UPDATE.replace('0',id):CREATE;fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).then(resp=>{if(resp.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();resetForm();loadItems()}})}
+function editItem(id){fetch(API).then(r=>r.json()).then(items=>{const r=items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('fType').value=r.type_epi||'autre';document.getElementById('fDesignation').value=r.designation||'';document.getElementById('fMarque').value=r.marque||'';document.getElementById('fModele').value=r.modele||'';document.getElementById('fSerie').value=r.numero_serie||'';document.getElementById('fNorme').value=r.norme_reference||'';document.getElementById('fFab').value=r.date_fabrication||'';document.getElementById('fPeremption').value=r.date_peremption||'';document.getElementById('fControle').value=r.prochain_controle||'';document.getElementById('fStatut').value=r.statut||'en_service';document.getElementById('modalTitle').textContent='Modifier EPI';new bootstrap.Modal(document.getElementById('itemModal')).show()})}
+function deleteItem(id){if(!confirm('Supprimer?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)loadItems()})}
+function resetForm(){document.getElementById('itemId').value='';document.getElementById('fType').value='casque';document.getElementById('fDesignation').value='';document.getElementById('fMarque').value='';document.getElementById('fModele').value='';document.getElementById('fSerie').value='';document.getElementById('fNorme').value='';document.getElementById('fFab').value='';document.getElementById('fPeremption').value='';document.getElementById('fControle').value='';document.getElementById('fStatut').value='en_service';document.getElementById('modalTitle').textContent='Nouvel EPI'}
+document.addEventListener('DOMContentLoaded',loadItems);
+</script>
+{% endblock %}

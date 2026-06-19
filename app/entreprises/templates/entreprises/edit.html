@@ -3,33 +3,101 @@
 {% block content %}
 <div class="container-fluid">
   <h1 class="h3 mb-4">Modifier {{ entreprise.nom }}</h1>
-  <div class="card border-0 shadow-sm" style="max-width: 500px;">
+  <div class="card border-0 shadow-sm" style="max-width: 700px;">
     <div class="card-body">
       <form method="POST">
-        <div class="mb-3">
-          <label class="form-label">Nom</label>
-          <input type="text" name="nom" class="form-control" value="{{ entreprise.nom }}" required>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Nom</label>
+            <input type="text" name="nom" class="form-control" value="{{ entreprise.nom }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Taille</label>
+            <select name="taille" class="form-select">
+              <option value="TPE" {% if entreprise.taille == 'TPE' %}selected{% endif %}>TPE</option>
+              <option value="PME" {% if entreprise.taille == 'PME' %}selected{% endif %}>PME</option>
+              <option value="Grande" {% if entreprise.taille == 'Grande' %}selected{% endif %}>Grande entreprise</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Pays</label>
+            <input type="text" name="pays" class="form-control" value="{{ entreprise.pays or 'Maroc' }}">
+          </div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Taille</label>
-          <select name="taille" class="form-select">
-            <option value="TPE" {% if entreprise.taille == 'TPE' %}selected{% endif %}>TPE</option>
-            <option value="PME" {% if entreprise.taille == 'PME' %}selected{% endif %}>PME</option>
-            <option value="Grande" {% if entreprise.taille == 'Grande' %}selected{% endif %}>Grande entreprise</option>
+          <label class="form-label fw-semibold">Adresse</label>
+          <textarea name="adresse" class="form-control" rows="2">{{ entreprise.adresse or '' }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Téléphone</label>
+          <input type="text" name="telephone" class="form-control" value="{{ entreprise.telephone or '' }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Plan d'abonnement</label>
+          <select name="abonnement_type" class="form-select">
+            <option value="">-- Sélectionner --</option>
+            {% for p in plans %}
+            <option value="{{ p.plan_key }}" {% if entreprise.abonnement_type == p.plan_key %}selected{% endif %}>
+              {{ p.label }} ({{ p.price_mad }} MAD/an)
+            </option>
+            {% endfor %}
           </select>
         </div>
         <div class="mb-3">
-          <label class="form-label">Adresse</label>
-          <textarea name="adresse" class="form-control" rows="2">{{ entreprise.adresse or '' }}</textarea>
-        </div>
-        <div class="mb-3 form-check">
-          <input type="checkbox" name="module_qualite" class="form-check-input" id="mq"
-            {% if 'qualite' in (entreprise.modules_actifs or []) %}checked{% endif %}>
-          <label class="form-check-label" for="mq">Activer le module Qualité</label>
+          <label class="form-label fw-semibold">Modules actifs</label>
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" name="module_hse" class="form-check-input" id="mhse"
+              {% if 'hse' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+            <label class="form-check-label" for="mhse">HSE</label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" name="module_qualite" class="form-check-input" id="mq"
+              {% if 'qualite' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+            <label class="form-check-label" for="mq">Qualité</label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" name="module_haccp" class="form-check-input" id="mh"
+              {% if 'haccp' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+            <label class="form-check-label" for="mh">HACCP</label>
+          </div>
+          <hr>
+          <label class="fw-semibold mb-2" style="font-size:.85rem;">Modules transverses <span class="badge bg-secondary bg-opacity-10 text-secondary fw-normal">automatiques</span></label>
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" class="form-check-input" id="mfour" disabled
+              {% if 'qualite' in (entreprise.modules_actifs or []) or 'haccp' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+            <label class="form-check-label text-muted" for="mfour">Fournisseurs <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" class="form-check-input" id="mform" disabled
+              {% if 'qualite' in (entreprise.modules_actifs or []) or 'haccp' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+            <label class="form-check-label text-muted" for="mform">Formations <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input type="checkbox" class="form-check-input" id="mrec" disabled
+              {% if 'qualite' in (entreprise.modules_actifs or []) or 'haccp' in (entreprise.modules_actifs or []) %}checked{% endif %}>
+            <label class="form-check-label text-muted" for="mrec">Réclamations <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
+          </div>
+          <div class="form-text text-muted mb-3" style="font-size:.75rem;">Activés automatiquement avec Qualité et/ou HACCP.</div>
         </div>
         <button type="submit" class="btn btn-danger w-100">Enregistrer</button>
       </form>
     </div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  function syncTransverse() {
+    var active = document.getElementById('mq').checked || document.getElementById('mh').checked;
+    ['mfour','mform','mrec'].forEach(function(id) {
+      var cb = document.getElementById(id);
+      cb.checked = active;
+    });
+  }
+  document.getElementById('mq').addEventListener('change', syncTransverse);
+  document.getElementById('mh').addEventListener('change', syncTransverse);
+});
+</script>
 {% endblock %}

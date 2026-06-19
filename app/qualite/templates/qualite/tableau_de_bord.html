@@ -70,11 +70,10 @@
         </div>
         <div class="card-body">
           <div class="row g-2 text-center" id="overviewRow">
-            <div class="col-4"><strong id="statHaccp">--</strong><br><small class="text-muted">HACCP</small></div>
-            <div class="col-4"><strong id="statFournisseurs">--</strong><br><small class="text-muted">Fournisseurs</small></div>
-            <div class="col-4"><strong id="statFormations">--</strong><br><small class="text-muted">Formations</small></div>
-            <div class="col-4 mt-2"><strong id="statEquipements">--</strong><br><small class="text-muted">Équipements</small></div>
-            <div class="col-4 mt-2"><strong id="statRevues">--</strong><br><small class="text-muted">Revues</small></div>
+            <div class="col-3"><strong id="statFournisseurs">--</strong><br><small class="text-muted">Fournisseurs</small></div>
+            <div class="col-3"><strong id="statFormations">--</strong><br><small class="text-muted">Formations</small></div>
+            <div class="col-3"><strong id="statEquipements">--</strong><br><small class="text-muted">Équipements</small></div>
+            <div class="col-3"><strong id="statRevues">--</strong><br><small class="text-muted">Revues</small></div>
           </div>
         </div>
       </div>
@@ -92,7 +91,7 @@
               </a>
             </div>
             <div class="col-6 col-md-4">
-              <a href="{{ url_for('qualite.haccp') }}" class="btn btn-outline-danger w-100 text-start py-2">
+              <a href="{{ url_for('haccp.tableau_de_bord') }}" class="btn btn-outline-danger w-100 text-start py-2">
                 <i class="fas fa-utensils me-1"></i> HACCP
               </a>
             </div>
@@ -127,7 +126,7 @@
               </a>
             </div>
             <div class="col-6 col-md-4">
-              <a href="{{ url_for('qualite.nonconformites') }}" class="btn btn-outline-danger w-100 text-start py-2">
+              <a href="{{ url_for('nonconformites.index') }}" class="btn btn-outline-danger w-100 text-start py-2">
                 <i class="fas fa-times-circle me-1"></i> NC
               </a>
             </div>
@@ -147,7 +146,6 @@ fetch('{{ url_for("qualite.api_stats") }}')
     document.getElementById('statNc').textContent = s.nonconformites;
     document.getElementById('statReclamations').textContent = s.reclamations;
     document.getElementById('statControles').textContent = s.controles;
-    document.getElementById('statHaccp').textContent = s.haccp;
     document.getElementById('statFournisseurs').textContent = s.fournisseurs;
     document.getElementById('statFormations').textContent = s.formations;
     document.getElementById('statEquipements').textContent = s.equipements;

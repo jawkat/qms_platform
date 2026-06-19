@@ -49,6 +49,7 @@
                   {% if t.statut != 'ferme' %}
                   <form method="POST" action="{{ url_for('admin.admin_ticket_fermer', ticket_id=t.id) }}"
                         onsubmit="return confirm('Fermer ce ticket ?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-sm btn-outline-danger" type="submit" title="Fermer">
                       <i class="fas fa-times"></i>
                     </button>

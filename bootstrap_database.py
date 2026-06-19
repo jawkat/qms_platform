@@ -33,6 +33,29 @@ def _run_migrations():
                 conn.execute(text('ALTER TABLE utilisateur ADD COLUMN telephone VARCHAR(20)'))
             conn.commit()
 
+    if 'processus_haccp' in existing_tables:
+        with db.engine.connect() as conn:
+            if 'haccp_processus' not in existing_tables:
+                conn.execute(text('ALTER TABLE processus_haccp RENAME TO haccp_processus'))
+                result = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name='haccp_processus'"
+                ))
+                new_cols = {row[0] for row in result}
+                if 'type_danger' not in new_cols:
+                    conn.execute(text("ALTER TABLE haccp_processus ADD COLUMN type_danger VARCHAR(20) DEFAULT 'biologique'"))
+                if 'description' not in new_cols:
+                    conn.execute(text('ALTER TABLE haccp_processus ADD COLUMN description TEXT'))
+                if 'frequence_surveillance' not in new_cols:
+                    conn.execute(text('ALTER TABLE haccp_processus ADD COLUMN frequence_surveillance VARCHAR(100)'))
+                if 'num_ccp' not in new_cols:
+                    conn.execute(text('ALTER TABLE haccp_processus ADD COLUMN num_ccp VARCHAR(10)'))
+                print("-> Table 'processus_haccp' renommée en 'haccp_processus' avec colonnes ajoutées.")
+            else:
+                conn.execute(text('DROP TABLE IF EXISTS processus_haccp CASCADE'))
+                print("-> Table obsolète 'processus_haccp' supprimée (déjà remplacée par 'haccp_processus').")
+            conn.commit()
+
     if 'proof_master' in existing_tables:
         cols = {c['name'] for c in inspector.get_columns('proof_master')}
         with db.engine.connect() as conn:
@@ -75,7 +98,7 @@ def init_db():
                 taille="PME",
                 pays="Maroc",
                 date_inscription=date.today(),
-                modules_actifs=['hse', 'qualite'],
+                modules_actifs=['hse', 'qualite', 'haccp', 'ged'],
                 statut="Actif"
             )
             db.session.add(entreprise)

@@ -1,0 +1,93 @@
+{% extends 'layout.html' %}
+{% block title %}Fournisseurs{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-truck me-2" style="color:#7c3aed;"></i>Fournisseurs</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau fournisseur</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Nom</th><th>Contact</th><th>Produit</th><th>Certification</th><th>Évaluation</th><th>Dernier audit</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau fournisseur</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Contact</label><input type="text" id="f_contact" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Email</label><input type="email" id="f_email" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Téléphone</label><input type="text" id="f_telephone" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Produit fourni</label><input type="text" id="f_produit" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Certification</label><input type="text" id="f_certif" class="form-control" placeholder="ISO 22000, BRC..."></div>
+          <div class="col-md-4"><label class="form-label">Évaluation (/5)</label><input type="number" id="f_evaluation" class="form-control" min="1" max="5"></div>
+          <div class="col-md-4"><label class="form-label">Dernier audit</label><input type="date" id="f_dernier" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Prochain audit</label><input type="date" id="f_prochain" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("fournisseurs.api_liste") }}'; const CREATE = '{{ url_for("fournisseurs.api_creer") }}';
+const UPDATE = '{{ url_for("fournisseurs.api_modifier", item_id=0) }}'; const DELETE = '{{ url_for("fournisseurs.api_supprimer", item_id=0) }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucun fournisseur</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.nom||''}</td><td>${r.contact||''}</td><td>${r.produit_fourni||''}</td>
+      <td>${r.certification||''}</td><td>${r.evaluation ? r.evaluation+'/5' : '-'}</td>
+      <td>${r.dernier_audit ? new Date(r.dernier_audit).toLocaleDateString('fr-FR') : ''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { nom: document.getElementById('f_nom').value, contact: document.getElementById('f_contact').value,
+    email: document.getElementById('f_email').value, telephone: document.getElementById('f_telephone').value,
+    produit_fourni: document.getElementById('f_produit').value, certification: document.getElementById('f_certif').value,
+    evaluation: document.getElementById('f_evaluation').value, dernier_audit: document.getElementById('f_dernier').value,
+    prochain_audit: document.getElementById('f_prochain').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_nom').value = r.nom||'';
+    document.getElementById('f_contact').value = r.contact||''; document.getElementById('f_email').value = r.email||'';
+    document.getElementById('f_telephone').value = r.telephone||''; document.getElementById('f_produit').value = r.produit_fourni||'';
+    document.getElementById('f_certif').value = r.certification||''; document.getElementById('f_evaluation').value = r.evaluation||'';
+    document.getElementById('f_dernier').value = r.dernier_audit || ''; document.getElementById('f_prochain').value = r.prochain_audit || '';
+    document.getElementById('modalTitle').textContent = 'Modifier le fournisseur';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() { document.getElementById('itemId').value = ''; ['f_nom','f_contact','f_email','f_telephone','f_produit','f_certif','f_dernier','f_prochain'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_evaluation').value = ''; document.getElementById('modalTitle').textContent = 'Nouveau fournisseur'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

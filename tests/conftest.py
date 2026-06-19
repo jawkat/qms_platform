@@ -17,7 +17,9 @@ from app.models import (
     Entreprise, Utilisateur, Role, Permission, RolePermission,
     ActionCorrective, ProofMaster, Audit,
     Indicateur, IndicateurValeur, Ticket,
+    NonConformite, AnalyseIshikawa,
 )
+from app.utils.permission_catalog import PERMISSION_CATALOG
 
 
 @pytest.fixture(scope='session')
@@ -53,27 +55,15 @@ def session(_db_session):
 
 
 def _create_permissions(db_session):
-    perm_codes = [
-        'actions.voir', 'actions.creer', 'actions.modifier', 'actions.supprimer',
-        'documents.voir', 'documents.creer', 'documents.modifier', 'documents.supprimer',
-        'textes.voir', 'textes.creer', 'textes.modifier',
-        'conformite.voir', 'conformite.evaluer',
-        'qualite.voir', 'qualite.gerer_risques',
-        'audit.voir', 'audit.creer',
-        'indicateurs.voir', 'indicateurs.creer',
-        'support.voir', 'support.creer',
-        'users.voir', 'users.creer', 'users.modifier', 'users.supprimer',
-        'admin.voir', 'admin.gerer',
-        'secteur.voir', 'secteur.gerer',
-    ]
     perms = {}
-    for code in perm_codes:
-        perm = Permission.query.filter_by(code=code).first()
-        if not perm:
-            perm = Permission(code=code, description=code, module=code.split('.')[0])
-            db_session.add(perm)
-            db_session.flush()
-        perms[code] = perm
+    for module, module_perms in PERMISSION_CATALOG.items():
+        for code, desc in module_perms:
+            perm = Permission.query.filter_by(code=code).first()
+            if not perm:
+                perm = Permission(code=code, description=desc, module=module)
+                db_session.add(perm)
+                db_session.flush()
+            perms[code] = perm
     return perms
 
 
@@ -83,7 +73,7 @@ def entreprise(session):
         nom='Test Corp',
         taille='PME',
         pays='Maroc',
-        modules_actifs=['hse', 'qualite'],
+        modules_actifs=['hse', 'qualite', 'haccp', 'ged'],
         abonnement_type='professional',
         abonnement_paye=True,
         statut='active',
@@ -288,6 +278,34 @@ def ticket(session, entreprise, manager_user):
     session.add(t)
     session.commit()
     return t
+
+
+@pytest.fixture
+def nonconformite(session, entreprise):
+    nc = NonConformite(
+        entreprise_id=entreprise.id,
+        description='Test non-conformite',
+        statut='OUVERTE',
+        source='interne',
+        domaine='hse',
+    )
+    session.add(nc)
+    session.commit()
+    return nc
+
+
+@pytest.fixture
+def ishikawa_analysis(session, entreprise, manager_user):
+    a = AnalyseIshikawa(
+        entreprise_id=entreprise.id,
+        description_effet='Probleme test',
+        source_type='action_corrective',
+        auteur_id=manager_user.id,
+        date_analyse=date.today(),
+    )
+    session.add(a)
+    session.commit()
+    return a
 
 
 @pytest.fixture

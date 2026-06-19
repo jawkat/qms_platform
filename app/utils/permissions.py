@@ -67,6 +67,34 @@ def has_permission(permission_code):
     return decorator
 
 
+def module_access_required(module_name, *permissions):
+    """Vérifie que l'entreprise de l'utilisateur a activé le module ET que l'utilisateur a la permission."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                abort(401)
+
+            from app import db
+            from app.models.entreprise import Entreprise
+            entreprise = db.session.get(Entreprise, current_user.entreprise_id)
+            if not entreprise or module_name not in (entreprise.modules_actifs or []):
+                abort(403)
+
+            if permissions:
+                ok = False
+                for code in permissions:
+                    if current_user.has_permission(code, current_user.entreprise_id):
+                        ok = True
+                        break
+                if not ok:
+                    abort(403)
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
 def system_admin_required(f):
     """Décorateur imposant un administrateur système pour une action sensible."""
 

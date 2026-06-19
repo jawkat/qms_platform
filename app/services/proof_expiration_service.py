@@ -2,7 +2,7 @@ from datetime import date, timedelta, datetime
 import logging
 
 from app import db
-from app.models import Document, EvaluationArticle, Notification, TacheSysteme, ProofMaster
+from app.models import Notification, TacheSysteme, ProofMaster
 from app.utils.notifications import create_notification
 
 
@@ -111,57 +111,6 @@ def run_daily_proof_expiration_reminders(reminder_days=DEFAULT_EXPIRATION_REMIND
             logger.exception(f"Erreur traitement preuve {proof.id}")
             stats['errors'] += 1
 
-    legacy_documents = (
-        Document.query
-        .filter(
-            Document.validite.isnot(None),
-            Document.lie_a_type == 'evaluation_article',
-        )
-        .all()
-    )
-
-    for document in legacy_documents:
-        stats['processed_documents'] += 1
-
-        evaluation = db.session.get(EvaluationArticle, document.lie_a_id)
-        recipients = _recipient_ids_for_evaluation(evaluation, document)
-
-        try:
-            if document.validite < today:
-                marker = _build_marker(document.id, document.validite, 'EXPIRED')
-                for user_id in recipients:
-                    if _notification_exists(user_id, marker):
-                        continue
-                    create_notification(
-                        user_id,
-                        (
-                            f"Preuve EXPIRÉE: '{document.nom_fichier}' est expirée depuis le "
-                            f"{document.validite.strftime('%d/%m/%Y')} [PROOF:{document.id}][TYPE:EXPIRED]"
-                        ),
-                        type='danger',
-                    )
-                    stats['expired_notifications'] += 1
-
-            elif today <= document.validite <= horizon:
-                days_left = (document.validite - today).days
-                marker = _build_marker(document.id, document.validite, 'REMINDER')
-                for user_id in recipients:
-                    if _notification_exists(user_id, marker):
-                        continue
-                    create_notification(
-                        user_id,
-                        (
-                            f"Rappel PREUVE: '{document.nom_fichier}' expire dans {days_left} jour(s) le "
-                            f"{document.validite.strftime('%d/%m/%Y')} [PROOF:{document.id}][TYPE:REMINDER]"
-                        ),
-                        type='warning',
-                    )
-                    stats['soon_notifications'] += 1
-
-        except Exception:
-            logger.exception(f"Erreur traitement document {document.id}")
-            stats['errors'] += 1
-
     # Enregistrer résultat de la tâche
     task = TacheSysteme(
         type_tache='proof_expiration_reminders',
@@ -189,13 +138,3 @@ def run_daily_proof_expiration_reminders(reminder_days=DEFAULT_EXPIRATION_REMIND
     return stats
 
 
-# LEGACY: Fonction pour compatibilité avec Document (si besoin)
-def _recipient_ids_for_evaluation(evaluation, document):
-    """LEGACY: Récupérer recipients pour un Document"""
-    recipients = {document.upload_par}
-    if evaluation:
-        if evaluation.evalue_par:
-            recipients.add(evaluation.evalue_par)
-        if evaluation.entreprise_texte and evaluation.entreprise_texte.responsable_id:
-            recipients.add(evaluation.entreprise_texte.responsable_id)
-    return [uid for uid in recipients if uid]

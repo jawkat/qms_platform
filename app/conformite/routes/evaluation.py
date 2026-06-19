@@ -10,6 +10,32 @@ from datetime import datetime, date
 from sqlalchemy import or_
 
 
+def _update_entreprise_texte_stats(entreprise_texte_id):
+    et = EntrepriseTexte.query.get(entreprise_texte_id)
+    if not et:
+        return
+    evals = EvaluationArticle.query.filter_by(entreprise_texte_id=et.id).all()
+    total = Article.query.filter_by(texte_version_id=et.texte_version_id).count()
+    evaluated = [e for e in evals if e.conforme is not None]
+    conforms = sum(1 for e in evaluated if e.conforme == ConformiteEnum.CONFORME)
+    non_conforms = sum(1 for e in evaluated if e.conforme == ConformiteEnum.NON_CONFORME)
+
+    if total > 0 and len(evaluated) > 0:
+        et.score_conformite = round(conforms / total * 100, 1)
+    else:
+        et.score_conformite = 0
+
+    if len(evaluated) == 0:
+        et.statut_evaluation = 'non_commence'
+    elif len(evaluated) < total:
+        et.statut_evaluation = 'en_cours'
+    else:
+        et.statut_evaluation = 'complete'
+
+    et.derniere_mise_a_jour = datetime.utcnow()
+    db.session.commit()
+
+
 @blueprint.route('/evaluation/<int:evaluation_id>', methods=['GET', 'POST'])
 @login_required
 @has_permission('conformite.voir')
@@ -18,14 +44,19 @@ def evaluation_detail(evaluation_id):
     responsables = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
 
     if request.method == 'POST':
-        if request.form.get('conforme') is not None:
-            evaluation.conforme = request.form.get('conforme', evaluation.conforme)
-        if request.form.get('applicable') is not None:
-            evaluation.applicable = request.form.get('applicable', evaluation.applicable)
+        if request.form.get('conforme'):
+            evaluation.conforme = request.form.get('conforme')
+        if request.form.get('applicable'):
+            evaluation.applicable = request.form.get('applicable')
         evaluation.observation = request.form.get('observation', evaluation.observation)
         evaluation.date_evaluation = datetime.utcnow()
         evaluation.evalue_par = current_user.id
         db.session.commit()
+
+        _update_entreprise_texte_stats(evaluation.entreprise_texte_id)
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True})
 
         nav = request.form.get('nav')
         if nav == 'save_next' or nav == 'save_prev':
@@ -50,7 +81,7 @@ def evaluation_detail(evaluation_id):
     stats = {
         'total': len(all_evals),
         'current': current_idx + 1,
-        'evalue': sum(1 for e in all_evals if e.date_evaluation is not None),
+        'evalue': sum(1 for e in all_evals if e.conforme is not None),
         'conforme': sum(1 for e in all_evals if e.conforme and e.conforme.name == 'CONFORME'),
         'non_conforme': sum(1 for e in all_evals if e.conforme and e.conforme.name == 'NON_CONFORME'),
         'non_applicable': sum(1 for e in all_evals if e.applicable and e.applicable.name == 'NON_APPLICABLE'),

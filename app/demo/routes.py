@@ -152,21 +152,24 @@ def _envoyer_confirmations(creneau):
     admin_email = current_app.config.get('MAIL_ADMIN_EMAIL', 'jwd.katten@gmail.com')
     admin_url = url_for('admin.demo_creneaux', _external=True)
 
-    html = render_template('emails/demo_confirmation.html', creneau=creneau, annulation_url=annulation_url)
-    msg = Message(
-        subject='Confirmation de votre demonstration HSE Compliance',
-        recipients=[creneau.email_contact],
-        html=html,
-    )
-    mail.send(msg)
+    try:
+        html = render_template('emails/demo_confirmation.html', creneau=creneau, annulation_url=annulation_url)
+        msg = Message(
+            subject='Confirmation de votre demonstration HSE Compliance',
+            recipients=[creneau.email_contact],
+            html=html,
+        )
+        mail.send(msg)
 
-    html_admin = render_template('emails/demo_admin_notification.html', creneau=creneau, admin_url=admin_url)
-    msg_admin = Message(
-        subject=f'Nouvelle reservation demo - {creneau.nom_contact}',
-        recipients=[admin_email],
-        html=html_admin,
-    )
-    mail.send(msg_admin)
+        html_admin = render_template('emails/demo_admin_notification.html', creneau=creneau, admin_url=admin_url)
+        msg_admin = Message(
+            subject=f'Nouvelle reservation demo - {creneau.nom_contact}',
+            recipients=[admin_email],
+            html=html_admin,
+        )
+        mail.send(msg_admin)
+    except Exception as e:
+        current_app.logger.warning('Echec envoi email demo: %s', e)
 
     ticket = Ticket(
         reference=Ticket.generer_reference(),

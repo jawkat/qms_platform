@@ -45,3 +45,17 @@ class WorkflowLog(db.Model):
 
     proof = db.relationship('ProofMaster')
     utilisateur = db.relationship('Utilisateur')
+
+
+class HistoriqueDocument(db.Model):
+    __tablename__ = 'historique_document'
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('proof_master.id'), nullable=False)
+    action = db.Column(db.String(30), nullable=False)
+    champ_modifie = db.Column(db.String(100))
+    valeur_avant = db.Column(db.Text)
+    valeur_apres = db.Column(db.Text)
+    auteur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
+    date_action = db.Column(db.DateTime, default=datetime.utcnow)
+    document = db.relationship('ProofMaster', backref='historique')
+    auteur = db.relationship('Utilisateur')

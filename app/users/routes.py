@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db, csrf
+from app import db
 from app.models import Utilisateur, Role, Permission
 from app.users import users
 from app.utils.permissions import has_permission
@@ -10,7 +10,6 @@ import secrets
 
 
 @users.route('/login', methods=['GET', 'POST'])
-@csrf.exempt
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -26,7 +25,6 @@ def login():
 
 
 @users.route('/register', methods=['GET', 'POST'])
-@csrf.exempt
 def register():
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
@@ -208,7 +206,6 @@ def reset_password(user_id):
 
 
 @users.route('/forgot-password', methods=['GET', 'POST'])
-@csrf.exempt
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
@@ -224,7 +221,6 @@ def forgot_password():
 
 
 @users.route('/reset-password/<token>', methods=['GET', 'POST'])
-@csrf.exempt
 def reset_password_token(token):
     user = Utilisateur.verify_reset_token(token)
     if not user:

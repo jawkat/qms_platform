@@ -1,0 +1,180 @@
+{% extends 'layout.html' %}
+{% block title %}HACCP - Tableau de bord{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="page-header mb-4">
+    <h1 class="h3 mb-1"><i class="fas fa-utensils me-2 text-danger"></i>HACCP</h1>
+    <p class="text-muted mb-0">Hazard Analysis and Critical Control Point - Sécurité des aliments</p>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.processus') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Processus</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-processus"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e8f4fd;">
+              <i class="fas fa-industry text-primary"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.produits') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Produits</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-produits"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fef3e2;">
+              <i class="fas fa-box text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.ccp') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">CCP</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-ccp"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fde8e8;">
+              <i class="fas fa-exclamation-triangle text-danger"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.enregistrements') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Enregistrements</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-enregistrements"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e8f5e9;">
+              <i class="fas fa-clipboard-check text-success"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('nonconformites.index') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Non-conformités</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-nonconformites"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fce4ec;">
+              <i class="fas fa-times-circle" style="color:#c62828;"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.fournisseurs') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Fournisseurs</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-fournisseurs"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#f3e8ff;">
+              <i class="fas fa-truck" style="color:#7c3aed;"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.reclamations') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Réclamations</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-reclamations"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fff3e0;">
+              <i class="fas fa-headset" style="color:#e65100;"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.formations') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Formations</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-formations"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e0f2f1;">
+              <i class="fas fa-graduation-cap" style="color:#0d9488;"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body py-3">
+          <h6 class="text-muted text-uppercase small mb-3"><i class="fas fa-link me-1"></i>Accès rapide</h6>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('haccp.processus') }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-industry me-1"></i>Processus</a>
+            <a href="{{ url_for('haccp.produits') }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-box me-1"></i>Produits</a>
+            <a href="{{ url_for('haccp.dangers') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-biohazard me-1"></i>Analyse dangers</a>
+            <a href="{{ url_for('haccp.ccp') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-exclamation-triangle me-1"></i>CCP</a>
+            <a href="{{ url_for('haccp.prp') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-hand-sparkles me-1"></i>PRP</a>
+            <a href="{{ url_for('haccp.enregistrements') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-clipboard-check me-1"></i>Enregistrements</a>
+            <a href="{{ url_for('nonconformites.index') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-times-circle me-1"></i>Non-conformités</a>
+            <a href="{{ url_for('haccp.tracabilite') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sitemap me-1"></i>Traçabilité</a>
+            <a href="{{ url_for('haccp.fournisseurs') }}" class="btn btn-outline-purple btn-sm"><i class="fas fa-truck me-1"></i>Fournisseurs</a>
+            <a href="{{ url_for('haccp.formations') }}" class="btn btn-outline-teal btn-sm"><i class="fas fa-graduation-cap me-1"></i>Formations</a>
+            <a href="{{ url_for('haccp.reclamations') }}" class="btn btn-outline-orange btn-sm"><i class="fas fa-headset me-1"></i>Réclamations</a>
+            <a href="{{ url_for('haccp.rappels') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-exclamation-circle me-1"></i>Rappels</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function setStat(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.innerHTML = val;
+}
+fetch('{{ url_for("haccp.api_stats") }}').then(function(r) { return r.json(); }).then(function(d) {
+  setStat('stat-processus', d.processus);
+  setStat('stat-produits', d.produits);
+  setStat('stat-ccp', d.ccp);
+  setStat('stat-nonconformites', d.nonconformites);
+  setStat('stat-formations', d.formations);
+  setStat('stat-fournisseurs', d.fournisseurs);
+  setStat('stat-reclamations', d.reclamations);
+  setStat('stat-enregistrements', d.enregistrements);
+}).catch(function() {
+  document.querySelectorAll('[id^="stat-"]').forEach(function(el) { el.textContent = '0'; });
+});
+</script>
+{% endblock %}

@@ -5,6 +5,7 @@ from app import db
 from app.models import EntrepriseTexte, Article, EvaluationArticle
 from app.utils.permissions import has_permission
 from app.utils.observability import log_business_event
+from app.conformite.routes.evaluation import _update_entreprise_texte_stats
 from datetime import datetime
 
 
@@ -133,6 +134,9 @@ def link_create():
 
     db.session.add(et)
     db.session.commit()
+    _create_missing_evaluations_for_link(et)
+    db.session.commit()
+    _update_entreprise_texte_stats(et.id)
     log_business_event(
         current_app.logger,
         'entreprise_texte_link_created',
@@ -145,15 +149,15 @@ def link_create():
     return redirect(url_for('textes.index'))
 
 
-@entreprise_textes.route('/toggle_link', methods=['POST'])
+@entreprise_textes.route('/toggle_link', methods=['GET', 'POST'])
 @login_required
 @has_permission('entreprise_textes.lier')
 def toggle_link():
-    """Toggle link for current user's entreprise and a given texte_version_id.
+    if request.method == 'GET':
+        return redirect(url_for('textes.library_all'))
 
-    Expects JSON or form param 'version_id'. Returns JSON {linked: true/false}.
-    """
-    # Accept version_id from form data or JSON body (more robust)
+    is_json = request.is_json
+
     version_id = None
     if request.form and request.form.get('version_id'):
         version_id = request.form.get('version_id')
@@ -161,16 +165,25 @@ def toggle_link():
         json_body = request.get_json(silent=True) or {}
         version_id = json_body.get('version_id')
     if not version_id:
-        return (jsonify({'success': False, 'error': 'version_id manquant'}), 400)
+        if is_json:
+            return (jsonify({'success': False, 'error': 'version_id manquant'}), 400)
+        flash('Version de texte manquante.', 'warning')
+        return redirect(url_for('textes.library_all'))
 
     try:
         version_id = int(version_id)
     except Exception:
-        return (jsonify({'success': False, 'error': 'version_id invalide'}), 400)
+        if is_json:
+            return (jsonify({'success': False, 'error': 'version_id invalide'}), 400)
+        flash('Version de texte invalide.', 'warning')
+        return redirect(url_for('textes.library_all'))
 
     entreprise_id = current_user.entreprise_id
     if not entreprise_id:
-        return (jsonify({'success': False, 'error': 'Utilisateur non rattache a une entreprise'}), 400)
+        if is_json:
+            return (jsonify({'success': False, 'error': 'Utilisateur non rattache a une entreprise'}), 400)
+        flash('Votre compte n\'est pas rattache a une entreprise.', 'warning')
+        return redirect(url_for('textes.library_all'))
 
     payload = request.form if request.form else (request.get_json(silent=True) or {})
     metadata = _normalize_link_metadata(payload)
@@ -190,7 +203,10 @@ def toggle_link():
                 entreprise_texte_id=existing_id,
                 texte_version_id=version_id,
             )
-            return jsonify({'success': True, 'linked': False, 'version_id': version_id})
+            if is_json:
+                return jsonify({'success': True, 'linked': False, 'version_id': version_id})
+            flash('Texte dele de votre entreprise.', 'success')
+            return redirect(url_for('textes.library_all'))
 
         for field_name, field_value in metadata.items():
             if field_value is not None:
@@ -198,6 +214,9 @@ def toggle_link():
         existing.responsable_id = current_user.id
         existing.derniere_mise_a_jour = datetime.utcnow()
         db.session.commit()
+        _create_missing_evaluations_for_link(existing)
+        db.session.commit()
+        _update_entreprise_texte_stats(existing.id)
         log_business_event(
             current_app.logger,
             'entreprise_texte_link_updated',
@@ -208,10 +227,16 @@ def toggle_link():
             statut_obligation=existing.statut_obligation,
             mode_evaluation=existing.mode_evaluation,
         )
-        return jsonify({'success': True, 'linked': True, 'version_id': version_id})
+        if is_json:
+            return jsonify({'success': True, 'linked': True, 'version_id': version_id})
+        flash('Lien mis a jour.', 'success')
+        return redirect(url_for('textes.library_all'))
 
     if not metadata.get('statut_obligation') or not metadata.get('motif_obligation') or not metadata.get('mode_evaluation'):
-        return jsonify({'success': False, 'error': 'statut_obligation, motif_obligation et mode_evaluation sont requis'}), 400
+        if is_json:
+            return (jsonify({'success': False, 'error': 'statut_obligation, motif_obligation et mode_evaluation sont requis'}), 400)
+        flash('Informations de liaison manquantes.', 'warning')
+        return redirect(url_for('textes.library_all'))
 
     new = EntrepriseTexte(
         entreprise_id=entreprise_id,
@@ -224,6 +249,9 @@ def toggle_link():
     )
     db.session.add(new)
     db.session.commit()
+    _create_missing_evaluations_for_link(new)
+    db.session.commit()
+    _update_entreprise_texte_stats(new.id)
     log_business_event(
         current_app.logger,
         'entreprise_texte_link_created',
@@ -234,7 +262,10 @@ def toggle_link():
         statut_obligation=new.statut_obligation,
         mode_evaluation=new.mode_evaluation,
     )
-    return jsonify({'success': True, 'linked': True, 'version_id': version_id})
+    if is_json:
+        return jsonify({'success': True, 'linked': True, 'version_id': version_id})
+    flash('Texte lie a votre entreprise.', 'success')
+    return redirect(url_for('textes.library_all'))
 
 
 @entreprise_textes.route('/evaluate', methods=['POST'])

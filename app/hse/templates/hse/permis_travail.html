@@ -1,0 +1,46 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - Permis de travail{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="fas fa-file-signature me-2 text-primary"></i>Permis de travail</h3>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau permis</button>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle"><thead class="table-light">
+        <tr><th>N°</th><th>Type</th><th>Date</th><th>Lieu</th><th>Demandant</th><th>Statut</th><th>Actions</th></tr>
+      </thead><tbody id="tableBody"></tbody></table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau permis</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId" value="">
+    <div class="row g-3">
+      <div class="col-md-4"><label class="form-label">Type <span class="text-danger">*</span></label><select id="fType" class="form-select"><option value="feu_chaud">Feu chaud</option><option value="hauteur">Travail en hauteur</option><option value="espace_confin">Espace confiné</option><option value="electrique">Électrique</option><option value="excavation">Excavation</option><option value="generique">Générique</option></select></div>
+      <div class="col-md-4"><label class="form-label">Date <span class="text-danger">*</span></label><input type="date" id="fDate" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Statut</label><select id="fStatut" class="form-select"><option value="en_attente">En attente</option><option value="autorise">Autorisé</option><option value="en_cours">En cours</option><option value="termine">Terminé</option><option value="annule">Annulé</option></select></div>
+      <div class="col-md-6"><label class="form-label">Lieu</label><input type="text" id="fLieu" class="form-control"></div>
+      <div class="col-12"><label class="form-label">Description des travaux</label><textarea id="fDescription" class="form-control" rows="2"></textarea></div>
+      <div class="col-12"><label class="form-label">Risques identifiés</label><textarea id="fRisques" class="form-control" rows="2"></textarea></div>
+      <div class="col-12"><label class="form-label">Mesures préventives</label><textarea id="fMesures" class="form-control" rows="2"></textarea></div>
+      <div class="col-12"><label class="form-label">Consignes de sécurité</label><textarea id="fConsignes" class="form-control" rows="2"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("hse.api_permis_travail") }}', CREATE='{{ url_for("hse.api_permis_travail_create") }}', UPDATE='{{ url_for("hse.api_permis_travail_update", item_id=0) }}', DELETE='{{ url_for("hse.api_permis_travail_delete", item_id=0) }}';
+const tc={'feu_chaud':'danger','hauteur':'warning','espace_confin':'info','electrique':'primary','excavation':'secondary','generique':'secondary'};
+const sc={'en_attente':'secondary','autorise':'success','en_cours':'warning','termine':'info','annule':'danger'};
+function loadItems(){fetch(API).then(r=>r.json()).then(items=>{document.getElementById('tableBody').innerHTML=items.map(r=>`<tr><td>${r.id}</td><td><span class="badge bg-${tc[r.type_permis]||'secondary'}">${r.type_permis}</span></td><td><small>${r.date_permis||''}</small></td><td>${r.lieu||''}</td><td>${r.demandant||''}</td><td><span class="badge bg-${sc[r.statut]||'secondary'}">${r.statut||''}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="editItem(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const data={type_permis:document.getElementById('fType').value,date_permis:document.getElementById('fDate').value,lieu:document.getElementById('fLieu').value,intervention_description:document.getElementById('fDescription').value,risques_identifies:document.getElementById('fRisques').value,mesures_preventives:document.getElementById('fMesures').value,consignes_securite:document.getElementById('fConsignes').value,statut:document.getElementById('fStatut').value};const url=id?UPDATE.replace('0',id):CREATE;fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).then(resp=>{if(resp.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();resetForm();loadItems()}})}
+function editItem(id){fetch(API).then(r=>r.json()).then(items=>{const r=items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('fType').value=r.type_permis||'generique';document.getElementById('fDate').value=r.date_permis||'';document.getElementById('fLieu').value=r.lieu||'';document.getElementById('fDescription').value=r.intervention_description||'';document.getElementById('fRisques').value=r.risques_identifies||'';document.getElementById('fMesures').value=r.mesures_preventives||'';document.getElementById('fConsignes').value=r.consignes_securite||'';document.getElementById('fStatut').value=r.statut||'en_attente';document.getElementById('modalTitle').textContent='Modifier permis';new bootstrap.Modal(document.getElementById('itemModal')).show()})}
+function deleteItem(id){if(!confirm('Supprimer?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)loadItems()})}
+function resetForm(){document.getElementById('itemId').value='';document.getElementById('fType').value='feu_chaud';document.getElementById('fDate').value='';document.getElementById('fLieu').value='';document.getElementById('fDescription').value='';document.getElementById('fRisques').value='';document.getElementById('fMesures').value='';document.getElementById('fConsignes').value='';document.getElementById('fStatut').value='en_attente';document.getElementById('modalTitle').textContent='Nouveau permis'}
+document.addEventListener('DOMContentLoaded',loadItems);
+</script>
+{% endblock %}

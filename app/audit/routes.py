@@ -1,6 +1,6 @@
 from flask import render_template, request, jsonify, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
-from app import db, csrf
+from app import db
 from app.models import Audit, AuditObservation, Utilisateur, TexteReglementaire, Article
 from app.audit import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
@@ -42,7 +42,6 @@ def creer():
 @blueprint.route('/creer', methods=['POST'])
 @login_required
 @has_permission('audit.cree')
-@csrf.exempt
 def api_creer():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     data = request.get_json()
@@ -51,7 +50,7 @@ def api_creer():
         type=data.get('type'),
         date_audit=datetime.strptime(data['date_audit'], '%Y-%m-%d').date()
         if data.get('date_audit') else None,
-        auditeur_id=data.get('auditeur_id', type=int),
+        auditeur_id=data.get('auditeur_id'),
         commentaire=data.get('commentaire'),
     )
     db.session.add(audit)
@@ -94,7 +93,6 @@ def detail(audit_id):
 @blueprint.route('/<int:audit_id>/update', methods=['POST'])
 @login_required
 @has_permission('audit.modifier')
-@csrf.exempt
 def update(audit_id):
     audit = tenant_get_or_404(Audit, audit_id)
     data = request.get_json() if request.is_json else request.form
@@ -112,7 +110,6 @@ def update(audit_id):
 @blueprint.route('/<int:audit_id>/delete', methods=['POST'])
 @login_required
 @has_permission('audit.modifier')
-@csrf.exempt
 def delete(audit_id):
     audit = tenant_get_or_404(Audit, audit_id)
     db.session.delete(audit)
@@ -124,14 +121,13 @@ def delete(audit_id):
 @blueprint.route('/<int:audit_id>/observation/add', methods=['POST'])
 @login_required
 @has_permission('audit.modifier')
-@csrf.exempt
 def add_observation(audit_id):
     audit = tenant_get_or_404(Audit, audit_id)
     data = request.get_json()
     obs = AuditObservation(
         audit_id=audit.id,
-        texte_id=data.get('texte_id', type=int),
-        article_id=data.get('article_id', type=int),
+        texte_id=data.get('texte_id'),
+        article_id=data.get('article_id'),
         constat=data.get('constat'),
         niveau_conformite=data.get('niveau_conformite'),
         action_recommandee=data.get('action_recommandee'),
@@ -144,7 +140,6 @@ def add_observation(audit_id):
 @blueprint.route('/<int:audit_id>/observation/<int:obs_id>/delete', methods=['POST'])
 @login_required
 @has_permission('audit.modifier')
-@csrf.exempt
 def delete_observation(audit_id, obs_id):
     tenant_get_or_404(Audit, audit_id)
     obs = AuditObservation.query.get_or_404(obs_id)

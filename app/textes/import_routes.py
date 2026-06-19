@@ -5,7 +5,9 @@ import hashlib
 from datetime import datetime, timedelta
 from flask import render_template, flash, redirect, url_for, request, current_app, jsonify
 from flask_login import login_required, current_user
+from markupsafe import Markup, escape
 from app import db, csrf
+from app.utils.text_renderer import render_article_content
 from app.models import (
     TexteReglementaire, TexteVersion, Article, Secteur, Domaine,
     ExigenceType, NiveauRisqueType,
@@ -332,17 +334,26 @@ def _process_json_bundle_payload(payload, dry_run=False, link_to_enterprise=Fals
         texte.version_active_id = version.id
 
         for item in article_rows:
+            raw_contenu = str(item['contenu'] or '')
+            if raw_contenu:
+                rendered = render_article_content(raw_contenu)
+                contenu_clean = Markup(rendered)
+            else:
+                contenu_clean = None
+
             article = Article(
                 texte_version_id=version.id,
                 numero_article=item['numero_article'],
-                contenu=item['contenu'],
+                contenu=contenu_clean,
                 exigence_type=item['exigence_type'],
                 niveau_risque=item['niveau_risque'],
                 resume_article=item['resume_article'],
+                explication_detaillee=item.get('explication_detaillee'),
+                preuve_conformite=item.get('preuve_conformite'),
                 acteur=item.get('acteur'),
                 domaine=item.get('domaine'),
                 mots_cles=item.get('mots_cles'),
-                hash_contenu=hashlib.sha256((item['contenu'] or '').encode('utf-8')).hexdigest(),
+                hash_contenu=hashlib.sha256(raw_contenu.encode('utf-8')).hexdigest(),
             )
             db.session.add(article)
 

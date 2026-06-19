@@ -1,19 +1,84 @@
 from flask import render_template, redirect, url_for, session, request, abort, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
-from app.models import Entreprise, ActionCorrective, ProofMaster, Audit, Utilisateur, Indicateur, Ticket
+from app.models import Entreprise, ActionCorrective, ProofMaster, Audit, Utilisateur, Indicateur, Ticket, SubscriptionPlan
 from app.main import main
 from app.utils.domaine_switch import set_domaine_actif
 from app.utils.permissions import has_permission
 from app.models import Notification
 from datetime import date
+import platform
+
+
+@main.route('/health')
+def health():
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        db_status = 'ok'
+    except Exception:
+        db_status = 'error'
+    return jsonify({
+        'status': 'ok',
+        'database': db_status,
+        'python': platform.python_version(),
+        'flask': '2.3.3',
+    })
 
 
 @main.route('/')
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.tableau_de_bord'))
-    return render_template('landing.html')
+    slots_json = '{}'
+    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
+    try:
+        from app.demo.routes import _generer_creneaux_libres, _slots_to_json, _grouper_par_jour
+        creneaux = _generer_creneaux_libres()
+        creneaux_par_jour = _grouper_par_jour(creneaux)
+        slots_json = _slots_to_json(creneaux_par_jour)
+    except Exception:
+        pass
+
+    all_features = {}
+    for p in plans:
+        if p.features:
+            for k, v in p.features.items():
+                if v and k not in all_features:
+                    all_features[k] = True
+
+    features_icons = {
+        'veille_reglementaire': {'icon': 'fas fa-satellite-dish', 'color': '#06b6d4', 'bg': 'rgba(6,182,212,.1)'},
+        'notifications_reglementaires_par_email': {'icon': 'fas fa-envelope', 'color': '#f59e0b', 'bg': 'rgba(245,158,11,.1)'},
+        'export_excel_pdf_des_rapports': {'icon': 'fas fa-file-export', 'color': '#10b981', 'bg': 'rgba(16,185,129,.1)'},
+        'evaluation_des_textes_iso_brc_ifs': {'icon': 'fas fa-clipboard-check', 'color': '#3b82f6', 'bg': 'rgba(59,130,246,.1)'},
+        'support': {'icon': 'fas fa-headset', 'color': '#8b5cf6', 'bg': 'rgba(139,92,246,.1)'},
+        'analytics_avances_tableaux_de_bord': {'icon': 'fas fa-chart-bar', 'color': '#ec4899', 'bg': 'rgba(236,72,153,.1)'},
+        'formation_onboarding_dedies': {'icon': 'fas fa-graduation-cap', 'color': '#06b6d4', 'bg': 'rgba(6,182,212,.1)'},
+    }
+    features_desc = {
+        'veille_reglementaire': 'Suivez les évolutions réglementaires et recevez des alertes personnalisées.',
+        'notifications_reglementaires_par_email': 'Notifications automatiques par email pour ne rien manquer.',
+        'export_excel_pdf_des_rapports': 'Exportez vos rapports et tableaux de bord en PDF et Excel.',
+        'evaluation_des_textes_iso_brc_ifs': 'Évaluez vos textes réglementaires (ISO, BRC, IFS…).',
+        'support': 'Assistance technique dédiée et réactive.',
+        'analytics_avances_tableaux_de_bord': 'Tableaux de bord avancés et indicateurs de performance.',
+        'formation_onboarding_dedies': 'Formation et accompagnement pour votre équipe.',
+    }
+
+    features = []
+    for k in all_features:
+        meta = features_icons.get(k, {'icon': 'fas fa-check', 'color': '#6b7280', 'bg': 'rgba(107,114,128,.1)'})
+        features.append({
+            'icon': meta['icon'],
+            'color': meta['color'],
+            'bg': meta['bg'],
+            'title': k.replace('_', ' ').title(),
+            'description': features_desc.get(k, ''),
+        })
+
+    features_labels = {k: k.replace('_', ' ').title() for k in all_features}
+
+    return render_template('landing.html', slots_json=slots_json, plans=plans, features=features, features_labels=features_labels)
 
 
 @main.route('/tableau-de-bord')

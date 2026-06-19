@@ -1,0 +1,91 @@
+{% extends 'layout.html' %}
+{% block title %}HACCP - Non-conformités{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-times-circle me-2 text-danger"></i>Non-conformités</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle NC</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Réf.</th><th>Date</th><th>Source</th><th>Description</th><th>Action corrective</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle NC</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label">Référence</label><input type="text" id="f_reference" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Date</label><input type="date" id="f_date" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Source</label><select id="f_source" class="form-select"><option value="">--</option><option value="ccp">CCP</option><option value="audit">Audit</option><option value="reclamation">Réclamation</option><option value="interne">Interne</option><option value="prp">PRP</option></select></div>
+          <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+          <div class="col-12"><label class="form-label">Cause</label><textarea id="f_cause" class="form-control" rows="2"></textarea></div>
+          <div class="col-12"><label class="form-label">Action corrective</label><textarea id="f_action" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Délai</label><input type="date" id="f_delai" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Efficacité vérifiée</label><select id="f_efficacite" class="form-select"><option value="0">Non</option><option value="1">Oui</option></select></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("haccp.api_nonconformites") }}'; const CREATE = '{{ url_for("haccp.api_nonconformites_create") }}';
+const UPDATE = '{{ url_for("haccp.api_nonconformites_update", item_id=0) }}'; const DELETE = '{{ url_for("haccp.api_nonconformites_delete", item_id=0) }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucune NC</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.reference||''}</td><td>${r.date_nc ? new Date(r.date_nc).toLocaleDateString('fr-FR') : ''}</td>
+      <td>${r.source||''}</td><td class="text-truncate" style="max-width:200px">${r.description||''}</td>
+      <td class="text-truncate" style="max-width:200px">${r.action_corrective||''}</td>
+      <td><span class="badge bg-${r.statut==='ouverte'?'danger':r.statut==='en_cours'?'warning':'success'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { reference: document.getElementById('f_reference').value, date_nc: document.getElementById('f_date').value,
+    source: document.getElementById('f_source').value, description: document.getElementById('f_description').value,
+    cause: document.getElementById('f_cause').value, action_corrective: document.getElementById('f_action').value,
+    delai: document.getElementById('f_delai').value, efficacite_verifiee: document.getElementById('f_efficacite').value === '1' };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_reference').value = r.reference||'';
+    document.getElementById('f_date').value = r.date_nc || ''; document.getElementById('f_source').value = r.source||'';
+    document.getElementById('f_description').value = r.description||''; document.getElementById('f_cause').value = r.cause||'';
+    document.getElementById('f_action').value = r.action_corrective||''; document.getElementById('f_delai').value = r.delai || '';
+    document.getElementById('f_efficacite').value = r.efficacite_verifiee ? '1' : '0';
+    document.getElementById('modalTitle').textContent = 'Modifier la NC';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() { document.getElementById('itemId').value = ''; ['f_reference','f_date','f_description','f_cause','f_action','f_delai'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_source').value = ''; document.getElementById('f_efficacite').value = '0'; document.getElementById('modalTitle').textContent = 'Nouvelle NC'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

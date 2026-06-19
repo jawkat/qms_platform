@@ -4,12 +4,12 @@
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><i class="fas fa-folder-open text-danger me-2"></i>GED — Gestion documentaire</h4>
-    <div class="d-flex gap-2">
-      <div class="dropdown">
-        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+    <div class="d-flex gap-2 flex-wrap">
+      <div class="dropdown" style="z-index:1050">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
           <i class="fas fa-filter me-1"></i>Filtres
         </button>
-        <div class="dropdown-menu p-3" style="width:280px">
+        <div class="dropdown-menu dropdown-menu-end p-3" style="width:280px;min-height:120px;z-index:1050">
           <div class="mb-2">
             <label class="small text-muted">Statut workflow</label>
             <select id="filterWorkflow" class="form-select form-select-sm" onchange="applyFilters()">
@@ -28,7 +28,7 @@
               <option value="bientot">Expire bientôt (30j)</option>
             </select>
           </div>
-          <div class="mb-2">
+          <div class="mb-0">
             <label class="small text-muted">Tri</label>
             <select id="filterSort" class="form-select form-select-sm" onchange="applyFilters()">
               <option value="date">Date (récent)</option>
@@ -38,19 +38,19 @@
           </div>
         </div>
       </div>
-      <div class="dropdown">
-        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+      <div class="dropdown" style="z-index:1050">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
           <i class="fas fa-tag me-1"></i>Types
         </button>
-        <ul class="dropdown-menu">
-          <li><a class="dropdown-item small" href="#" onclick="$('#typeModal').modal('show');return false"><i class="fas fa-plus me-2"></i>Nouveau type</a></li>
+        <ul class="dropdown-menu dropdown-menu-end" style="z-index:1050">
+          <li><a class="dropdown-item small" href="#" onclick="new bootstrap.Modal(document.getElementById('typeModal')).show();return false"><i class="fas fa-plus me-2"></i>Nouveau type</a></li>
           <li><hr class="dropdown-divider"></li>
           {% for t in types_doc %}
           <li><a class="dropdown-item small" href="#" onclick="filterByType({{ t.id }})">{{ t.nom }}</a></li>
           {% endfor %}
         </ul>
       </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="$('#folderModal').modal('show')">
+      <button class="btn btn-sm btn-outline-secondary" onclick="new bootstrap.Modal(document.getElementById('folderModal')).show()">
         <i class="fas fa-folder-plus me-1"></i>Dossier
       </button>
       <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#uploadModal">
@@ -105,7 +105,7 @@
       <div class="card border-0 shadow-sm">
         <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
           <h6 class="mb-0"><i class="fas fa-folder me-2 text-danger"></i>Dossiers</h6>
-          <button class="btn btn-sm btn-link text-danger p-0" onclick="$('#folderModal').modal('show')" title="Nouveau dossier">
+          <button class="btn btn-sm btn-link text-danger p-0" onclick="new bootstrap.Modal(document.getElementById('folderModal')).show()" title="Nouveau dossier">
             <i class="fas fa-plus"></i>
           </button>
         </div>
@@ -118,8 +118,8 @@
     <!-- Document list -->
     <div class="col-lg-9">
       <div class="card border-0 shadow-sm">
-        <div class="card-body p-0">
-          <div class="table-responsive">
+        <div class="card-body p-0" style="overflow:visible">
+          <div class="table-responsive" style="overflow:visible">
             <table class="table table-hover mb-0 align-middle" id="docTable">
               <thead class="table-light">
                 <tr>
@@ -166,9 +166,9 @@
                     <div class="btn-group btn-group-sm">
                       <a href="{{ url_for('documents.detail', proof_id=p.id) }}" class="btn btn-outline-primary" title="Détail"><i class="fas fa-eye"></i></a>
                       <a href="{{ url_for('documents.download', proof_id=p.id) }}" class="btn btn-outline-success" title="Télécharger"><i class="fas fa-download"></i></a>
-                      <div class="btn-group btn-group-sm">
+                      <div class="btn-group btn-group-sm" style="position:relative;z-index:10">
                         <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end" style="z-index:1050">
                           <li><a class="dropdown-item" href="{{ url_for('documents.detail', proof_id=p.id) }}"><i class="fas fa-eye me-2"></i>Détail</a></li>
                           {% if p.workflow_statut == 'brouillon' %}
                           <li><a class="dropdown-item" href="{{ url_for('documents.detail', proof_id=p.id) }}#soumettre"><i class="fas fa-paper-plane me-2"></i>Soumettre</a></li>

@@ -1,131 +1,535 @@
 {% extends 'layout.html' %}
 {% set is_landing = True %}
-{% block title %}QMS Platform - HSE & Qualité{% endblock %}
+{% block title %}QMS Platform - HSE & Qualité - Solution intégrée de gestion QMS{% endblock %}
+{% block head_meta %}
+<meta name="description" content="Plateforme QMS intégrée pour la gestion HSE, Qualité, HACCP et conformité réglementaire. Solutions pour entreprises marocaines.">
+<meta property="og:title" content="QMS Platform - HSE & Qualité">
+<meta property="og:description" content="Solution intégrée de gestion qualité, HSE et conformité réglementaire.">
+<meta property="og:type" content="website">
+{% endblock %}
 {% block content %}
 <style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .content { margin-left: 0 !important; padding: 0 !important; }
+  body { background: #fff !important; }
+
+  .landing-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1030;
+    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,.85);
+    border-bottom: 1px solid rgba(0,0,0,.06);
+    transition: box-shadow .3s;
+  }
+  .landing-nav.scrolled { box-shadow: 0 1px 12px rgba(0,0,0,.08); }
+  .landing-nav .nav-link {
+    color: #4b5563; font-weight: 500; font-size: .9rem;
+    padding: .5rem 1rem !important; border-radius: .5rem;
+    transition: all .2s;
+  }
+  .landing-nav .nav-link:hover { color: #e63946; background: rgba(230,57,70,.06); }
+
   .landing-hero {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    min-height: 70vh;
+    padding-top: 76px;
+    min-height: 85vh;
     display: flex;
     align-items: center;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #1a1a2e 70%, #0f3460 100%);
   }
-  .landing-hero h1 { font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; }
-  .landing-hero .lead { font-size: 1.2rem; color: rgba(255,255,255,.7); }
-  .feature-card {
-    border: none;
+  .landing-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(230,57,70,.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(59,130,246,.1) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(16,185,129,.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .landing-hero .bg-grid {
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+  .landing-hero .floating-shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .landing-hero .floating-shapes span {
+    position: absolute; display: block;
+    width: 20px; height: 20px;
+    background: rgba(230,57,70,.1);
+    border-radius: 50%;
+    animation: floatAnim 20s infinite;
+  }
+  .landing-hero .floating-shapes span:nth-child(1) { left: 10%; top: 20%; width: 40px; height: 40px; animation-delay: 0s; animation-duration: 18s; }
+  .landing-hero .floating-shapes span:nth-child(2) { left: 85%; top: 60%; width: 60px; height: 60px; animation-delay: 2s; animation-duration: 22s; background: rgba(59,130,246,.08); }
+  .landing-hero .floating-shapes span:nth-child(3) { left: 70%; top: 10%; width: 30px; height: 30px; animation-delay: 4s; animation-duration: 16s; background: rgba(16,185,129,.08); }
+  .landing-hero .floating-shapes span:nth-child(4) { left: 30%; top: 80%; width: 50px; height: 50px; animation-delay: 6s; animation-duration: 24s; background: rgba(251,191,36,.08); }
+  @keyframes floatAnim {
+    0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+    25% { transform: translateY(-30px) rotate(90deg) scale(1.1); }
+    50% { transform: translateY(-10px) rotate(180deg) scale(.95); }
+    75% { transform: translateY(-40px) rotate(270deg) scale(1.05); }
+  }
+  .landing-hero h1 {
+    font-size: 3.5rem; font-weight: 800; line-height: 1.1;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #fff 60%, rgba(255,255,255,.7));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .landing-hero .lead { font-size: 1.2rem; color: rgba(255,255,255,.65); line-height: 1.7; }
+
+  .hero-mockup {
+    position: relative;
     border-radius: 1rem;
-    transition: transform .2s, box-shadow .2s;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,.5);
+    transform: perspective(1000px) rotateY(-3deg) rotateX(2deg);
+    transition: transform .4s;
   }
-  .feature-card:hover { transform: translateY(-4px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.1); }
-  .feature-icon {
-    width: 60px; height: 60px;
+  .hero-mockup:hover { transform: perspective(1000px) rotateY(0deg) rotateX(0deg); }
+  .hero-mockup .mockup-bar {
+    height: 32px; background: #1e293b; display: flex; align-items: center; padding: 0 12px;
+    border-radius: .75rem .75rem 0 0;
+  }
+  .hero-mockup .mockup-bar span { width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .hero-mockup .mockup-body {
+    background: #1e293b; padding: 1.5rem; min-height: 320px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 1rem;
-    font-size: 1.5rem;
   }
+
+  .trust-badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: rgba(255,255,255,.08);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,.1);
+    padding: .35rem .8rem;
+    border-radius: 2rem;
+    font-size: .78rem;
+    color: rgba(255,255,255,.8);
+  }
+
+  .section-tag {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: rgba(230,57,70,.08);
+    color: #e63946;
+    padding: .3rem .75rem;
+    border-radius: 2rem;
+    font-size: .8rem; font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .stat-card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all .3s;
+  }
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,.06);
+  }
+  .stat-card .stat-number {
+    font-size: 2.5rem; font-weight: 800;
+    background: linear-gradient(135deg, #e63946, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .feature-card-pro {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 1rem;
+    padding: 1.75rem;
+    transition: all .3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card-pro::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #e63946, #f97316);
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .feature-card-pro:hover { transform: translateY(-6px); box-shadow: 0 16px 32px rgba(0,0,0,.08); }
+  .feature-card-pro:hover::after { opacity: 1; }
+  .feature-card-pro .icon-wrap {
+    width: 52px; height: 52px; display: flex;
+    align-items: center; justify-content: center;
+    border-radius: .85rem;
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    transition: transform .3s;
+  }
+  .feature-card-pro:hover .icon-wrap { transform: scale(1.1); }
+
+  .pricing-card-pro {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 1rem;
+    padding: 2rem;
+    transition: all .3s;
+    position: relative;
+  }
+  .pricing-card-pro:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(0,0,0,.08); }
+  .pricing-card-pro.featured {
+    border: 2px solid #e63946;
+    transform: scale(1.03);
+    box-shadow: 0 8px 24px rgba(230,57,70,.12);
+  }
+  .pricing-card-pro.featured:hover { transform: scale(1.03) translateY(-4px); }
+  .pricing-card-pro .price { font-size: 2.75rem; font-weight: 800; letter-spacing: -0.02em; }
+  .pricing-card-pro .price small { font-size: 1rem; font-weight: 400; }
+  .pricing-card-pro ul li { padding: .45rem 0; font-size: .9rem; }
+  .pricing-card-pro ul li i { width: 1.25rem; }
+
   .pricing-card {
-    border: none;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: .85rem;
+  }
+  .pricing-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 50px rgba(12,40,58,.12);
+  }
+  .pricing-card .pricing-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  .pricing-card .pricing-price .display-5 {
+    color: #dc2626;
+  }
+  .pricing-card .pricing-price small {
+    font-size: .85rem;
+    font-weight: 400;
+    color: #6b7280;
+  }
+  .border-primary .pricing-card,
+  .border-success .pricing-card {
+    box-shadow: none !important;
+  }
+  .border-primary .pricing-card:hover,
+  .border-success .pricing-card:hover {
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .testimonial-card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
     border-radius: 1rem;
-    transition: transform .2s;
+    padding: 1.75rem;
+    height: 100%;
+    transition: all .3s;
   }
-  .pricing-card:hover { transform: translateY(-4px); }
-  .pricing-card.featured {
-    border: 2px solid var(--primary);
-    transform: scale(1.02);
+  .testimonial-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,.06); }
+  .testimonial-card .stars { color: #f59e0b; letter-spacing: 2px; }
+
+  .cta-section {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #1a1a2e 100%);
+    position: relative; overflow: hidden;
   }
-  .pricing-card.featured:hover { transform: scale(1.02) translateY(-4px); }
-  .pricing-card .price { font-size: 2.5rem; font-weight: 800; }
-  .pricing-card .price small { font-size: 1rem; font-weight: 400; }
-  .pricing-card ul li { padding: .4rem 0; }
-  .pricing-card ul li i { width: 1.25rem; }
-  .section-title { font-weight: 700; letter-spacing: -0.01em; }
-  .demo-section {
-    background: linear-gradient(135deg, #e63946 0%, #b91c1c 100%);
+  .cta-section::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(230,57,70,.12) 0%, transparent 60%);
   }
-  footer a { color: rgba(255,255,255,.6); text-decoration: none; }
-  footer a:hover { color: #fff; }
-  html { scroll-behavior: smooth; }
-  @media (max-width: 768px) {
+
+  .footer-pro {
+    background: #0f172a;
+    border-top: 1px solid rgba(255,255,255,.06);
+  }
+  .footer-pro a { color: rgba(255,255,255,.55); text-decoration: none; transition: color .2s; font-size: .88rem; }
+  .footer-pro a:hover { color: #fff; }
+  .footer-pro h6 { color: rgba(255,255,255,.9); font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
+  .footer-pro .social-link {
+    width: 36px; height: 36px; display: inline-flex;
+    align-items: center; justify-content: center;
+    border-radius: .5rem;
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.6);
+    transition: all .2s;
+  }
+  .footer-pro .social-link:hover { background: #e63946; color: #fff; }
+  .footer-pro .newsletter-input {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
+    color: #fff;
+    border-radius: .5rem;
+    padding: .6rem 1rem;
+    font-size: .9rem;
+    width: 100%;
+  }
+  .footer-pro .newsletter-input:focus { outline: none; border-color: #e63946; }
+  .footer-pro .newsletter-input::placeholder { color: rgba(255,255,255,.35); }
+
+  .reveal { opacity: 0; transform: translateY(30px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: .1s; }
+  .reveal-delay-2 { transition-delay: .2s; }
+  .reveal-delay-3 { transition-delay: .3s; }
+  .reveal-delay-4 { transition-delay: .4s; }
+
+  .pricing-card .recommended-badge {
+    background: rgba(230,57,70,.1);
+    color: #b91c1c;
+  }
+
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; cursor: default; font-size: .9rem; transition: .15s;
+  }
+  .cal-day.available { background: #e8f5e9; color: #2e7d32; font-weight: 600; cursor: pointer; }
+  .cal-day.available:hover { background: #c8e6c9; transform: scale(1.05); }
+  .cal-day.selected { background: #e63946 !important; color: #fff !important; }
+  .cal-day.disabled { color: #d1d5db; }
+  .cal-day.today { outline: 2px solid #e63946; outline-offset: 2px; }
+  .slot-btn { min-width: 70px; transition: .15s; font-size: .8rem; }
+  .slot-btn.selected { background: #e63946 !important; color: #fff !important; border-color: #e63946 !important; }
+
+  @media (max-width: 992px) {
+    .landing-hero h1 { font-size: 2.5rem; }
+    .landing-hero { min-height: auto; padding: 100px 0 60px; }
+    .pricing-card-pro.featured { transform: none; }
+    .pricing-card-pro.featured:hover { transform: translateY(-4px); }
+    .hero-mockup { transform: none; margin-top: 2rem; }
+    .hero-mockup:hover { transform: none; }
+  }
+  @media (max-width: 576px) {
     .landing-hero h1 { font-size: 2rem; }
-    .pricing-card.featured { transform: none; }
-    .pricing-card.featured:hover { transform: translateY(-4px); }
+    .stat-card .stat-number { font-size: 2rem; }
   }
 </style>
 
+<!-- Navbar -->
+<nav class="landing-nav" id="landingNav">
+  <div class="container">
+    <div class="d-flex align-items-center justify-content-between py-2">
+      <a href="#" class="d-flex align-items-center gap-2 text-decoration-none">
+        <span class="d-flex align-items-center justify-content-center rounded-2" style="width:34px;height:34px;background:#e63946;">
+          <i class="fas fa-shield-alt text-white" style="font-size:.85rem;"></i>
+        </span>
+        <span class="fw-bold fs-6" style="color:#0f172a;">QMS Platform</span>
+      </a>
+      <ul class="nav d-none d-lg-flex">
+        <li class="nav-item"><a class="nav-link" href="#features">Fonctionnalités</a></li>
+        <li class="nav-item"><a class="nav-link" href="#pricing">Tarifs</a></li>
+        <li class="nav-item"><a class="nav-link" href="#testimonials">Témoignages</a></li>
+        <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
+      </ul>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('users.login') }}" class="btn btn-sm fw-semibold" style="color:#4b5563;border:1px solid #d1d5db;border-radius:.5rem;">
+          Connexion
+        </a>
+        <a href="{{ url_for('demo.reserver') }}" class="btn btn-sm btn-danger fw-semibold" style="border-radius:.5rem;">
+          Essai gratuit
+        </a>
+        <button class="btn btn-sm d-lg-none" style="border:1px solid #d1d5db;border-radius:.5rem;" onclick="toggleMobileMenu()">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+    </div>
+    <div class="d-lg-none overflow-hidden" id="mobileMenu" style="max-height:0;transition:max-height .3s ease;">
+      <ul class="nav flex-column pb-3">
+        <li class="nav-item"><a class="nav-link" href="#features" onclick="toggleMobileMenu()">Fonctionnalités</a></li>
+        <li class="nav-item"><a class="nav-link" href="#pricing" onclick="toggleMobileMenu()">Tarifs</a></li>
+        <li class="nav-item"><a class="nav-link" href="#testimonials" onclick="toggleMobileMenu()">Témoignages</a></li>
+        <li class="nav-item"><a class="nav-link" href="#contact" onclick="toggleMobileMenu()">Contact</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
 <!-- Hero -->
-<section class="landing-hero text-white">
-  <div class="container py-5">
+<section class="landing-hero text-white" id="hero">
+  <div class="bg-grid"></div>
+  <div class="floating-shapes"><span></span><span></span><span></span><span></span></div>
+  <div class="container position-relative">
     <div class="row align-items-center g-5">
-      <div class="col-lg-7">
-        <h1 class="mb-3">Plateforme QMS<br>HSE & Qualité</h1>
-        <p class="lead mb-4">Gestion intégrée des actions correctives, documents, audits et conformité réglementaire pour vos démarches HSE et Qualité.</p>
-        <div class="d-flex flex-wrap gap-3">
-          <a href="{{ url_for('users.login') }}" class="btn btn-danger btn-lg px-4">
-            <i class="fas fa-sign-in-alt me-2"></i>Connexion
-          </a>
-          <a href="{{ url_for('users.register') }}" class="btn btn-outline-light btn-lg px-4">
-            <i class="fas fa-user-plus me-2"></i>S'inscrire
-          </a>
-          <a href="{{ url_for('demo.reserver') }}" class="btn btn-outline-light btn-lg px-4">
+      <div class="col-lg-6">
+        <div class="d-flex flex-wrap gap-2 mb-4">
+          <span class="trust-badge"><i class="fas fa-check-circle" style="color:#10b981;"></i>ISO 9001</span>
+          <span class="trust-badge"><i class="fas fa-check-circle" style="color:#10b981;"></i>ISO 45001</span>
+          <span class="trust-badge"><i class="fas fa-check-circle" style="color:#10b981;"></i>HACCP</span>
+        </div>
+        <h1 class="mb-3">Gestion QMS,<br>HSE & Qualité</h1>
+        <p class="lead mb-4">La plateforme tout-en-un pour piloter votre système de management qualité, la conformité HSE et la sécurité alimentaire. Centralisez, automatisez et maîtrisez vos processus.</p>
+        <div class="d-flex flex-wrap gap-3 mb-4">
+          <a href="{{ url_for('demo.reserver') }}" class="btn btn-danger btn-lg px-4 fw-semibold" style="border-radius:.6rem;">
             <i class="fas fa-calendar-alt me-2"></i>Réserver une démo
           </a>
+          <a href="{{ url_for('users.register') }}" class="btn btn-lg px-4 fw-semibold" style="border-radius:.6rem;border:1px solid rgba(255,255,255,.2);color:#fff;">
+            <i class="fas fa-rocket me-2"></i>Essai gratuit
+          </a>
+        </div>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="d-flex align-items-center">
+            <div class="d-flex">
+              <div class="rounded-circle border-2 border-white" style="width:32px;height:32px;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:600;margin-right:-8px;">AK</div>
+              <div class="rounded-circle border-2 border-white" style="width:32px;height:32px;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:600;margin-right:-8px;">SM</div>
+              <div class="rounded-circle border-2 border-white" style="width:32px;height:32px;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:600;margin-right:-8px;">OJ</div>
+              <div class="rounded-circle border-2 border-white" style="width:32px;height:32px;background:#e63946;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:600;">+5</div>
+            </div>
+          </div>
+          <span style="color:rgba(255,255,255,.6);font-size:.85rem;">
+            <strong style="color:#fff;">50+</strong> entreprises nous font confiance
+          </span>
         </div>
       </div>
-      <div class="col-lg-5 text-center">
-        <i class="fas fa-shield-alt" style="font-size: 12rem; opacity: .15;"></i>
+      <div class="col-lg-6">
+        <div class="hero-mockup">
+          <div class="mockup-bar">
+            <span style="background:#ef4444;"></span>
+            <span style="background:#f59e0b;"></span>
+            <span style="background:#10b981;"></span>
+          </div>
+          <div class="mockup-body">
+            <div style="width:100%;">
+              <div class="d-flex gap-2 mb-3">
+                <div style="flex:1;height:12px;background:rgba(255,255,255,.08);border-radius:4px;"></div>
+                <div style="flex:1;height:12px;background:rgba(255,255,255,.08);border-radius:4px;"></div>
+                <div style="flex:1;height:12px;background:rgba(255,255,255,.08);border-radius:4px;"></div>
+                <div style="flex:1;height:12px;background:rgba(255,255,255,.08);border-radius:4px;"></div>
+                <div style="flex:1;height:12px;background:rgba(255,255,255,.08);border-radius:4px;"></div>
+                <div style="flex:.5;height:12px;background:rgba(230,57,70,.3);border-radius:4px;"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:16px;">
+                  <div style="height:8px;width:60%;background:rgba(255,255,255,.1);border-radius:4px;margin-bottom:12px;"></div>
+                  <div style="height:24px;width:100%;background:rgba(255,255,255,.06);border-radius:6px;margin-bottom:6px;"></div>
+                  <div style="height:24px;width:85%;background:rgba(255,255,255,.06);border-radius:6px;margin-bottom:6px;"></div>
+                  <div style="height:24px;width:70%;background:rgba(255,255,255,.06);border-radius:6px;"></div>
+                </div>
+                <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:16px;">
+                  <div style="height:8px;width:60%;background:rgba(255,255,255,.1);border-radius:4px;margin-bottom:12px;"></div>
+                  <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <div style="width:40%;height:60px;background:rgba(16,185,129,.15);border-radius:6px;"></div>
+                    <div style="width:40%;height:60px;background:rgba(251,191,36,.15);border-radius:6px;"></div>
+                  </div>
+                  <div style="height:24px;width:90%;background:rgba(255,255,255,.06);border-radius:6px;"></div>
+                </div>
+              </div>
+              <div class="d-flex gap-2 mt-3">
+                <div style="flex:1;height:40px;background:rgba(230,57,70,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;">
+                  <div style="height:6px;width:50%;background:rgba(255,255,255,.15);border-radius:3px;"></div>
+                </div>
+                <div style="flex:1;height:40px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:6px;display:flex;align-items:center;justify-content:center;">
+                  <div style="height:6px;width:50%;background:rgba(255,255,255,.1);border-radius:3px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="py-5" style="background:#fff;border-bottom:1px solid rgba(0,0,0,.04);">
+  <div class="container">
+    <div class="row g-3 justify-content-center">
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-number" id="statEntreprises">50+</div>
+          <div class="text-muted small fw-medium mt-1">Entreprises clientes</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-number" id="statDocuments">10K+</div>
+          <div class="text-muted small fw-medium mt-1">Documents gérés</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-number" id="statActions">5K+</div>
+          <div class="text-muted small fw-medium mt-1">Actions traitées</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-number" id="statAudits">500+</div>
+          <div class="text-muted small fw-medium mt-1">Audits réalisés</div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- Features -->
-<section class="py-5" id="features">
+<section class="py-5" id="features" style="background:#f8fafc;">
   <div class="container py-4">
     <div class="text-center mb-5">
-      <h2 class="section-title display-6 mb-2">Fonctionnalités</h2>
-      <p class="text-muted">Tout ce dont vous avez besoin pour piloter votre système QMS</p>
+      <div class="section-tag d-inline-flex"><i class="fas fa-bolt"></i> Fonctionnalités</div>
+      <h2 class="display-6 fw-bold mb-2" style="letter-spacing:-.02em;">Tout le QMS en un seul endroit</h2>
+      <p class="text-muted mx-auto" style="max-width:560px;">Modules complets pour couvrir l'ensemble de vos besoins en gestion qualité, HSE, HACCP et conformité.</p>
     </div>
     <div class="row g-4">
-      <div class="col-md-6 col-lg-4">
-        <div class="card feature-card h-100 p-4">
-          <div class="feature-icon bg-danger bg-opacity-10 text-danger mb-3"><i class="fas fa-tasks"></i></div>
-          <h5>Actions correctives</h5>
-          <p class="text-muted mb-0 small">Suivi des actions de la création à la clôture avec planification et indicateurs de performance.</p>
+      {% for f in features %}
+      <div class="col-md-6 col-lg-4 reveal{% if loop.index0 % 3 == 1 %} reveal-delay-1{% elif loop.index0 % 3 == 2 %} reveal-delay-2{% endif %}">
+        <div class="feature-card-pro h-100">
+          <div class="icon-wrap" style="background:{{ f.bg }};color:{{ f.color }};"><i class="{{ f.icon }}"></i></div>
+          <h5 class="fw-bold mb-2">{{ f.title }}</h5>
+          <p class="text-muted small mb-0">{{ f.description }}</p>
         </div>
       </div>
-      <div class="col-md-6 col-lg-4">
-        <div class="card feature-card h-100 p-4">
-          <div class="feature-icon bg-primary bg-opacity-10 text-primary mb-3"><i class="fas fa-folder-open"></i></div>
-          <h5>GED documentaire</h5>
-          <p class="text-muted mb-0 small">Gestion électronique des documents avec versioning, validation et archivage sécurisé.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section class="py-5" id="testimonials" style="background:#fff;">
+  <div class="container py-4">
+    <div class="text-center mb-5">
+      <div class="section-tag d-inline-flex"><i class="fas fa-star"></i> Témoignages</div>
+      <h2 class="display-6 fw-bold mb-2" style="letter-spacing:-.02em;">Ils nous font confiance</h2>
+      <p class="text-muted mx-auto" style="max-width:560px;">Découvrez comment nos clients transforment leur gestion QMS au quotidien.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-4 reveal">
+        <div class="testimonial-card">
+          <div class="stars mb-2">★★★★★</div>
+          <p class="text-muted small mb-3" style="line-height:1.6;">"La plateforme nous a permis de centraliser toutes nos actions correctives et de réduire de 40% nos délais de traitement. Un vrai gain de productivité !"</p>
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-danger d-flex align-items-center justify-content-center text-white fw-bold" style="width:40px;height:40px;font-size:.85rem;">AH</div>
+            <div>
+              <div class="fw-semibold small">Amine H.</div>
+              <div class="text-muted" style="font-size:.75rem;">Responsable Qualité, Agrifood SA</div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-4">
-        <div class="card feature-card h-100 p-4">
-          <div class="feature-icon bg-success bg-opacity-10 text-success mb-3"><i class="fas fa-clipboard-check"></i></div>
-          <h5>Audits</h5>
-          <p class="text-muted mb-0 small">Planification, réalisation et suivi des audits internes et externes avec grilles personnalisables.</p>
+      <div class="col-md-4 reveal reveal-delay-1">
+        <div class="testimonial-card">
+          <div class="stars mb-2">★★★★★</div>
+          <p class="text-muted small mb-3" style="line-height:1.6;">"Le module HACCP nous a simplifié la gestion des CCP et des enregistrements. La traçabilité des lots est devenue un jeu d'enfant."</p>
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold" style="width:40px;height:40px;font-size:.85rem;">SN</div>
+            <div>
+              <div class="fw-semibold small">Sanae N.</div>
+              <div class="text-muted" style="font-size:.75rem;">Responsable HACCP, Laiterie Moderne</div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-4">
-        <div class="card feature-card h-100 p-4">
-          <div class="feature-icon bg-warning bg-opacity-10 text-warning mb-3"><i class="fas fa-clipboard-list"></i></div>
-          <h5>Suivi de conformité</h5>
-          <p class="text-muted mb-0 small">Cartographie des exigences réglementaires et évaluation de la conformité par texte et article.</p>
-        </div>
-      </div>
-      <div class="col-md-6 col-lg-4">
-        <div class="card feature-card h-100 p-4">
-          <div class="feature-icon bg-info bg-opacity-10 text-info mb-3"><i class="fas fa-scroll"></i></div>
-          <h5>Textes HSE</h5>
-          <p class="text-muted mb-0 small">Base documentaire des textes réglementaires HSE avec Veille automatique et mise à jour.</p>
-        </div>
-      </div>
-      <div class="col-md-6 col-lg-4">
-        <div class="card feature-card h-100 p-4">
-          <div class="feature-icon bg-secondary bg-opacity-10 text-secondary mb-3"><i class="fas fa-certificate"></i></div>
-          <h5>Module Qualité</h5>
-          <p class="text-muted mb-0 small">Gestion des risques, HACCP, non-conformités, revue de direction et contrôle qualité.</p>
+      <div class="col-md-4 reveal reveal-delay-2">
+        <div class="testimonial-card">
+          <div class="stars mb-2">★★★★☆</div>
+          <p class="text-muted small mb-3" style="line-height:1.6;">"Un outil complet pour le suivi de conformité réglementaire HSE. Les alertes automatiques nous évitent de manquer une échéance."</p>
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-success d-flex align-items-center justify-content-center text-white fw-bold" style="width:40px;height:40px;font-size:.85rem;">KO</div>
+            <div>
+              <div class="fw-semibold small">Karim O.</div>
+              <div class="text-muted" style="font-size:.75rem;">Responsable HSE, BTP Maroc</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -133,59 +537,139 @@
 </section>
 
 <!-- Pricing -->
-<section class="py-5 bg-light" id="pricing">
+<section class="py-5" id="pricing" style="background:#f8fafc;">
   <div class="container py-4">
     <div class="text-center mb-5">
-      <h2 class="section-title display-6 mb-2">Nos offres</h2>
-      <p class="text-muted">Des formules adaptées à la taille de votre entreprise</p>
+      <div class="section-tag d-inline-flex"><i class="fas fa-tags"></i> Tarifs</div>
+      <h2 class="display-6 fw-bold mb-2" style="letter-spacing:-.02em;">Des offres adaptées à votre structure</h2>
+      <p class="text-muted mx-auto mb-4" style="max-width:560px;">Choisissez la formule qui correspond à la taille de votre entreprise. <strong>1ʳᵉ année offerte</strong> sur tous les plans.</p>
     </div>
-    <div class="row g-4 justify-content-center">
-      <div class="col-lg-4 col-md-6">
-        <div class="card pricing-card h-100 p-4">
-          <div class="card-body text-center">
-            <h5 class="text-muted mb-1">Essential</h5>
-            <div class="price text-dark mb-3">Gratuit</div>
-            <ul class="list-unstyled text-start mb-4">
-              <li><i class="fas fa-check text-success me-2"></i>2 utilisateurs</li>
-              <li><i class="fas fa-check text-success me-2"></i>80 actions correctives</li>
-              <li><i class="fas fa-check text-success me-2"></i>200 documents</li>
-              <li><i class="fas fa-check text-success me-2"></i>512 Mo de stockage</li>
-              <li><i class="fas fa-check text-success me-2"></i>14 jours d'essai</li>
-            </ul>
-            <a href="{{ url_for('demo.reserver') }}" class="btn btn-outline-danger w-100">Démarrer</a>
+    {% set plan_order = ['essential', 'professional', 'premium'] %}
+    <div class="row g-4 mb-5 justify-content-center align-items-stretch">
+
+      {# Étape 1 : Mise en place #}
+      <div class="col-lg-3 col-md-12 d-flex">
+        <div class="border border-primary border-opacity-25 rounded-4 p-3 w-100 d-flex flex-column position-relative">
+          <div class="text-center mb-3">
+            <span class="badge bg-primary rounded-pill px-4 py-2 fs-6">Étape 1</span>
+            <p class="text-muted small mt-2 mb-0">Diagnostic et configuration initiale</p>
+          </div>
+          <div class="card h-100 pricing-card border-0 shadow-none">
+            <div class="card-body p-4 d-flex flex-column">
+              <div class="text-center mb-4">
+                <div class="mb-3">
+                  <div style="width:56px;height:56px;border-radius:16px;background:var(--bs-primary);display:flex;align-items:center;justify-content:center;margin:0 auto;color:#fff;font-size:1.5rem">
+                    <i class="fas fa-clipboard-check"></i>
+                  </div>
+                </div>
+                <h5 class="card-title pricing-title mb-1">Mise en place</h5>
+                <p class="text-muted small mb-3">Audit et diagnostic terrain</p>
+              </div>
+              <ul class="list-unstyled pricing-features flex-grow-1">
+                <li class="d-flex align-items-center small">
+                  <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                  <span>Audit documentaire</span>
+                </li>
+                <li class="d-flex align-items-center small">
+                  <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                  <span>Visite terrain et analyse des flux</span>
+                </li>
+                <li class="d-flex align-items-center small">
+                  <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                  <span>Registre réglementaire initial</span>
+                </li>
+                <li class="d-flex align-items-center small">
+                  <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                  <span>Rapport de diagnostic complet</span>
+                </li>
+              </ul>
+              <div class="text-center mt-auto">
+                <div class="p-3 rounded-3 bg-light mb-3">
+                  <p class="text-muted small mb-1">Frais de mise en place</p>
+                  <p class="mb-1"><span class="badge bg-warning text-dark fs-6 px-3 py-2">1ʳᵉ année<br><span style="font-size:0.75rem">sur devis personnalisé</span></span></p>
+                </div>
+                <div class="alert alert-warning py-2 px-3 mb-0 small fw-semibold" role="alert">
+                  <i class="fas fa-file-invoice me-1"></i>
+                  Ajout technique ou fonctionnalité sur mesure — <strong>sur devis</strong>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-lg-4 col-md-6">
-        <div class="card pricing-card featured h-100 p-4">
-          <div class="card-body text-center">
-            <span class="badge bg-danger mb-2">Populaire</span>
-            <h5 class="mb-1">Professional</h5>
-            <div class="price text-danger mb-3">499 <small>MAD/an</small></div>
-            <ul class="list-unstyled text-start mb-4">
-              <li><i class="fas fa-check text-success me-2"></i>10 utilisateurs</li>
-              <li><i class="fas fa-check text-success me-2"></i>Actions illimitées</li>
-              <li><i class="fas fa-check text-success me-2"></i>1 000 documents</li>
-              <li><i class="fas fa-check text-success me-2"></i>2 Go de stockage</li>
-              <li><i class="fas fa-check text-success me-2"></i>Support prioritaire</li>
+
+      {# Étape 2 : Plans d'abonnement #}
+      <div class="col-lg-9 col-md-12 d-flex">
+        <div class="border border-success border-opacity-25 rounded-4 p-3 w-100 d-flex flex-column position-relative">
+          <div class="text-center mb-3">
+            <span class="badge bg-success rounded-pill px-4 py-2 fs-6">Étape 2</span>
+            <p class="text-muted small mt-2 mb-0">Choisissez votre formule d'abonnement</p>
+          </div>
+          <div class="row g-3 flex-grow-1">
+      {% for plan_key in plan_order %}
+      {% set p = plans|selectattr('plan_key', 'equalto', plan_key)|first %}
+      {% if p and p.is_active %}
+      {% set storage_gb = p.max_storage_mb // 1024 %}
+      {% set storage_display = (storage_gb|string + ' Go') if storage_gb >= 1 else (p.max_storage_mb|string + ' Mo') %}
+      {% if p.price_mad > 0 %}
+        {% set price_formatted = "{:,}".format(p.price_mad).replace(",", " ") %}
+        {% set price_month_num = (p.price_mad / 12)|round|int %}
+        {% set price_month_formatted = "{:,}".format(price_month_num).replace(",", " ") %}
+      {% endif %}
+      <div class="col-lg-4 col-md-4 d-flex">
+        <div class="card h-100 pricing-card w-100">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="text-center mb-4">
+              <h5 class="card-title pricing-title mb-1">{{ p.label }}</h5>
+              <p class="text-muted small mb-3">Jusqu'à <strong>{{ p.max_users }} utilisateur{% if p.max_users > 1 %}s{% endif %}</strong></p>
+              <div class="pricing-price mb-2">
+                {% if p.price_mad > 0 %}
+                <span class="display-5 fw-bold">{{ price_formatted }}</span>
+                <span class="fs-6 fw-normal text-muted">MAD</span>
+                <div class="small text-muted mt-1">
+                  <span class="fw-semibold">{{ price_month_formatted }} MAD/mois</span>
+                  <span class="badge bg-success bg-opacity-10 text-success ms-1">1ʳᵉ an offert</span>
+                </div>
+                {% else %}
+                <span class="display-5 fw-bold">Gratuit</span>
+                {% endif %}
+              </div>
+            </div>
+            <ul class="list-unstyled pricing-features flex-grow-1">
+              <li class="d-flex align-items-center small">
+                <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                <span>Jusqu'à <strong>{{ p.max_users }} utilisateur{% if p.max_users > 1 %}s{% endif %}</strong></span>
+              </li>
+              <li class="d-flex align-items-center small">
+                <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                <span>{{ p.max_documents }} documents, {{ storage_display }} stockage</span>
+              </li>
+              <li class="d-flex align-items-center small">
+                <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                <span>Jusqu'à <strong>{{ p.max_open_actions }} actions</strong> simultanées</span>
+              </li>
             </ul>
-            <a href="{{ url_for('demo.reserver') }}" class="btn btn-danger w-100">Choisir</a>
+            {% if p.features %}
+            <hr class="my-1">
+            <ul class="list-unstyled pricing-features flex-grow-1">
+              {% for k, v in p.features.items() %}
+              {% if v %}
+              <li class="d-flex align-items-center small">
+                <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
+                <span>{{ features_labels.get(k) or (k|replace('_',' ')|title) }}</span>
+              </li>
+              {% endif %}
+              {% endfor %}
+            </ul>
+            {% endif %}
+            <a href="{{ url_for('demo.reserver') }}" class="btn w-100 btn-outline-primary mt-auto">
+              {% if p.price_mad == 0 %}<i class="fas fa-rocket me-2"></i>Démarrer{% else %}<i class="fas fa-star me-2"></i>Choisir{% endif %}
+            </a>
           </div>
         </div>
       </div>
-      <div class="col-lg-4 col-md-6">
-        <div class="card pricing-card h-100 p-4">
-          <div class="card-body text-center">
-            <h5 class="text-muted mb-1">Premium</h5>
-            <div class="price text-dark mb-3">1 990 <small>MAD/an</small></div>
-            <ul class="list-unstyled text-start mb-4">
-              <li><i class="fas fa-check text-success me-2"></i>Utilisateurs illimités</li>
-              <li><i class="fas fa-check text-success me-2"></i>Actions illimitées</li>
-              <li><i class="fas fa-check text-success me-2"></i>Documents illimités</li>
-              <li><i class="fas fa-check text-success me-2"></i>10 Go de stockage</li>
-              <li><i class="fas fa-check text-success me-2"></i>Accompagnement dédié</li>
-            </ul>
-            <a href="{{ url_for('demo.reserver') }}" class="btn btn-outline-danger w-100">Choisir</a>
+      {% endif %}
+      {% endfor %}
           </div>
         </div>
       </div>
@@ -193,45 +677,345 @@
   </div>
 </section>
 
-<!-- Demo -->
-<section class="demo-section text-white py-5" id="demander-devis">
-  <div class="container py-4 text-center">
-    <h2 class="section-title display-6 mb-3">Réserver une démonstration</h2>
-    <p class="lead mb-4 opacity-75">Découvrez la plateforme lors d'une session personnalisée avec notre équipe.</p>
-    <a href="{{ url_for('demo.reserver') }}" class="btn btn-light btn-lg px-5">
-      <i class="fas fa-calendar-alt me-2"></i>Réserver un créneau
-    </a>
+<!-- Demo booking -->
+<section class="cta-section text-white py-5" id="demander-devis">
+  <div class="container py-4 position-relative">
+    <div class="text-center mb-5">
+      <span class="trust-badge d-inline-flex mb-3" style="background:rgba(255,255,255,.08);"><i class="fas fa-rocket"></i> Prêt à passer à l'action ?</span>
+      <h2 class="section-title display-5 fw-bold mb-3" style="letter-spacing:-.02em;">Réservez votre démonstration</h2>
+      <p class="lead mb-0 mx-auto" style="max-width:550px;color:rgba(255,255,255,.65);">Découvrez la plateforme lors d'une session personnalisée de 30 minutes avec notre équipe.</p>
+    </div>
+
+    {% if slots_json %}
+    <div class="row justify-content-center">
+      <div class="col-lg-8 col-xl-7">
+        <form action="{{ url_for('demo.reserver') }}" method="POST" id="bookingForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="card" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:1rem;backdrop-filter:blur(8px);">
+            <div class="card-body p-4 p-md-5 text-start text-white">
+
+              <!-- Date slot picker trigger -->
+              <label class="form-label fw-semibold small mb-2 text-white-50">Choisissez un créneau *</label>
+              <div id="dateDisplay" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:.6rem;padding:.7rem 1rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:space-between;" class="mb-1">
+                <div>
+                  <div class="small" style="color:rgba(255,255,255,.4);" id="displayLabel">Sélectionnez une date</div>
+                  <div class="fw-medium" id="displayValue"></div>
+                </div>
+                <i class="fas fa-calendar-alt" style="color:rgba(255,255,255,.3);font-size:1.1rem;"></i>
+              </div>
+              <div id="slot-info" class="d-none mt-1 mb-3 d-flex align-items-center gap-2">
+                <span class="badge" style="background:rgba(16,185,129,.2);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:2rem;font-weight:500;">
+                  <i class="fas fa-clock me-1"></i><span id="slot-time-label"></span>
+                </span>
+                <button type="button" class="btn btn-sm" id="clear-slot" style="color:rgba(255,255,255,.4);text-decoration:none;font-size:.75rem;">
+                  <i class="fas fa-times"></i> Effacer
+                </button>
+              </div>
+
+              <!-- Calendar Overlay -->
+              <div id="calendarOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+                <div id="overlayBg" style="position:absolute;inset:0;"></div>
+                <div id="calendarCard" style="position:relative;background:#fff;border-radius:1rem;padding:1.5rem;max-width:480px;width:92%;color:#111;transform:scale(.92);opacity:0;transition:all .25s ease;box-shadow:0 24px 48px rgba(0,0,0,.2);">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                    <span class="fw-bold" id="monthLabel"></span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                  </div>
+                  <div class="row g-1 mb-2 text-center small fw-bold text-secondary">
+                    <div class="col">Lun</div><div class="col">Mar</div><div class="col">Mer</div>
+                    <div class="col">Jeu</div><div class="col">Ven</div><div class="col">Sam</div><div class="col">Dim</div>
+                  </div>
+                  <div id="calendarGrid" class="row g-1"></div>
+                  <div id="slots-panel" class="mt-2 pt-2" style="border-top:1px solid #e5e7eb;min-height:50px;">
+                    <p class="text-muted small text-center mb-0" id="slots-placeholder"><i class="fas fa-hand-pointer me-1"></i>Sélectionnez un jour</p>
+                    <div id="slots-list" class="d-none">
+                      <p class="fw-semibold small mb-2" id="selected-date-label"></p>
+                      <div class="d-flex flex-wrap gap-2" id="slots-buttons"></div>
+                    </div>
+                  </div>
+                  <button type="button" id="closeOverlay" class="btn btn-sm w-100 mt-3" style="background:#f3f4f6;border-radius:.5rem;">Fermer</button>
+                </div>
+              </div>
+
+              <input type="hidden" name="creneau" id="creneau-input">
+
+              <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold small text-white-50">Nom complet *</label>
+                  <input type="text" name="nom" class="form-control" required style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:.5rem;">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold small text-white-50">Email professionnel *</label>
+                  <input type="email" name="email" class="form-control" required style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:.5rem;">
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold small text-white-50">Entreprise</label>
+                  <input type="text" name="entreprise" class="form-control" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:.5rem;">
+                </div>
+                <div class="col-12 mt-3">
+                  <button type="submit" class="btn btn-light w-100 fw-semibold" id="submit-btn" disabled style="border-radius:.6rem;padding:.65rem;">
+                    <i class="fas fa-calendar-check me-2"></i>Réserver ce créneau
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center">
+      <p class="mb-4" style="color:rgba(255,255,255,.6);">Aucun créneau disponible pour le moment. Contactez-nous directement.</p>
+      <a href="mailto:contact@qmsplatform.ma" class="btn btn-light btn-lg px-5 fw-semibold" style="border-radius:.6rem;">
+        <i class="fas fa-envelope me-2"></i>Nous contacter
+      </a>
+    </div>
+    {% endif %}
   </div>
 </section>
 
 <!-- Footer -->
-<footer class="bg-dark text-white py-5">
+<footer class="footer-pro text-white py-5" id="contact">
   <div class="container">
-    <div class="row g-4">
-      <div class="col-md-4">
-        <h5 class="mb-3"><i class="fas fa-shield-alt text-danger me-2"></i>QMS Platform</h5>
-        <p class="small text-muted mb-0">Plateforme intégrée de gestion HSE & Qualité pour les entreprises marocaines.</p>
+    <div class="row g-4 pb-4">
+      <div class="col-lg-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="d-flex align-items-center justify-content-center rounded-2" style="width:34px;height:34px;background:#e63946;">
+            <i class="fas fa-shield-alt text-white" style="font-size:.85rem;"></i>
+          </span>
+          <span class="fw-bold fs-6 text-white">QMS Platform</span>
+        </div>
+        <p class="small" style="color:rgba(255,255,255,.5);">
+          Plateforme intégrée de gestion HSE & Qualité pour les entreprises marocaines. Centralisez vos processus qualité, HSE et HACCP en un seul outil.
+        </p>
+        <div class="d-flex gap-2">
+          <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
+          <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+        </div>
       </div>
-      <div class="col-md-4">
-        <h6 class="mb-3">Liens rapides</h6>
-        <ul class="list-unstyled small">
-          <li class="mb-1"><a href="#features">Fonctionnalités</a></li>
-          <li class="mb-1"><a href="#pricing">Tarifs</a></li>
-          <li class="mb-1"><a href="{{ url_for('demo.reserver') }}">Démo</a></li>
-          <li><a href="{{ url_for('users.login') }}">Connexion</a></li>
+      <div class="col-6 col-md-3 col-lg-2">
+        <h6 class="mb-3">Plateforme</h6>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="#features">Fonctionnalités</a></li>
+          <li class="mb-2"><a href="#pricing">Tarifs</a></li>
+          <li class="mb-2"><a href="{{ url_for('demo.reserver') }}">Démo</a></li>
+          <li><a href="{{ url_for('users.register') }}">Inscription</a></li>
         </ul>
       </div>
-      <div class="col-md-4">
-        <h6 class="mb-3">Contact</h6>
-        <ul class="list-unstyled small">
-          <li class="mb-1"><i class="fas fa-envelope me-2"></i>contact@qmsplatform.ma</li>
-          <li class="mb-1"><i class="fas fa-phone me-2"></i>+212 5XX XX XX XX</li>
-          <li><i class="fas fa-map-marker-alt me-2"></i>Casablanca, Maroc</li>
+      <div class="col-6 col-md-3 col-lg-2">
+        <h6 class="mb-3">Légal</h6>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="#">CGV</a></li>
+          <li class="mb-2"><a href="#">Mentions légales</a></li>
+          <li class="mb-2"><a href="#">Confidentialité</a></li>
+          <li><a href="#">RGPD</a></li>
         </ul>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <h6 class="mb-3">Newsletter</h6>
+        <p class="small" style="color:rgba(255,255,255,.5);">Recevez nos actualités et conseils QMS chaque mois.</p>
+        <form class="d-flex gap-2" onsubmit="event.preventDefault();alert('Merci pour votre inscription !');">
+          <input type="email" class="newsletter-input" placeholder="Votre email professionnel" required>
+          <button type="submit" class="btn btn-danger" style="border-radius:.5rem;white-space:nowrap;"><i class="fas fa-paper-plane"></i></button>
+        </form>
       </div>
     </div>
-    <hr class="my-4" style="border-color: rgba(255,255,255,.1);">
-    <p class="text-center text-muted small mb-0">&copy; 2026 QMS Platform. Tous droits réservés.</p>
+    <hr style="border-color:rgba(255,255,255,.06);">
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+      <p class="small mb-0" style="color:rgba(255,255,255,.35);">&copy; 2026 QMS Platform. Tous droits réservés.</p>
+      <div class="d-flex gap-3">
+        <a href="#" class="small" style="color:rgba(255,255,255,.35);">CGV</a>
+        <a href="#" class="small" style="color:rgba(255,255,255,.35);">Confidentialité</a>
+      </div>
+    </div>
   </div>
 </footer>
+
+<script>
+  function toggleMobileMenu() {
+    var el = document.getElementById('mobileMenu');
+    el.style.maxHeight = el.style.maxHeight === '0px' || el.style.maxHeight === '' ? el.scrollHeight + 'px' : '0px';
+  }
+
+  // Navbar scroll shadow
+  var nav = document.getElementById('landingNav');
+  window.addEventListener('scroll', function() {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // Reveal on scroll
+  var revealObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        revealObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: .1 });
+
+  document.querySelectorAll('.reveal').forEach(function(el) {
+    revealObserver.observe(el);
+  });
+
+  // Counter animation for stats
+  (function() {
+    var counted = false;
+    var statObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting && !counted) {
+          counted = true;
+          var els = [
+            { id: 'statEntreprises', target: 50, suffix: '+' },
+            { id: 'statDocuments', target: 10000, suffix: '+' },
+            { id: 'statActions', target: 5000, suffix: '+' },
+            { id: 'statAudits', target: 500, suffix: '+' },
+          ];
+          els.forEach(function(item) {
+            var el = document.getElementById(item.id);
+            if (!el) return;
+            var current = 0;
+            var step = Math.max(1, Math.floor(item.target / 40));
+            var timer = setInterval(function() {
+              current += step;
+              if (current >= item.target) {
+                current = item.target;
+                clearInterval(timer);
+              }
+              el.textContent = current.toLocaleString('fr-FR') + item.suffix;
+            }, 25);
+          });
+          statObserver.disconnect();
+        }
+      });
+    }, { threshold: .3 });
+    var statRow = document.querySelector('.stat-card');
+    if (statRow) statObserver.observe(statRow.closest('.row'));
+  })();
+
+  // Calendar booking
+  (function() {
+    var slotsData = {% if slots_json %}{{ slots_json|safe }}{% else %}{}{% endif %};
+    if (!Object.keys(slotsData).length) return;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var currentMonth = today.getMonth(), currentYear = today.getFullYear();
+    var selectedDate = null, selectedSlot = null;
+    var months = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+
+    function parseDate(str) { var p = str.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+    function isAvailable(ds) { return slotsData.hasOwnProperty(ds); }
+    function daysInMonth(m,y) { return new Date(y,m+1,0).getDate(); }
+
+    function openOverlay() {
+      var ov = document.getElementById('calendarOverlay');
+      var card = document.getElementById('calendarCard');
+      ov.style.display = 'flex';
+      renderCalendar();
+      setTimeout(function() { card.style.transform = 'scale(1)'; card.style.opacity = '1'; }, 30);
+    }
+    function closeOverlay() {
+      var card = document.getElementById('calendarCard');
+      card.style.transform = 'scale(.92)'; card.style.opacity = '0';
+      setTimeout(function() { document.getElementById('calendarOverlay').style.display = 'none'; }, 230);
+    }
+    function renderCalendar() {
+      var grid = document.getElementById('calendarGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      document.getElementById('monthLabel').textContent = months[currentMonth] + ' ' + currentYear;
+      var firstDow = new Date(currentYear, currentMonth, 1).getDay();
+      var offset = firstDow === 0 ? 6 : firstDow - 1;
+      var totalDays = daysInMonth(currentMonth, currentYear);
+      for (var i = 0; i < offset; i++) { var d = document.createElement('div'); d.className = 'col'; d.innerHTML = '<div class="cal-day disabled"></div>'; grid.appendChild(d); }
+      for (var d = 1; d <= totalDays; d++) {
+        var dt = new Date(currentYear, currentMonth, d);
+        var ds = dt.toISOString().slice(0,10);
+        var col = document.createElement('div'); col.className = 'col';
+        var div = document.createElement('div'); div.className = 'cal-day'; div.textContent = d;
+        if (dt.toDateString() === today.toDateString()) div.classList.add('today');
+        if (dt < today) div.classList.add('disabled');
+        else if (isAvailable(ds)) { div.classList.add('available'); div.dataset.date = ds; div.addEventListener('click', function() { selectDate(this.dataset.date, this); }); }
+        else div.classList.add('disabled');
+        if (selectedDate === ds) div.classList.add('selected');
+        col.appendChild(div); grid.appendChild(col);
+      }
+      var totalCells = offset + totalDays;
+      var rem = (7 - totalCells % 7) % 7;
+      for (var i = 0; i < rem; i++) { var d = document.createElement('div'); d.className = 'col'; d.innerHTML = '<div class="cal-day disabled"></div>'; grid.appendChild(d); }
+    }
+    function selectDate(ds, el) {
+      document.querySelectorAll('#calendarGrid .selected').forEach(function(d) { d.classList.remove('selected'); });
+      if (el) el.classList.add('selected');
+      selectedDate = ds;
+      var slots = slotsData[ds];
+      var plc = document.getElementById('slots-placeholder');
+      var lst = document.getElementById('slots-list');
+      var lbl = document.getElementById('selected-date-label');
+      var btns = document.getElementById('slots-buttons');
+      var p = ds.split('-');
+      lbl.textContent = new Date(+p[0], +p[1]-1, +p[2]).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      btns.innerHTML = '';
+      slots.forEach(function(t) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-outline-danger btn-sm slot-btn';
+        b.textContent = t;
+        b.dataset.datetime = ds + 'T' + t;
+        b.addEventListener('click', function() {
+          document.querySelectorAll('.slot-btn.selected').forEach(function(x) { x.classList.remove('selected'); });
+          b.classList.add('selected');
+          document.getElementById('creneau-input').value = b.dataset.datetime;
+          selectedSlot = t;
+          updateDisplay();
+          closeOverlay();
+        });
+        btns.appendChild(b);
+      });
+      plc.classList.add('d-none');
+      lst.classList.remove('d-none');
+    }
+    function updateDisplay() {
+      var lbl = document.getElementById('displayLabel');
+      var val = document.getElementById('displayValue');
+      var info = document.getElementById('slot-info');
+      var slbl = document.getElementById('slot-time-label');
+      var btn = document.getElementById('submit-btn');
+      if (selectedDate && selectedSlot) {
+        var p = selectedDate.split('-');
+        var d = new Date(+p[0], +p[1]-1, +p[2]);
+        lbl.textContent = 'Créneau sélectionné';
+        val.textContent = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' }) + ' \u00b7 ' + selectedSlot;
+        info.classList.remove('d-none');
+        slbl.textContent = selectedSlot;
+        btn.disabled = false;
+      } else {
+        lbl.textContent = 'Sélectionnez une date';
+        val.textContent = '';
+        info.classList.add('d-none');
+        btn.disabled = true;
+      }
+    }
+    document.getElementById('dateDisplay').addEventListener('click', openOverlay);
+    document.getElementById('closeOverlay').addEventListener('click', closeOverlay);
+    document.getElementById('overlayBg').addEventListener('click', closeOverlay);
+    var clearBtn = document.getElementById('clear-slot');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        selectedSlot = null; selectedDate = null;
+        document.getElementById('creneau-input').value = '';
+        updateDisplay();
+      });
+    }
+    document.getElementById('prevMonth').addEventListener('click', function() {
+      if (currentMonth === 0) { currentMonth = 11; currentYear--; }
+      else currentMonth--;
+      renderCalendar();
+    });
+    document.getElementById('nextMonth').addEventListener('click', function() {
+      if (currentMonth === 11) { currentMonth = 0; currentYear++; }
+      else currentMonth++;
+      renderCalendar();
+    });
+  })();
+</script>
 {% endblock %}

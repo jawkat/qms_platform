@@ -54,9 +54,18 @@ def create_app():
     from .entreprise_textes import entreprise_textes as entreprise_textes_bp
     from .demo import demo as demo_bp
     from .veille import veille as veille_bp
+    from .haccp import blueprint as haccp_bp
+    from .nonconformites import blueprint as nonconformites_bp
+    from .hse import blueprint as hse_bp
+    from .ishikawa import blueprint as ishikawa_bp
+    from .facturation import facturation as facturation_bp
+    from .plans import plans as plans_bp
+    from .fournisseurs import blueprint as fournisseurs_bp
+    from .formations import blueprint as formations_bp
+    from .reclamations import blueprint as reclamations_bp
 
     app.register_blueprint(main_bp)
-    app.register_blueprint(entreprises_bp)
+    app.register_blueprint(entreprises_bp, url_prefix='/entreprises')
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(actions_bp, url_prefix='/actions')
     app.register_blueprint(documents_bp, url_prefix='/documents')
@@ -71,6 +80,15 @@ def create_app():
     app.register_blueprint(entreprise_textes_bp)
     app.register_blueprint(demo_bp)
     app.register_blueprint(veille_bp, url_prefix='/veille')
+    app.register_blueprint(haccp_bp, url_prefix='/haccp')
+    app.register_blueprint(nonconformites_bp, url_prefix='/nonconformites')
+    app.register_blueprint(hse_bp, url_prefix='/hse')
+    app.register_blueprint(ishikawa_bp, url_prefix='/ishikawa')
+    app.register_blueprint(facturation_bp, url_prefix='/facturation')
+    app.register_blueprint(plans_bp, url_prefix='/plans')
+    app.register_blueprint(fournisseurs_bp, url_prefix='/fournisseurs')
+    app.register_blueprint(formations_bp, url_prefix='/formations')
+    app.register_blueprint(reclamations_bp, url_prefix='/reclamations')
 
     @app.before_request
     def set_tenant():

@@ -2,43 +2,77 @@
 {% block title %}Mon Profil{% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <h1 class="h3 mb-4">Mon Profil</h1>
-  <div class="row">
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm mb-4">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <span class="avatar-initials rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width:56px;height:56px;font-size:1.4rem;font-weight:600;">{{ current_user.prenom[:1]|upper }}{{ current_user.nom[:1]|upper }}</span>
+    <div>
+      <h1 class="h3 mb-1">{{ current_user.prenom }} {{ current_user.nom }}</h1>
+      <p class="text-muted mb-0 small">
+        <i class="fas fa-envelope me-1"></i>{{ current_user.email }}
+        {% if current_user.dernier_acces %}
+        &middot; <i class="fas fa-clock me-1"></i>Dernier accès: {{ current_user.dernier_acces.strftime('%d/%m/%Y %H:%M') if current_user.dernier_acces else '--' }}
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-body">
-          <h5 class="card-title">Informations</h5>
-          <dl class="row mb-0">
-            <dt class="col-sm-4">Nom</dt>
-            <dd class="col-sm-8">{{ current_user.nom }}</dd>
-            <dt class="col-sm-4">Prénom</dt>
-            <dd class="col-sm-8">{{ current_user.prenom }}</dd>
-            <dt class="col-sm-4">Email</dt>
-            <dd class="col-sm-8">{{ current_user.email }}</dd>
-            <dt class="col-sm-4">Rôle</dt>
-            <dd class="col-sm-8">{{ current_user.role.nom if current_user.role else '-' }}</dd>
-            <dt class="col-sm-4">Entreprise</dt>
-            <dd class="col-sm-8">{{ current_user.entreprise.nom if current_user.entreprise else '-' }}</dd>
+          <h5 class="card-title mb-3"><i class="fas fa-id-card me-2 text-danger"></i>Informations</h5>
+          <dl class="mb-0">
+            <div class="py-2 border-bottom">
+              <dt class="small text-muted mb-0">Rôle</dt>
+              <dd class="mb-0 fw-medium">{{ current_user.role.nom if current_user.role else '-' }}</dd>
+            </div>
+            <div class="py-2 border-bottom">
+              <dt class="small text-muted mb-0">Entreprise</dt>
+              <dd class="mb-0 fw-medium">{{ current_user.entreprise.nom if current_user.entreprise else '-' }}</dd>
+            </div>
+            <div class="py-2 border-bottom">
+              <dt class="small text-muted mb-0">Email</dt>
+              <dd class="mb-0 fw-medium">{{ current_user.email }}</dd>
+            </div>
+            <div class="py-2">
+              <dt class="small text-muted mb-0">Membre depuis</dt>
+              <dd class="mb-0 fw-medium">{{ current_user.date_creation.strftime('%d/%m/%Y') if current_user.date_creation else '-' }}</dd>
+            </div>
           </dl>
         </div>
       </div>
     </div>
-    <div class="col-md-6">
+
+    <div class="col-lg-8">
       <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <h5 class="card-title">Modifier le profil</h5>
+          <h5 class="card-title mb-3"><i class="fas fa-edit me-2 text-danger"></i>Modifier le profil</h5>
           <form method="POST">
-            <div class="mb-3">
-              <label class="form-label">Prénom</label>
-              <input type="text" name="prenom" class="form-control" value="{{ current_user.prenom }}" required>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Prénom</label>
+                <input type="text" name="prenom" class="form-control" value="{{ current_user.prenom }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Nom</label>
+                <input type="text" name="nom" class="form-control" value="{{ current_user.nom }}" required>
+              </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Nom</label>
-              <input type="text" name="nom" class="form-control" value="{{ current_user.nom }}" required>
+            <div class="d-flex gap-2 mt-3">
+              <button type="submit" class="btn btn-danger"><i class="fas fa-save me-1"></i>Enregistrer</button>
+              <a href="{{ url_for('users.change_password') }}" class="btn btn-outline-secondary"><i class="fas fa-key me-1"></i>Changer le mot de passe</a>
             </div>
-            <button type="submit" class="btn btn-danger">Enregistrer</button>
-            <a href="{{ url_for('users.change_password') }}" class="btn btn-outline-secondary">Changer le mot de passe</a>
           </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><i class="fas fa-cog me-2 text-danger"></i>Actions rapides</h5>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('main.tableau_de_bord') }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-chart-line me-1"></i>Tableau de bord</a>
+            <a href="{{ url_for('support.mes_tickets') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-life-ring me-1"></i>Support</a>
+            <a href="{{ url_for('users.logout') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-sign-out-alt me-1"></i>Déconnexion</a>
+          </div>
         </div>
       </div>
     </div>

@@ -1,0 +1,99 @@
+{% extends 'layout.html' %}
+{% block title %}HACCP - CCP{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Points Critiques de Contrôle</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau CCP</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Code</th><th>Processus</th><th>Danger</th><th>Limite critique</th><th>Surveillance</th><th>Responsable</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau CCP</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label">Code <span class="text-danger">*</span></label><input type="text" id="f_code" class="form-control" placeholder="CCP-1"></div>
+          <div class="col-md-4"><label class="form-label">Processus</label><select id="f_processus" class="form-select"></select></div>
+          <div class="col-md-4"><label class="form-label">Responsable</label><input type="text" id="f_responsable" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Danger <span class="text-danger">*</span></label><textarea id="f_danger" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Limite critique <span class="text-danger">*</span></label><input type="text" id="f_limite" class="form-control" placeholder="72°C, 0-4°C..."></div>
+          <div class="col-md-6"><label class="form-label">Tolérance</label><input type="text" id="f_tolerance" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Méthode de surveillance</label><textarea id="f_methode" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Fréquence</label><input type="text" id="f_frequence" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Action corrective</label><input type="text" id="f_action" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Procédure de dérogation</label><textarea id="f_derogation" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("haccp.api_ccp") }}'; const CREATE = '{{ url_for("haccp.api_ccp_create") }}';
+const UPDATE = '{{ url_for("haccp.api_ccp_update", item_id=0) }}'; const DELETE = '{{ url_for("haccp.api_ccp_delete", item_id=0) }}';
+const PROC_API = '{{ url_for("haccp.api_processus") }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucun CCP</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><strong>${r.code||''}</strong></td><td>${r.processus_id||''}</td><td>${r.danger||''}</td>
+      <td>${r.limite_critique||''}</td><td>${r.methode_surveillance||''}</td><td>${r.responsable||''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+  fetch(PROC_API).then(r=>r.json()).then(items => {
+    const sel = document.getElementById('f_processus');
+    sel.innerHTML = '<option value="">-- Sélectionner --</option>' + items.map(r => `<option value="${r.id}">${r.etape}</option>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { code: document.getElementById('f_code').value, processus_id: document.getElementById('f_processus').value,
+    danger: document.getElementById('f_danger').value, limite_critique: document.getElementById('f_limite').value,
+    tolerance: document.getElementById('f_tolerance').value, methode_surveillance: document.getElementById('f_methode').value,
+    frequence_surveillance: document.getElementById('f_frequence').value, responsable: document.getElementById('f_responsable').value,
+    action_corrective: document.getElementById('f_action').value, procedure_derogation: document.getElementById('f_derogation').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_code').value = r.code||'';
+    document.getElementById('f_processus').value = r.processus_id||''; document.getElementById('f_danger').value = r.danger||'';
+    document.getElementById('f_limite').value = r.limite_critique||''; document.getElementById('f_tolerance').value = r.tolerance||'';
+    document.getElementById('f_methode').value = r.methode_surveillance||''; document.getElementById('f_frequence').value = r.frequence_surveillance||'';
+    document.getElementById('f_responsable').value = r.responsable||''; document.getElementById('f_action').value = r.action_corrective||'';
+    document.getElementById('f_derogation').value = r.procedure_derogation||'';
+    document.getElementById('modalTitle').textContent = 'Modifier le CCP';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() { document.getElementById('itemId').value = ''; ['f_code','f_danger','f_limite','f_tolerance','f_methode','f_frequence','f_responsable','f_action','f_derogation'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_processus').value = ''; document.getElementById('modalTitle').textContent = 'Nouveau CCP'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

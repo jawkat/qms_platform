@@ -46,6 +46,14 @@
             <textarea name="resume_article" class="form-control" rows="2">{{ article.resume_article if article else '' }}</textarea>
           </div>
           <div class="col-12">
+            <label class="form-label">Explication détaillée</label>
+            <textarea name="explication_detaillee" class="form-control" rows="3">{{ article.explication_detaillee if article else '' }}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Preuve de conformité</label>
+            <textarea name="preuve_conformite" class="form-control" rows="2">{{ article.preuve_conformite if article else '' }}</textarea>
+          </div>
+          <div class="col-12">
             <label class="form-label">Contenu</label>
             <textarea name="contenu" class="form-control" rows="8">{{ article.contenu if article else '' }}</textarea>
           </div>

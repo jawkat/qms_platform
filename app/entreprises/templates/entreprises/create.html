@@ -1,63 +1,234 @@
 {% extends 'layout.html' %}
 {% block title %}Nouvelle entreprise{% endblock %}
+{% block head_css %}
+<style>
+  .card-modern {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+    overflow: hidden;
+  }
+  .card-modern .card-header-modern {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 1.25rem 1.5rem;
+    border-bottom: 0;
+  }
+  .card-modern .card-header-modern h5 { color: #fff; margin: 0; font-weight: 600; }
+  .card-modern .card-header-modern p { color: rgba(255,255,255,.5); font-size: .85rem; margin: .25rem 0 0; }
+  .col-section-title {
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7280;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 1rem;
+  }
+  .form-label-modern {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: .3rem;
+  }
+  .form-control-modern, .form-select-modern {
+    border: 1px solid #e2e8f0;
+    border-radius: .5rem;
+    font-size: .875rem;
+    padding: .5rem .75rem;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .form-control-modern:focus, .form-select-modern:focus {
+    border-color: #e63946;
+    box-shadow: 0 0 0 3px rgba(230,57,70,.12);
+  }
+  .btn-primary-modern {
+    background: #e63946;
+    border: none;
+    color: #fff;
+    padding: .5rem 2rem;
+    border-radius: .5rem;
+    font-weight: 600;
+    font-size: .875rem;
+    transition: background .15s;
+  }
+  .btn-primary-modern:hover { background: #b91c1c; color: #fff; }
+  .info-card-modern {
+    background: #f0f4ff;
+    border: 1px solid #dbeafe;
+    border-radius: .5rem;
+    padding: .75rem 1rem;
+  }
+  .form-text-modern { font-size: .75rem; color: #9ca3af; margin-top: .25rem; }
+  .hr-modern { border-color: #e9ecef; opacity: 1; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="container-fluid">
-  <h1 class="h3 mb-4">Nouvelle entreprise</h1>
-  <div class="card border-0 shadow-sm" style="max-width: 700px;">
-    <div class="card-body">
-      <form method="POST">
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Nom <span class="text-danger">*</span></label>
-          <input type="text" name="nom" class="form-control" required placeholder="Raison sociale">
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0 fw-bold"><i class="fas fa-plus-circle me-2 text-danger"></i>Nouvelle entreprise</h4>
+    <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+      <i class="fas fa-arrow-left me-1"></i> Retour
+    </a>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-9">
+      <div class="card card-modern">
+        <div class="card-header-modern">
+          <h5><i class="fas fa-building me-2"></i>Nouveau compte entreprise</h5>
+          <p>Créez l'entreprise et son manager principal en quelques clics.</p>
         </div>
-        <div class="row mb-3">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Taille</label>
-            <select name="taille" class="form-select">
-              <option value="TPE">TPE</option>
-              <option value="PME" selected>PME</option>
-              <option value="Grande">Grande entreprise</option>
-            </select>
+
+        <form method="POST" class="p-4 p-xl-5">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-4 g-xl-5">
+
+            <!-- Colonne gauche : Entreprise -->
+            <div class="col-md-6">
+              <div class="col-section-title"><i class="fas fa-building me-2"></i>Informations entreprise</div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="nom">Nom <span class="text-danger">*</span></label>
+                <input id="nom" name="nom" class="form-control form-control-modern" required placeholder="Raison sociale">
+              </div>
+
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label-modern" for="taille">Taille</label>
+                  <select id="taille" name="taille" class="form-select form-select-modern">
+                    <option value="TPE">TPE</option>
+                    <option value="PME" selected>PME</option>
+                    <option value="Grande">Grande entreprise</option>
+                  </select>
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label-modern" for="pays">Pays</label>
+                  <input id="pays" name="pays" class="form-control form-control-modern" value="Maroc">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="adresse">Adresse</label>
+                <textarea id="adresse" name="adresse" class="form-control form-control-modern" rows="2" placeholder="Adresse complète"></textarea>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="secteurs">Secteurs d'activité</label>
+                <select id="secteurs" name="secteurs" class="form-select form-select-modern tag-select" multiple data-plural="secteurs">
+                  {% for s in secteurs %}
+                    <option value="{{ s.id }}">{{ s.nom }}</option>
+                  {% endfor %}
+                </select>
+                <div class="form-text-modern">Les textes réglementaires seront liés automatiquement.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="abonnement_type">Plan d'abonnement</label>
+                <select id="abonnement_type" name="abonnement_type" class="form-select form-select-modern">
+                  <option value="trial">Essai gratuit</option>
+                  {% for p in plans %}
+                  <option value="{{ p.plan_key }}">{{ p.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="trial_days">Durée d'essai <span class="fw-normal text-muted">(jours)</span></label>
+                <input id="trial_days" name="trial_days" class="form-control form-control-modern" type="number" min="0" placeholder="14 par défaut" style="max-width: 160px;">
+                <div class="form-text-modern">Remplace la durée par défaut du plan.</div>
+              </div>
+
+              <div class="mb-0">
+                <label class="form-label-modern" for="contact_facturation_email">Email de facturation</label>
+                <input id="contact_facturation_email" name="contact_facturation_email" class="form-control form-control-modern" type="email" placeholder="facturation@entreprise.com">
+                <div class="form-text-modern">Optionnel — notifications de facturation.</div>
+              </div>
+            </div>
+
+            <!-- Colonne droite : Manager + Modules -->
+            <div class="col-md-6">
+              <div class="col-section-title"><i class="fas fa-user-shield me-2"></i>Manager <span class="fw-normal text-muted">(administrateur)</span></div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="mgr_nom">Nom <span class="text-danger">*</span></label>
+                <input id="mgr_nom" name="mgr_nom" class="form-control form-control-modern" required placeholder="Nom">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="mgr_prenom">Prénom <span class="text-danger">*</span></label>
+                <input id="mgr_prenom" name="mgr_prenom" class="form-control form-control-modern" required placeholder="Prénom">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="mgr_email">Email <span class="text-danger">*</span></label>
+                <input id="mgr_email" name="mgr_email" class="form-control form-control-modern" type="email" required placeholder="manager@exemple.com">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label-modern" for="mgr_password">Mot de passe <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input id="mgr_password" name="mgr_password" class="form-control form-control-modern" type="password" required placeholder="••••••••">
+                  <button type="button" class="btn btn-outline-secondary rounded-end-2" id="togglePassword" tabindex="-1" style="border:1px solid #e2e8f0; border-left:0;">
+                    <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="info-card-modern mt-4 mb-4">
+                <div class="d-flex align-items-start gap-3">
+                  <i class="fas fa-shield-alt mt-1 flex-shrink-0" style="color:#e63946; font-size:1rem;"></i>
+                  <div>
+                    <div class="fw-semibold small">Accès sécurisé</div>
+                    <p class="small text-muted mb-0">Le manager recevra un email de confirmation avec les instructions de connexion.</p>
+                  </div>
+                </div>
+              </div>
+
+              <hr class="hr-modern">
+
+              <div class="col-section-title mt-3"><i class="fas fa-puzzle-piece me-2"></i>Modules actifs</div>
+
+              <div class="form-check form-switch mb-2">
+                <input type="checkbox" name="module_hse" class="form-check-input" id="mhse" checked>
+                <label class="form-check-label fw-medium" for="mhse">HSE</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input type="checkbox" name="module_qualite" class="form-check-input" id="mq">
+                <label class="form-check-label fw-medium" for="mq">Qualité</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input type="checkbox" name="module_haccp" class="form-check-input" id="mh">
+                <label class="form-check-label fw-medium" for="mh">HACCP</label>
+              </div>
+              <hr class="hr-modern">
+              <div class="col-section-title mt-3"><i class="fas fa-share-alt me-2"></i>Modules transverses <span class="badge bg-secondary bg-opacity-10 text-secondary fw-normal" style="font-size:.7rem;">automatiques</span></div>
+              <div class="form-check form-switch mb-2">
+                <input type="checkbox" class="form-check-input" id="mfour" disabled checked>
+                <label class="form-check-label fw-medium text-muted" for="mfour">Fournisseurs <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input type="checkbox" class="form-check-input" id="mform" disabled checked>
+                <label class="form-check-label fw-medium text-muted" for="mform">Formations <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input type="checkbox" class="form-check-input" id="mrec" disabled checked>
+                <label class="form-check-label fw-medium text-muted" for="mrec">Réclamations <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
+              </div>
+              <div class="form-text-modern">Ces modules sont activés automatiquement avec Qualité et/ou HACCP.</div>
+            </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Pays</label>
-            <input type="text" name="pays" class="form-control" value="Maroc">
+
+          <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 pt-4 mt-4 border-top">
+            <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-secondary rounded-pill px-4 order-2 order-sm-1">
+              <i class="fas fa-times me-1"></i> Annuler
+            </a>
+            <button type="submit" class="btn btn-primary-modern rounded-pill px-5 order-1 order-sm-2">
+              <i class="fas fa-check me-1"></i> Créer l'entreprise
+            </button>
           </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Adresse</label>
-          <textarea name="adresse" class="form-control" rows="2" placeholder="Adresse complète"></textarea>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Secteurs d'activité</label>
-          <p class="text-muted small mb-2">
-            <i class="fas fa-info-circle me-1"></i>Les textes réglementaires correspondants seront liés automatiquement à l'entreprise.
-          </p>
-          <select id="secteurs" name="secteurs" class="form-select tag-select" multiple data-plural="secteurs">
-            {% for s in secteurs %}
-              <option value="{{ s.id }}">{{ s.nom }}</option>
-            {% endfor %}
-          </select>
-          {% if not secteurs %}
-          <div class="text-muted small mt-1">Aucun secteur disponible. Créez des secteurs d'abord.</div>
-          {% endif %}
-        </div>
-
-        <div class="mb-3 form-check form-switch">
-          <input type="checkbox" name="module_qualite" class="form-check-input" id="mq">
-          <label class="form-check-label fw-semibold" for="mq">Activer le module Qualité</label>
-        </div>
-
-        <div class="d-flex gap-2 pt-3 border-top">
-          <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-times me-1"></i>Annuler
-          </a>
-          <button type="submit" class="btn btn-danger">
-            <i class="fas fa-plus me-1"></i>Créer l'entreprise
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 </div>
@@ -66,4 +237,30 @@
 {% block scripts %}
 <link rel="stylesheet" href="{{ url_for('static', filename='tag-select.css') }}">
 <script src="{{ url_for('static', filename='tag-select.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var toggleBtn = document.getElementById('togglePassword');
+  var pwdInput = document.getElementById('mgr_password');
+  var pwdIcon = document.getElementById('togglePasswordIcon');
+  if (toggleBtn && pwdInput && pwdIcon) {
+    toggleBtn.addEventListener('click', function () {
+      var show = pwdInput.type === 'password';
+      pwdInput.type = show ? 'text' : 'password';
+      pwdIcon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+    });
+  }
+  function syncTransverse() {
+    var active = document.getElementById('mq').checked || document.getElementById('mh').checked;
+    ['mfour','mform','mrec'].forEach(function(id) {
+      var cb = document.getElementById(id);
+      cb.checked = active;
+      cb.disabled = !active;
+    });
+  }
+  document.getElementById('mq').addEventListener('change', syncTransverse);
+  document.getElementById('mh').addEventListener('change', syncTransverse);
+  syncTransverse();
+  setTimeout(function () { var el = document.getElementById('nom'); if (el) el.focus(); }, 300);
+});
+</script>
 {% endblock %}

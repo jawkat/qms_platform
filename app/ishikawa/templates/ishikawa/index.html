@@ -1,0 +1,66 @@
+{% extends 'layout.html' %}
+{% block title %}Analyse Ishikawa{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="fas fa-project-diagram me-2 text-primary"></i>Analyse Ishikawa (6M)</h3>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle analyse</button>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle"><thead class="table-light">
+        <tr><th>Date</th><th>Effet analysé</th><th>Source</th><th>Auteur</th><th>Causes</th><th>Actions</th></tr>
+      </thead><tbody id="tableBody"></tbody></table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle analyse Ishikawa</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId" value="">
+    <div class="row g-3 mb-3">
+      <div class="col-md-6"><label class="form-label">Effet analysé <span class="text-danger">*</span></label><textarea id="fEffet" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-3"><label class="form-label">Source</label><select id="fSource" class="form-select"><option value="">--</option><option value="nonconformite">Non-conformité</option><option value="incident">Incident</option><option value="action">Action corrective</option></select></div>
+      <div class="col-md-3"><label class="form-label">Date</label><input type="date" id="fDate" class="form-control"></div>
+    </div>
+    <h6>Causes par catégorie (6M)</h6>
+    <div id="causesContainer">
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold text-primary">Méthode</label></div>
+        <div class="col-md-10"><input type="text" class="form-control form-control-sm cause-input" data-categorie="methode" placeholder="Cause liée à la méthode..."></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold text-success">Matière</label></div>
+        <div class="col-md-10"><input type="text" class="form-control form-control-sm cause-input" data-categorie="matiere" placeholder="Cause liée à la matière..."></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold text-warning">Main-d'œuvre</label></div>
+        <div class="col-md-10"><input type="text" class="form-control form-control-sm cause-input" data-categorie="main_oeuvre" placeholder="Cause liée au personnel..."></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold text-info">Milieu</label></div>
+        <div class="col-md-10"><input type="text" class="form-control form-control-sm cause-input" data-categorie="milieu" placeholder="Cause liée à l'environnement..."></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold text-danger">Machine</label></div>
+        <div class="col-md-10"><input type="text" class="form-control form-control-sm cause-input" data-categorie="machine" placeholder="Cause liée à la machine..."></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-2"><label class="form-label fw-bold text-secondary">Mesure</label></div>
+        <div class="col-md-10"><input type="text" class="form-control form-control-sm cause-input" data-categorie="mesure" placeholder="Cause liée à la mesure..."></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("ishikawa.api_liste") }}', CREATE='{{ url_for("ishikawa.api_create") }}', UPDATE='{{ url_for("ishikawa.api_update", item_id=0) }}', DELETE='{{ url_for("ishikawa.api_delete", item_id=0) }}';
+function loadItems(){fetch(API).then(r=>r.json()).then(items=>{document.getElementById('tableBody').innerHTML=items.map(r=>`<tr><td><small>${r.date_analyse||''}</small></td><td><small>${(r.description_effet||'').substring(0,80)}</small></td><td><span class="badge bg-secondary">${r.source_type||'-'}</span></td><td>${r.auteur||''}</td><td>${r.causes.length} cause(s)</td><td><button class="btn btn-sm btn-outline-primary" onclick="editItem(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const causes=[];document.querySelectorAll('.cause-input').forEach(el=>{if(el.value.trim())causes.push({categorie:el.dataset.categorie,description:el.value.trim()})});const data={description_effet:document.getElementById('fEffet').value,source_type:document.getElementById('fSource').value,date_analyse:document.getElementById('fDate').value,causes:causes};const url=id?UPDATE.replace('0',id):CREATE;fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).then(resp=>{if(resp.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();resetForm();loadItems()}})}
+function editItem(id){fetch(API).then(r=>r.json()).then(items=>{const r=items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('fEffet').value=r.description_effet||'';document.getElementById('fSource').value=r.source_type||'';document.getElementById('fDate').value=r.date_analyse||'';document.querySelectorAll('.cause-input').forEach(el=>{const c=r.causes.find(x=>x.categorie===el.dataset.categorie);el.value=c?c.description:''});document.getElementById('modalTitle').textContent='Modifier analyse Ishikawa';new bootstrap.Modal(document.getElementById('itemModal')).show()})}
+function deleteItem(id){if(!confirm('Supprimer?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)loadItems()})}
+function resetForm(){document.getElementById('itemId').value='';document.getElementById('fEffet').value='';document.getElementById('fSource').value='';document.getElementById('fDate').value='';document.querySelectorAll('.cause-input').forEach(el=>el.value='');document.getElementById('modalTitle').textContent='Nouvelle analyse Ishikawa'}
+document.addEventListener('DOMContentLoaded',loadItems);
+</script>
+{% endblock %}

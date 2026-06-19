@@ -1,0 +1,43 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - Inspections{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="fas fa-clipboard-check me-2 text-info"></i>Inspections terrain</h3>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle inspection</button>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle"><thead class="table-light">
+        <tr><th>Date</th><th>Type</th><th>Lieu</th><th>Inspecteur</th><th>Anomalies</th><th>Statut</th><th>Actions</th></tr>
+      </thead><tbody id="tableBody"></tbody></table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle inspection</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId" value="">
+    <div class="row g-3">
+      <div class="col-md-4"><label class="form-label">Type <span class="text-danger">*</span></label><select id="fType" class="form-select"><option value="quotidienne">Quotidienne</option><option value="hebdomadaire">Hebdomadaire</option><option value="mensuelle">Mensuelle</option><option value="speciale">Spéciale</option></select></div>
+      <div class="col-md-4"><label class="form-label">Date <span class="text-danger">*</span></label><input type="date" id="fDate" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Statut</label><select id="fStatut" class="form-select"><option value="en_cours">En cours</option><option value="terminee">Terminée</option><option value="NC">Non-conforme</option></select></div>
+      <div class="col-md-6"><label class="form-label">Lieu</label><input type="text" id="fLieu" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Zone</label><input type="text" id="fZone" class="form-control"></div>
+      <div class="col-12"><label class="form-label">Observations</label><textarea id="fObservations" class="form-control" rows="2"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("hse.api_inspections") }}', CREATE='{{ url_for("hse.api_inspections_create") }}', UPDATE='{{ url_for("hse.api_inspections_update", item_id=0) }}', DELETE='{{ url_for("hse.api_inspections_delete", item_id=0) }}';
+const sc={'en_cours':'warning','terminee':'success','NC':'danger'};
+function loadItems(){fetch(API).then(r=>r.json()).then(items=>{document.getElementById('tableBody').innerHTML=items.map(r=>`<tr><td><small>${r.date_inspection||''}</small></td><td><span class="badge bg-secondary">${r.type_inspection}</span></td><td>${r.lieu||''}</td><td>${r.inspecteur||''}</td><td>${r.anomalies_detectees}</td><td><span class="badge bg-${sc[r.statut]||'secondary'}">${r.statut||''}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="editItem(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const data={type_inspection:document.getElementById('fType').value,date_inspection:document.getElementById('fDate').value,lieu:document.getElementById('fLieu').value,zone:document.getElementById('fZone').value,observations:document.getElementById('fObservations').value,statut:document.getElementById('fStatut').value};const url=id?UPDATE.replace('0',id):CREATE;fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).then(resp=>{if(resp.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();resetForm();loadItems()}})}
+function editItem(id){fetch(API).then(r=>r.json()).then(items=>{const r=items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('fType').value=r.type_inspection||'quotidienne';document.getElementById('fDate').value=r.date_inspection||'';document.getElementById('fLieu').value=r.lieu||'';document.getElementById('fZone').value=r.zone||'';document.getElementById('fObservations').value=r.observations||'';document.getElementById('fStatut').value=r.statut||'en_cours';document.getElementById('modalTitle').textContent='Modifier inspection';new bootstrap.Modal(document.getElementById('itemModal')).show()})}
+function deleteItem(id){if(!confirm('Supprimer?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)loadItems()})}
+function resetForm(){document.getElementById('itemId').value='';document.getElementById('fType').value='quotidienne';document.getElementById('fDate').value='';document.getElementById('fLieu').value='';document.getElementById('fZone').value='';document.getElementById('fObservations').value='';document.getElementById('fStatut').value='en_cours';document.getElementById('modalTitle').textContent='Nouvelle inspection'}
+document.addEventListener('DOMContentLoaded',loadItems);
+</script>
+{% endblock %}

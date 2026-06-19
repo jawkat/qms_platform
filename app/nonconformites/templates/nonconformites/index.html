@@ -1,0 +1,327 @@
+{% extends 'layout.html' %}
+{% block title %}Non-conformités{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Non-conformités</h3>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#ncModal">
+      <i class="fas fa-plus me-1"></i>Nouvelle NC
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 text-secondary" id="statTotal">--</div>
+        <small class="text-muted">Total</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 text-danger" id="statOuvertes">--</div>
+        <small class="text-muted">Ouvertes</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 text-warning" id="statEnCours">--</div>
+        <small class="text-muted">En cours</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 text-success" id="statCloturees">--</div>
+        <small class="text-muted">Clôturées</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 text-danger" id="statCritiques">--</div>
+        <small class="text-muted">Critiques</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 text-info" id="statHaccp">--</div>
+        <small class="text-muted">HACCP</small>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-lg-3">
+          <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Rechercher...">
+        </div>
+        <div class="col-lg-2">
+          <select id="filterDomaine" class="form-select form-select-sm">
+            <option value="">Tous les domaines</option>
+            <option value="hse">HSE</option>
+            <option value="qualite">Qualité</option>
+            <option value="haccp">HACCP</option>
+          </select>
+        </div>
+        <div class="col-lg-2">
+          <select id="filterStatut" class="form-select form-select-sm">
+            <option value="">Tous les statuts</option>
+            <option value="ouverte">Ouverte</option>
+            <option value="en_cours">En cours</option>
+            <option value="cloturee">Clôturée</option>
+          </select>
+        </div>
+        <div class="col-lg-2">
+          <select id="filterGravite" class="form-select form-select-sm">
+            <option value="">Toutes les gravités</option>
+            <option value="mineur">Mineur</option>
+            <option value="majeur">Majeur</option>
+            <option value="critique">Critique</option>
+          </select>
+        </div>
+        <div class="col-lg-1">
+          <button class="btn btn-sm btn-outline-danger w-100" onclick="loadNcs()"><i class="fas fa-search"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Réf.</th><th>Date</th><th>Domaine</th><th>Description</th>
+              <th>Gravité</th><th>Action corrective</th><th>Statut</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr id="emptyRow"><td colspan="8" class="text-center text-muted py-4">
+              <i class="fas fa-inbox fa-2x mb-2 d-block"></i>Aucune non-conformité.
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="ncModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ncModalTitle">Nouvelle non-conformité</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ncId" value="">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Domaine <span class="text-danger">*</span></label>
+            <select id="ncDomaine" class="form-select" onchange="toggleHaccpFields()">
+              <option value="qualite">Qualité</option>
+              <option value="hse">HSE</option>
+              <option value="haccp">HACCP</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Date constat <span class="text-danger">*</span></label>
+            <input type="date" id="ncDate" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Référence</label>
+            <input type="text" id="ncReference" class="form-control" placeholder="NC-2026-XXX">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Gravité</label>
+            <select id="ncGravite" class="form-select">
+              <option value="mineur">Mineur</option>
+              <option value="majeur" selected>Majeur</option>
+              <option value="critique">Critique</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Statut</label>
+            <select id="ncStatut" class="form-select">
+              <option value="ouverte">Ouverte</option>
+              <option value="en_cours">En cours</option>
+              <option value="cloturee">Clôturée</option>
+            </select>
+          </div>
+          <div class="col-md-4" id="fieldProduit" style="display:none">
+            <label class="form-label">Produit / Processus</label>
+            <input type="text" id="ncProduit" class="form-control">
+          </div>
+          <div class="col-md-4 haccp-only" style="display:none">
+            <label class="form-label">Source</label>
+            <select id="ncSource" class="form-select">
+              <option value="">--</option>
+              <option value="ccp">CCP</option>
+              <option value="audit">Audit</option>
+              <option value="reclamation">Réclamation</option>
+              <option value="interne">Interne</option>
+              <option value="prp">PRP</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description <span class="text-danger">*</span></label>
+            <textarea id="ncDescription" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="col-12 haccp-only" style="display:none">
+            <label class="form-label">Cause</label>
+            <textarea id="ncCause" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Action corrective</label>
+            <textarea id="ncAction" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="col-md-4 haccp-only" style="display:none">
+            <label class="form-label">Délai</label>
+            <input type="date" id="ncDelai" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveNc()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API_BASE = '{{ url_for("nonconformites.api_liste") }}';
+const CREATE_URL = '{{ url_for("nonconformites.api_create") }}';
+const UPDATE_URL = '{{ url_for("nonconformites.api_update", item_id=0) }}';
+const DELETE_URL = '{{ url_for("nonconformites.api_delete", item_id=0) }}';
+const VALIDER_URL = '{{ url_for("nonconformites.api_valider_cloture", item_id=0) }}';
+const STATS_URL = '{{ url_for("nonconformites.api_stats") }}';
+
+function toggleHaccpFields() {
+  const d = document.getElementById('ncDomaine').value;
+  document.querySelectorAll('.haccp-only').forEach(el => el.style.display = d === 'haccp' ? '' : 'none');
+  document.getElementById('fieldProduit').style.display = d === 'qualite' ? '' : 'none';
+}
+
+function loadNcs() {
+  const params = new URLSearchParams();
+  const domaine = document.getElementById('filterDomaine').value;
+  const statut = document.getElementById('filterStatut').value;
+  const gravite = document.getElementById('filterGravite').value;
+  const q = document.getElementById('filterSearch').value;
+  if (domaine) params.set('domaine', domaine);
+  if (statut) params.set('statut', statut);
+  if (gravite) params.set('gravite', gravite);
+  if (q) params.set('q', q);
+
+  fetch(API_BASE + '?' + params.toString()).then(r => r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyRow');
+    if (items.length === 0) { tbody.innerHTML = ''; tbody.appendChild(empty || createEmptyRow()); return; }
+    if (empty) empty.remove();
+    const sc = {'cloturee':'success','en_cours':'warning','ouverte':'danger'};
+    const gc = {'mineur':'info','majeur':'warning','critique':'danger'};
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><span class="fw-medium">${r.reference || ''}</span></td>
+      <td><small>${r.date_nc || ''}</small></td>
+      <td><span class="badge bg-secondary">${r.domaine}</span></td>
+      <td><small>${(r.description || '').substring(0, 80)}${(r.description || '').length > 80 ? '...' : ''}</small></td>
+      <td><span class="badge bg-${gc[r.gravite] || 'secondary'}">${r.gravite || ''}</span></td>
+      <td><small>${(r.action_corrective || '').substring(0, 60)}</small></td>
+      <td><span class="badge bg-${sc[r.statut] || 'secondary'}">${r.statut || ''}</span></td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="editNc(${r.id})" title="Modifier"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteNc(${r.id})" title="Supprimer"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+  });
+
+  fetch(STATS_URL).then(r => r.json()).then(s => {
+    document.getElementById('statTotal').textContent = s.total;
+    document.getElementById('statOuvertes').textContent = s.ouvertes;
+    document.getElementById('statEnCours').textContent = s.en_cours;
+    document.getElementById('statCloturees').textContent = s.cloturees;
+    document.getElementById('statCritiques').textContent = s.critique;
+    document.getElementById('statHaccp').textContent = s.haccp;
+  });
+}
+
+function saveNc() {
+  const id = document.getElementById('ncId').value;
+  const data = {
+    domaine: document.getElementById('ncDomaine').value,
+    date_nc: document.getElementById('ncDate').value,
+    reference: document.getElementById('ncReference').value,
+    gravite: document.getElementById('ncGravite').value,
+    statut: document.getElementById('ncStatut').value,
+    description: document.getElementById('ncDescription').value,
+    action_corrective: document.getElementById('ncAction').value,
+  };
+  if (document.getElementById('ncDomaine').value === 'qualite') {
+    data.produit_processus = document.getElementById('ncProduit').value;
+  }
+  if (document.getElementById('ncDomaine').value === 'haccp') {
+    data.source = document.getElementById('ncSource').value;
+    data.cause = document.getElementById('ncCause').value;
+    data.delai = document.getElementById('ncDelai').value;
+  }
+  const url = id ? UPDATE_URL.replace('0', id) : CREATE_URL;
+  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(r => r.json()).then(resp => {
+      if (resp.success) {
+        bootstrap.Modal.getInstance(document.getElementById('ncModal')).hide();
+        resetForm();
+        loadNcs();
+      }
+    });
+}
+
+function editNc(id) {
+  fetch(API_BASE).then(r => r.json()).then(items => {
+    const r = items.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('ncId').value = r.id;
+    document.getElementById('ncDomaine').value = r.domaine || 'qualite';
+    document.getElementById('ncDate').value = r.date_nc || '';
+    document.getElementById('ncReference').value = r.reference || '';
+    document.getElementById('ncGravite').value = r.gravite || 'majeur';
+    document.getElementById('ncStatut').value = r.statut || 'ouverte';
+    document.getElementById('ncDescription').value = r.description || '';
+    document.getElementById('ncAction').value = r.action_corrective || '';
+    document.getElementById('ncProduit').value = r.produit_processus || '';
+    document.getElementById('ncSource').value = r.source || '';
+    document.getElementById('ncCause').value = r.cause || '';
+    document.getElementById('ncDelai').value = r.delai || '';
+    toggleHaccpFields();
+    document.getElementById('ncModalTitle').textContent = 'Modifier la non-conformité';
+    new bootstrap.Modal(document.getElementById('ncModal')).show();
+  });
+}
+
+function deleteNc(id) {
+  if (!confirm('Supprimer cette non-conformité ?')) return;
+  fetch(DELETE_URL.replace('0', id), { method: 'POST' })
+    .then(r => r.json()).then(resp => { if (resp.success) loadNcs(); });
+}
+
+function resetForm() {
+  document.getElementById('ncId').value = '';
+  document.getElementById('ncDomaine').value = 'qualite';
+  document.getElementById('ncDate').value = '';
+  document.getElementById('ncReference').value = '';
+  document.getElementById('ncGravite').value = 'majeur';
+  document.getElementById('ncStatut').value = 'ouverte';
+  document.getElementById('ncDescription').value = '';
+  document.getElementById('ncAction').value = '';
+  document.getElementById('ncProduit').value = '';
+  document.getElementById('ncSource').value = '';
+  document.getElementById('ncCause').value = '';
+  document.getElementById('ncDelai').value = '';
+  document.getElementById('ncModalTitle').textContent = 'Nouvelle non-conformité';
+  toggleHaccpFields();
+}
+
+document.addEventListener('DOMContentLoaded', loadNcs);
+</script>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - Incidents{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="fas fa-bug me-2 text-danger"></i>Incidents & Accidents</h3>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau</button>
+  </div>
+  <div class="card border-0 shadow-sm mb-3"><div class="card-body py-2">
+    <div class="row g-2 align-items-center">
+      <div class="col-lg-3"><input type="text" id="fSearch" class="form-control form-control-sm" placeholder="Rechercher..."></div>
+      <div class="col-lg-2"><select id="fType" class="form-select form-select-sm"><option value="">Tous types</option><option value="accident">Accident</option><option value="presqu_accident">Presqu'accident</option><option value="incident">Incident</option></select></div>
+      <div class="col-lg-2"><select id="fStatut" class="form-select form-select-sm"><option value="">Tous statuts</option><option value="ouvert">Ouvert</option><option value="en_cours">En cours</option><option value="cloture">Clôturé</option><option value="analyse">Analyse</option></select></div>
+      <div class="col-lg-1"><button class="btn btn-sm btn-outline-danger" onclick="loadItems()"><i class="fas fa-search"></i></button></div>
+    </div>
+  </div></div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle"><thead class="table-light">
+        <tr><th>Date</th><th>Type</th><th>Lieu</th><th>Description</th><th>Gravité</th><th>Statut</th><th>Actions</th></tr>
+      </thead><tbody id="tableBody"></tbody></table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel incident</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId" value="">
+    <div class="row g-3">
+      <div class="col-md-4"><label class="form-label">Type <span class="text-danger">*</span></label><select id="fType2" class="form-select"><option value="accident">Accident</option><option value="presqu_accident">Presqu'accident</option><option value="incident">Incident</option></select></div>
+      <div class="col-md-4"><label class="form-label">Date <span class="text-danger">*</span></label><input type="date" id="fDate" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Gravité</label><select id="fGravite" class="form-select"><option value="mineur">Mineur</option><option value="majeur" selected>Majeur</option><option value="critique">Critique</option></select></div>
+      <div class="col-md-6"><label class="form-label">Lieu</label><input type="text" id="fLieu" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Zone</label><input type="text" id="fZone" class="form-control"></div>
+      <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="fDescription" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-4"><label class="form-label">Victimes</label><input type="text" id="fVictimes" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Jours d'arrêt</label><input type="number" id="fJoursArret" class="form-control" value="0"></div>
+      <div class="col-md-4"><label class="form-label">Statut</label><select id="fStatut2" class="form-select"><option value="ouvert">Ouvert</option><option value="en_cours">En cours</option><option value="analyse">Analyse</option><option value="cloture">Clôturé</option></select></div>
+      <div class="col-12"><label class="form-label">Cause initiale</label><textarea id="fCause" class="form-control" rows="2"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("hse.api_incidents") }}', CREATE='{{ url_for("hse.api_incidents_create") }}', UPDATE='{{ url_for("hse.api_incidents_update", item_id=0) }}', DELETE='{{ url_for("hse.api_incidents_delete", item_id=0) }}';
+const tc={'accident':'danger','presqu_accident':'warning','incident':'info'}, sc={'ouvert':'danger','en_cours':'warning','cloture':'success','analyse':'info'};
+function loadItems(){fetch(API).then(r=>r.json()).then(items=>{const t=document.getElementById('tableBody');t.innerHTML=items.map(r=>`<tr><td><small>${r.date_incident||''}</small></td><td><span class="badge bg-${tc[r.type_incident]||'secondary'}">${r.type_incident}</span></td><td>${r.lieu||''}</td><td><small>${(r.description||'').substring(0,80)}</small></td><td><span class="badge bg-${r.gravite==='critique'?'danger':r.gravite==='majeur'?'warning':'info'}">${r.gravite||''}</span></td><td><span class="badge bg-${sc[r.statut]||'secondary'}">${r.statut||''}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="editItem(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const data={type_incident:document.getElementById('fType2').value,date_incident:document.getElementById('fDate').value,lieu:document.getElementById('fLieu').value,zone:document.getElementById('fZone').value,description:document.getElementById('fDescription').value,victimes:document.getElementById('fVictimes').value,jours_arret:parseInt(document.getElementById('fJoursArret').value)||0,gravite:document.getElementById('fGravite').value,statut:document.getElementById('fStatut2').value,cause_initiale:document.getElementById('fCause').value};const url=id?UPDATE.replace('0',id):CREATE;fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()).then(resp=>{if(resp.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();resetForm();loadItems()}})}
+function editItem(id){fetch(API).then(r=>r.json()).then(items=>{const r=items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('fType2').value=r.type_incident||'incident';document.getElementById('fDate').value=r.date_incident||'';document.getElementById('fLieu').value=r.lieu||'';document.getElementById('fZone').value=r.zone||'';document.getElementById('fDescription').value=r.description||'';document.getElementById('fVictimes').value=r.victimes||'';document.getElementById('fJoursArret').value=r.jours_arret||0;document.getElementById('fGravite').value=r.gravite||'majeur';document.getElementById('fStatut2').value=r.statut||'ouvert';document.getElementById('fCause').value=r.cause_initiale||'';document.getElementById('modalTitle').textContent='Modifier incident';new bootstrap.Modal(document.getElementById('itemModal')).show()})}
+function deleteItem(id){if(!confirm('Supprimer?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)loadItems()})}
+function resetForm(){document.getElementById('itemId').value='';document.getElementById('fType2').value='accident';document.getElementById('fDate').value='';document.getElementById('fLieu').value='';document.getElementById('fZone').value='';document.getElementById('fDescription').value='';document.getElementById('fVictimes').value='';document.getElementById('fJoursArret').value='0';document.getElementById('fGravite').value='majeur';document.getElementById('fStatut2').value='ouvert';document.getElementById('fCause').value='';document.getElementById('modalTitle').textContent='Nouvel incident'}
+document.addEventListener('DOMContentLoaded',loadItems);
+</script>
+{% endblock %}

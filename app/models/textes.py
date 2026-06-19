@@ -53,6 +53,7 @@ class TexteVersion(db.Model):
     texte = db.relationship('TexteReglementaire', back_populates='versions', foreign_keys=[texte_id])
     createur = db.relationship('Utilisateur')
     version_precedente = db.relationship('TexteVersion', foreign_keys=[version_precedente_id])
+    articles = db.relationship('Article', back_populates='version')
     entreprise_textes = db.relationship('EntrepriseTexte', back_populates='version')
 
 
@@ -61,14 +62,16 @@ class Article(db.Model):
     texte_version_id = db.Column(db.Integer, db.ForeignKey('texte_version.id'))
     numero_article = db.Column(db.Integer)
     contenu = db.Column(db.Text)
-    exigence_type = db.Column(db.Enum(ExigenceType), nullable=False)
-    niveau_risque = db.Column(db.Enum(NiveauRisqueType), nullable=False)
+    exigence_type = db.Column(db.Enum(ExigenceType), default=ExigenceType.INFORMATION, nullable=False)
+    niveau_risque = db.Column(db.Enum(NiveauRisqueType), default=NiveauRisqueType.MOYEN, nullable=False)
     resume_article = db.Column(db.Text)
     acteur = db.Column(db.String(100))
     domaine = db.Column(db.String(100))
     mots_cles = db.Column(db.JSON)
-    hash_contenu = db.Column(db.String(64))
+    preuve_conformite = db.Column(db.Text, nullable=True)
+    explication_detaillee = db.Column(db.Text, nullable=True)
+    hash_contenu = db.Column(db.String(64), nullable=True)
 
-    version = db.relationship('TexteVersion')
+    version = db.relationship('TexteVersion', back_populates='articles')
     evaluations = db.relationship('EvaluationArticle', back_populates='article')
 

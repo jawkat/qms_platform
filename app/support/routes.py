@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
-from app import db, csrf
+from app import db
 from app.models import Ticket, MessageTicket
 from app.support import support
 from app.utils.tenant_scope import tenant_get_or_404
@@ -90,7 +90,6 @@ def detail_ticket(ticket_id):
 @support.route('/<int:ticket_id>/message', methods=['POST'])
 @login_required
 @has_permission('support.voir')
-@csrf.exempt
 def ajouter_message(ticket_id):
     ticket = tenant_get_or_404(Ticket, ticket_id)
     if ticket.statut == 'FERME':
@@ -121,7 +120,6 @@ def ajouter_message(ticket_id):
 @support.route('/<int:ticket_id>/fermer', methods=['POST'])
 @login_required
 @has_permission('support.fermer')
-@csrf.exempt
 def fermer_ticket(ticket_id):
     ticket = tenant_get_or_404(Ticket, ticket_id)
     if ticket.statut != 'FERME':

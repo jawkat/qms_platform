@@ -3,30 +3,124 @@
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Entreprises</h1>
-    <a href="{{ url_for('entreprises.create') }}" class="btn btn-danger"><i class="fas fa-plus me-1"></i>Nouvelle</a>
+    <h1 class="h3 mb-0"><i class="fas fa-building me-2 text-danger"></i>Entreprises</h1>
+    <div>
+      <button class="btn btn-outline-secondary me-2" onclick="loadData()">
+        <i class="fas fa-sync-alt me-1"></i>Actualiser
+      </button>
+      <a href="{{ url_for('entreprises.create') }}" class="btn btn-danger">
+        <i class="fas fa-plus me-1"></i>Nouvelle
+      </a>
+    </div>
   </div>
+
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr><th>Nom</th><th>Taille</th><th>Modules</th><th>Statut</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          {% for e in entreprises %}
-          <tr>
-            <td>{{ e.nom }}</td>
-            <td>{{ e.taille or '-' }}</td>
-            <td>{% for m in e.modules_actifs %}<span class="badge bg-info me-1">{{ m }}</span>{% endfor %}</td>
-            <td><span class="badge bg-{{ 'success' if e.statut == 'Actif' else 'secondary' }}">{{ e.statut or 'Actif' }}</span></td>
-            <td><a href="{{ url_for('entreprises.edit', entreprise_id=e.id) }}" class="btn btn-sm btn-outline-primary">Modifier</a></td>
-          </tr>
-          {% else %}
-          <tr><td colspan="5" class="text-center text-muted py-4">Aucune entreprise.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Nom</th>
+              <th>Taille</th>
+              <th>Plan</th>
+              <th>Modules</th>
+              <th>Utilisateurs</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="entreprisesTable">
+            <tr><td colspan="7" class="text-center text-muted py-4">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- Modal détail -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="detailNom">--</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+        <a href="#" class="btn btn-danger" id="detailEditBtn">Modifier</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadData() {
+  const tbody = document.getElementById('entreprisesTable');
+  tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm text-danger me-2"></div>Chargement...</td></tr>';
+  try {
+    const r = await fetch('{{ url_for("entreprises.api_liste") }}');
+    const items = await r.json();
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucune entreprise.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(e => `<tr>
+      <td><a href="javascript:void(0)" onclick="showDetail(${e.id})" class="text-decoration-none fw-semibold">${e.nom}</a></td>
+      <td>${e.taille || '-'}</td>
+      <td><span class="badge bg-info">${e.abonnement_type || '-'}</span></td>
+      <td>${(e.modules_actifs || []).map(m => `<span class="badge bg-secondary me-1">${m}</span>`).join('')}</td>
+      <td>${e.nb_utilisateurs}</td>
+      <td>${statutBadge(e.statut)}</td>
+      <td>
+        <a href="{{ url_for('entreprises.edit', entreprise_id=0) }}".replace('0', e.id) class="btn btn-sm btn-outline-primary me-1" title="Modifier">
+          <i class="fas fa-edit"></i>
+        </a>
+        <button class="btn btn-sm btn-outline-info" onclick="showDetail(${e.id})" title="Détails">
+          <i class="fas fa-eye"></i>
+        </button>
+      </td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Erreur de chargement.</td></tr>';
+  }
+}
+function statutBadge(s) {
+  const m = {'Actif': 'success', 'Suspendu': 'danger', 'Archive': 'secondary'};
+  return `<span class="badge bg-${m[s] || 'secondary'}">${s || 'Actif'}</span>`;
+}
+async function showDetail(id) {
+  const r = await fetch('{{ url_for("entreprises.api_detail", item_id=0) }}'.replace('0', id));
+  const e = await r.json();
+  document.getElementById('detailNom').textContent = e.nom;
+  document.getElementById('detailEditBtn').href = '{{ url_for("entreprises.edit", entreprise_id=0) }}'.replace('0', id);
+  document.getElementById('detailBody').innerHTML = `
+    <div class="row g-3">
+      <div class="col-md-6">
+        <table class="table table-sm">
+          <tr><th class="text-muted">Taille</th><td>${e.taille || '-'}</td></tr>
+          <tr><th class="text-muted">Pays</th><td>${e.pays || '-'}</td></tr>
+          <tr><th class="text-muted">Adresse</th><td>${e.adresse || '-'}</td></tr>
+          <tr><th class="text-muted">Téléphone</th><td>${e.telephone || '-'}</td></tr>
+          <tr><th class="text-muted">Statut</th><td>${statutBadge(e.statut)} ${e.motif_suspension ? '<small class="text-danger">(' + e.motif_suspension + ')</small>' : ''}</td></tr>
+        </table>
+      </div>
+      <div class="col-md-6">
+        <table class="table table-sm">
+          <tr><th class="text-muted">Plan</th><td>${e.plan_label || e.abonnement_type}</td></tr>
+          <tr><th class="text-muted">Prochaine échéance</th><td>${e.abonnement_prochaine_echeance || '-'}</td></tr>
+          <tr><th class="text-muted">Paiement</th><td>${e.abonnement_paye ? '<span class="badge bg-success">Payé</span>' : '<span class="badge bg-danger">Impayé</span>'}</td></tr>
+          <tr><th class="text-muted">Utilisateurs</th><td>${e.nb_utilisateurs}</td></tr>
+          <tr><th class="text-muted">Inscription</th><td>${e.date_inscription || '-'}</td></tr>
+          <tr><th class="text-muted">Modules</th><td>${(e.modules_actifs || []).map(m => `<span class="badge bg-secondary me-1">${m}</span>`).join('')}</td></tr>
+        </table>
+      </div>
+    </div>
+  `;
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+loadData();
+</script>
 {% endblock %}

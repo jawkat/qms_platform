@@ -297,25 +297,8 @@ def default_proof_validity_date(evaluation):
     return add_years_safe(base_date, DEFAULT_PROOF_VALIDITY_YEARS)
 
 
-def build_attachment_view(document=None, proof_reference=None):
-    """Create a unified view object for legacy Documents or ProofReferences."""
-    if document is not None:
-        return SimpleNamespace(
-            id=document.id,
-            nom_fichier=document.nom_fichier,
-            description=document.description or '',
-            validite=document.validite,
-            type=document.type or '',
-            date_upload=document.date_upload or datetime.utcnow(),
-            upload_par=document.upload_par,
-            chemin=document.chemin,
-            can_delete=True,
-            delete_url=url_for('conformite.delete_justificatif', evaluation_id=document.lie_a_id, doc_id=document.id),
-            detail_url=url_for('conformite.get_document', doc_id=document.id),
-            download_url=url_for('conformite.download_document_direct', doc_id=document.id),
-            source='document',
-        )
-
+def build_attachment_view(proof_reference=None):
+    """Create a unified view object from a ProofReference."""
     proof = proof_reference.proof_master if proof_reference else None
     if proof is None:
         return None
@@ -341,8 +324,6 @@ def build_attachment_view(document=None, proof_reference=None):
 def get_evaluation_attachment_views(evaluation):
     """Retrieve all attachments (legacy and new) for an evaluation."""
     attachments = []
-    for document in evaluation.justificatifs or []:
-        attachments.append(build_attachment_view(document=document))
     for proof_reference in evaluation.proof_references or []:
         attachment = build_attachment_view(proof_reference=proof_reference)
         if attachment is not None:
@@ -357,7 +338,6 @@ def build_proof_alert_rows(entreprise_id, state_filter='all', show_missing=False
         .join(EntrepriseTexte)
         .filter(EntrepriseTexte.entreprise_id == entreprise_id)
         .options(
-            selectinload(EvaluationArticle.justificatifs),
             selectinload(EvaluationArticle.proof_references).selectinload(ProofReference.proof_master),
         )
         .all()

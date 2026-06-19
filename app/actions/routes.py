@@ -1,6 +1,6 @@
 from flask import render_template, request, jsonify, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
-from app import db, csrf
+from app import db
 from app.models import ActionCorrective, ProofMaster, ProofReference, Utilisateur
 from app.actions import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
@@ -62,7 +62,6 @@ def api_liste_actions():
 @login_required
 @has_permission('actions.cree')
 @check_quota('actions')
-@csrf.exempt
 def api_create_action():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     data = request.get_json()
@@ -85,7 +84,6 @@ def api_create_action():
 @blueprint.route('/<int:action_id>', methods=['GET', 'POST'])
 @login_required
 @has_permission('actions.modifier')
-@csrf.exempt
 def detail_action(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
     responsables = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
@@ -120,7 +118,6 @@ def detail_action(action_id):
 @blueprint.route('/<int:action_id>/api/update', methods=['POST'])
 @login_required
 @has_permission('actions.modifier')
-@csrf.exempt
 def api_update_action(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
     data = request.get_json()
@@ -145,7 +142,6 @@ def api_update_action(action_id):
 @blueprint.route('/<int:action_id>/status', methods=['POST'])
 @login_required
 @has_permission('actions.modifier')
-@csrf.exempt
 def update_status(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
     new_status = request.json.get('statut') if request.is_json else request.form.get('statut')
@@ -163,10 +159,10 @@ def update_status(action_id):
 @blueprint.route('/<int:action_id>/proof/attach', methods=['POST'])
 @login_required
 @has_permission('actions.modifier')
-@csrf.exempt
 def attach_proof(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
     proof_id = request.json.get('proof_id') if request.is_json else request.form.get('proof_id')
+    ref = None
     if proof_id:
         ref = ProofService.attach_proof(
             entreprise_id=current_user.entreprise_id,
@@ -175,15 +171,17 @@ def attach_proof(action_id):
         )
         db.session.commit()
     if request.is_json:
-        return jsonify({'success': True, 'reference_id': ref.id if ref else None})
-    flash('Preuve attachee.', 'success')
+        return jsonify({'success': bool(ref), 'reference_id': ref.id if ref else None})
+    if ref:
+        flash('Preuve attachee.', 'success')
+    else:
+        flash('Erreur : preuve non trouvée.', 'danger')
     return redirect(url_for('actions.detail_action', action_id=action.id))
 
 
 @blueprint.route('/<int:action_id>/proof/detach/<int:ref_id>', methods=['POST'])
 @login_required
 @has_permission('actions.modifier')
-@csrf.exempt
 def detach_proof(action_id, ref_id):
     ref = tenant_get_or_404(ProofReference, ref_id)
     ProofService.detach_proof(ref.proof_master_id, ref.entity_type, ref.entity_id)
@@ -209,7 +207,6 @@ def list_proofs(action_id):
 @blueprint.route('/<int:action_id>/delete', methods=['POST'])
 @login_required
 @has_permission('actions.supprimer')
-@csrf.exempt
 def delete_action(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
     db.session.delete(action)

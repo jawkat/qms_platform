@@ -2,7 +2,7 @@ import os
 import uuid
 from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, current_app
 from flask_login import login_required, current_user
-from app import db, csrf
+from app import db
 from app.models import ProofMaster, ProofReference, Dossier, TypeDocument, WorkflowLog, Utilisateur
 from app.documents import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
@@ -12,6 +12,22 @@ from app.services.proof_service import ProofService
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, func
+
+
+def _check_ged_access():
+    from flask import abort
+    from app.models.entreprise import Entreprise
+    entreprise = db.session.get(Entreprise, current_user.entreprise_id)
+    if not entreprise or 'ged' not in (entreprise.modules_actifs or []):
+        abort(403)
+
+
+@blueprint.before_request
+@login_required
+def before_request_ged():
+    if request.endpoint and request.endpoint in ('documents.api_actives',):
+        return None
+    _check_ged_access()
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +154,6 @@ def api_dossiers():
 @blueprint.route('/api/dossiers/create', methods=['POST'])
 @login_required
 @has_permission('documents.upload')
-@csrf.exempt
 def dossier_create():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     nom = request.form.get('nom', '').strip()
@@ -161,7 +176,6 @@ def dossier_create():
 @blueprint.route('/api/dossiers/<int:dossier_id>/rename', methods=['POST'])
 @login_required
 @has_permission('documents.upload')
-@csrf.exempt
 def dossier_rename(dossier_id):
     dossier = Dossier.query.filter_by(
         id=dossier_id, entreprise_id=current_user.entreprise_id
@@ -177,7 +191,6 @@ def dossier_rename(dossier_id):
 @blueprint.route('/api/dossiers/<int:dossier_id>/move', methods=['POST'])
 @login_required
 @has_permission('documents.upload')
-@csrf.exempt
 def dossier_move(dossier_id):
     dossier = Dossier.query.filter_by(
         id=dossier_id, entreprise_id=current_user.entreprise_id
@@ -193,7 +206,6 @@ def dossier_move(dossier_id):
 @blueprint.route('/api/dossiers/<int:dossier_id>/delete', methods=['POST'])
 @login_required
 @has_permission('documents.archiver')
-@csrf.exempt
 def dossier_delete(dossier_id):
     dossier = Dossier.query.filter_by(
         id=dossier_id, entreprise_id=current_user.entreprise_id
@@ -213,7 +225,6 @@ def dossier_delete(dossier_id):
 @login_required
 @has_permission('documents.upload')
 @check_quota('documents')
-@csrf.exempt
 def upload():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     eid = current_user.entreprise_id
@@ -263,6 +274,10 @@ def upload():
         _log_workflow(proof.id, 'soumis', 'Soumis pour approbation', current_user.id)
 
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type and 'multipart/form-data' in request.content_type and request.args.get('format') == 'json':
+        return jsonify({'success': True, 'proof_id': proof.id})
+
     flash('Document uploadé avec succès.', 'success')
     return redirect(url_for('documents.detail', proof_id=proof.id))
 
@@ -324,7 +339,6 @@ def _log_workflow(proof_id, action, commentaire, user_id):
 @blueprint.route('/<int:proof_id>/soumettre', methods=['POST'])
 @login_required
 @has_permission('documents.workflow')
-@csrf.exempt
 def soumettre(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     if proof.workflow_statut != 'brouillon':
@@ -350,7 +364,6 @@ def soumettre(proof_id):
 @blueprint.route('/<int:proof_id>/approuver', methods=['POST'])
 @login_required
 @has_permission('documents.workflow')
-@csrf.exempt
 def approuver(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     if proof.workflow_statut != 'soumis':
@@ -373,7 +386,6 @@ def approuver(proof_id):
 @blueprint.route('/<int:proof_id>/rejeter', methods=['POST'])
 @login_required
 @has_permission('documents.workflow')
-@csrf.exempt
 def rejeter(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     if proof.workflow_statut != 'soumis':
@@ -398,7 +410,6 @@ def rejeter(proof_id):
 @blueprint.route('/<int:proof_id>/demander-revision', methods=['POST'])
 @login_required
 @has_permission('documents.workflow')
-@csrf.exempt
 def demander_revision(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     commentaire = request.form.get('commentaire', '').strip()
@@ -421,7 +432,6 @@ def demander_revision(proof_id):
 @login_required
 @has_permission('documents.upload')
 @check_quota('documents')
-@csrf.exempt
 def nouvelle_version(proof_id):
     old_proof = tenant_get_or_404(ProofMaster, proof_id)
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
@@ -501,7 +511,6 @@ def api_types():
 @blueprint.route('/api/types/create', methods=['POST'])
 @login_required
 @has_permission('documents.upload')
-@csrf.exempt
 def type_create():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     nom = request.form.get('nom', '').strip()
@@ -524,7 +533,6 @@ def type_create():
 @blueprint.route('/api/types/<int:type_id>/update', methods=['POST'])
 @login_required
 @has_permission('documents.upload')
-@csrf.exempt
 def type_update(type_id):
     td = TypeDocument.query.filter_by(
         id=type_id, entreprise_id=current_user.entreprise_id
@@ -540,7 +548,6 @@ def type_update(type_id):
 @blueprint.route('/api/types/<int:type_id>/delete', methods=['POST'])
 @login_required
 @has_permission('documents.archiver')
-@csrf.exempt
 def type_delete(type_id):
     td = TypeDocument.query.filter_by(
         id=type_id, entreprise_id=current_user.entreprise_id
@@ -671,7 +678,6 @@ def download(proof_id):
 @blueprint.route('/<int:proof_id>/archiver', methods=['POST'])
 @login_required
 @has_permission('documents.archiver')
-@csrf.exempt
 def archiver(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     _log_workflow(proof_id, 'archive', 'Document archivé', current_user.id)
@@ -684,7 +690,6 @@ def archiver(proof_id):
 @blueprint.route('/<int:proof_id>/supprimer', methods=['POST'])
 @login_required
 @has_permission('documents.archiver')
-@csrf.exempt
 def supprimer(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], proof.chemin)
@@ -699,7 +704,6 @@ def supprimer(proof_id):
 @blueprint.route('/<int:proof_id>/mettre_a_jour', methods=['POST'])
 @login_required
 @has_permission('documents.upload')
-@csrf.exempt
 def mettre_a_jour(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     proof.description = request.form.get('description', proof.description)

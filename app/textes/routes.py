@@ -2,7 +2,7 @@ from datetime import datetime, date, timedelta
 
 from flask import render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
-from app import db, csrf
+from app import db
 from app.models import Domaine, TexteReglementaire, TexteVersion, Article, ExigenceType, NiveauRisqueType, Secteur, EntrepriseTexte, EvaluationArticle, ConformiteEnum
 from app.textes import textes
 from app.utils.permissions import has_permission
@@ -264,7 +264,7 @@ def api_article_update(article_id):
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Données JSON requises'}), 400
-    for field in ('numero_article', 'contenu', 'resume_article', 'acteur'):
+    for field in ('numero_article', 'contenu', 'resume_article', 'explication_detaillee', 'preuve_conformite', 'acteur'):
         if field in data:
             setattr(article, field, data[field])
     if 'exigence_type' in data:
@@ -294,7 +294,6 @@ def api_article_delete(article_id):
 @textes.route('/create', methods=['GET', 'POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def create_texte():
     if request.method == 'POST':
         texte = TexteReglementaire(
@@ -326,7 +325,6 @@ def create_texte():
 @textes.route('/<int:texte_id>/edit', methods=['GET', 'POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def edit_texte(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     if request.method == 'POST':
@@ -353,7 +351,6 @@ def edit_texte(texte_id):
 @textes.route('/<int:texte_id>/delete', methods=['POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def delete_texte(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     TexteVersion.query.filter_by(texte_id=texte_id).delete()
@@ -366,7 +363,6 @@ def delete_texte(texte_id):
 @textes.route('/<int:texte_id>/version/create', methods=['GET', 'POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def create_version(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     if request.method == 'POST':
@@ -398,7 +394,6 @@ def create_version(texte_id):
 @textes.route('/version/<int:version_id>/edit', methods=['GET', 'POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def edit_version(version_id):
     version = TexteVersion.query.get_or_404(version_id)
     if request.method == 'POST':
@@ -427,7 +422,6 @@ def edit_version(version_id):
 @textes.route('/version/<int:version_id>/delete', methods=['POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def delete_version(version_id):
     version = TexteVersion.query.get_or_404(version_id)
     texte_id = version.texte_id
@@ -443,7 +437,6 @@ def delete_version(version_id):
 @textes.route('/version/<int:version_id>/article/create', methods=['GET', 'POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def create_article(version_id):
     version = TexteVersion.query.get_or_404(version_id)
     if request.method == 'POST':
@@ -456,6 +449,8 @@ def create_article(version_id):
             exigence_type=exigence,
             niveau_risque=risque,
             resume_article=request.form.get('resume_article'),
+            explication_detaillee=request.form.get('explication_detaillee'),
+            preuve_conformite=request.form.get('preuve_conformite'),
             acteur=request.form.get('acteur'),
         )
         db.session.add(article)
@@ -469,13 +464,14 @@ def create_article(version_id):
 @textes.route('/article/<int:article_id>/edit', methods=['GET', 'POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def edit_article(article_id):
     article = Article.query.get_or_404(article_id)
     if request.method == 'POST':
         article.numero_article = request.form.get('numero_article', type=int)
         article.contenu = request.form.get('contenu')
         article.resume_article = request.form.get('resume_article')
+        article.explication_detaillee = request.form.get('explication_detaillee')
+        article.preuve_conformite = request.form.get('preuve_conformite')
         article.acteur = request.form.get('acteur')
         if request.form.get('exigence_type'):
             article.exigence_type = ExigenceType[request.form['exigence_type']]
@@ -491,7 +487,6 @@ def edit_article(article_id):
 @textes.route('/article/<int:article_id>/delete', methods=['POST'])
 @login_required
 @has_permission('textes.modifier')
-@csrf.exempt
 def delete_article(article_id):
     article = Article.query.get_or_404(article_id)
     version_id = article.texte_version_id

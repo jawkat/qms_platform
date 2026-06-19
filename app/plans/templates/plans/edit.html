@@ -1,0 +1,68 @@
+{% extends 'layout.html' %}
+{% block title %}Modifier {{ plan.label }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4">Modifier {{ plan.label }}</h1>
+  <div class="card border-0 shadow-sm" style="max-width: 700px;">
+    <div class="card-body">
+      <form method="POST">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-semibold">Clé <span class="text-danger">*</span></label>
+            <input type="text" name="plan_key" class="form-control" value="{{ plan.plan_key }}" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-semibold">Label <span class="text-danger">*</span></label>
+            <input type="text" name="label" class="form-control" value="{{ plan.label }}" required>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-semibold">Prix (MAD/an)</label>
+            <input type="number" name="price_mad" class="form-control" value="{{ plan.price_mad }}" min="0">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-semibold">Max utilisateurs</label>
+            <input type="number" name="max_users" class="form-control" value="{{ plan.max_users }}" min="1">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-semibold">Jours d'essai</label>
+            <input type="number" name="trial_days" class="form-control" value="{{ plan.trial_days }}" min="0">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-semibold">Max documents</label>
+            <input type="number" name="max_documents" class="form-control" value="{{ plan.max_documents }}" min="0">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-semibold">Max actions</label>
+            <input type="number" name="max_open_actions" class="form-control" value="{{ plan.max_open_actions }}" min="0">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-semibold">Stockage (Mo)</label>
+            <input type="number" name="max_storage_mb" class="form-control" value="{{ plan.max_storage_mb }}" min="0">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Fonctionnalités (JSON)</label>
+          <textarea name="features" class="form-control" rows="3">{{ plan.features is mapping and plan.features|tojson or plan.features }}</textarea>
+        </div>
+        <div class="form-check mb-3">
+          <input type="checkbox" name="is_active" class="form-check-input" value="true"
+            {% if plan.is_active %}checked{% endif %} id="isActive">
+          <label class="form-check-label fw-semibold" for="isActive">Actif</label>
+        </div>
+        <div class="d-flex gap-2 pt-3 border-top">
+          <a href="{{ url_for('plans.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>Annuler
+          </a>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-save me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

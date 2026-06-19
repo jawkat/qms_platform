@@ -57,6 +57,7 @@
                   <i class="fas fa-eye"></i>
                 </a>
                 <form method="POST" action="{{ url_for('admin.entreprise_suspendre', eid=item.entreprise.id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm {% if item.entreprise.statut == 'Actif' %}btn-outline-danger{% else %}btn-outline-success{% endif %}"
                           onclick="return confirm('Confirmer la {% if item.entreprise.statut == 'Actif' %}suspension{% else %}réactivation{% endif %} de {{ item.entreprise.nom }} ?')">
                     <i class="fas {% if item.entreprise.statut == 'Actif' %}fa-pause{% else %}fa-play{% endif %}"></i>

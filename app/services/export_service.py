@@ -173,7 +173,7 @@ def run_evaluation_export(texte_id, entreprise_id, output_path):
     from sqlalchemy import and_
     from sqlalchemy.orm import selectinload
     from app import db
-    from app.models import EvaluationArticle, EntrepriseTexte, Article, ActionCorrective
+    from app.models import EvaluationArticle, EntrepriseTexte, Article, ActionCorrective, ProofReference
 
     stats = {
         'texte_id': texte_id,
@@ -220,7 +220,7 @@ def run_evaluation_export(texte_id, entreprise_id, output_path):
             .filter(Article.texte_version_id == entreprise_texte.texte_version_id)
             .options(
                 selectinload(Article.evaluations),
-                selectinload(EvaluationArticle.justificatifs),
+                selectinload(EvaluationArticle.proof_references).selectinload(ProofReference.proof_master),
                 selectinload(EvaluationArticle.actions),
             )
             .order_by(Article.numero_article)
@@ -263,7 +263,11 @@ def run_evaluation_export(texte_id, entreprise_id, output_path):
             commentaire = ''
             if evaluation:
                 preuves = ', '.join(
-                    sorted({doc.nom_fichier for doc in evaluation.justificatifs if doc.nom_fichier})
+                    sorted({
+                        ref.proof_master.nom_fichier
+                        for ref in (evaluation.proof_references or [])
+                        if ref.proof_master and ref.proof_master.nom_fichier
+                    })
                 )
                 actions = ', '.join(
                     [action.description for action in evaluation.actions if action.description]

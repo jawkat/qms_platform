@@ -5,23 +5,37 @@
 <div class="min-vh-100 d-flex align-items-center justify-content-center bg-light">
   <div class="card shadow" style="width: 400px;">
     <div class="card-body p-4">
-      <h4 class="text-center mb-4"><i class="fas fa-shield-alt text-danger me-2"></i>QMS Platform</h4>
+      <div class="text-center mb-4">
+        <i class="fas fa-shield-alt text-danger" style="font-size:2.5rem;"></i>
+        <h4 class="mt-2 mb-1">QMS Platform</h4>
+        <p class="text-muted small mb-0">Connectez-vous à votre compte</p>
+      </div>
       <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
           <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-control" required>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+            <input type="email" name="email" class="form-control" required placeholder="votre@email.com">
+          </div>
         </div>
         <div class="mb-3">
           <label class="form-label">Mot de passe</label>
-          <input type="password" name="password" class="form-control" required>
+          <div class="password-wrapper">
+            <input type="password" name="password" class="form-control" required placeholder="Votre mot de passe">
+          </div>
         </div>
-        <button type="submit" class="btn btn-danger w-100">Se connecter</button>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="remember" name="remember">
+            <label class="form-check-label small" for="remember">Se souvenir de moi</label>
+          </div>
+          <a href="{{ url_for('users.forgot_password') }}" class="small text-danger">Mot de passe oublié ?</a>
+        </div>
+        <button type="submit" class="btn btn-danger w-100"><i class="fas fa-sign-in-alt me-1"></i>Se connecter</button>
       </form>
       <div class="text-center mt-3">
-        <a href="{{ url_for('users.forgot_password') }}" class="text-muted small">Mot de passe oublié ?</a>
-      </div>
-      <div class="text-center mt-2">
-        <p class="text-muted small">Pas encore de compte ? <a href="{{ url_for('users.register') }}" class="text-danger">Creer un compte</a></p>
+        <p class="text-muted small mb-0">Pas encore de compte ? <a href="{{ url_for('users.register') }}" class="text-danger fw-medium">Créer un compte</a></p>
       </div>
     </div>
   </div>

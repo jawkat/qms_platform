@@ -1,0 +1,90 @@
+{% extends 'layout.html' %}
+{% block title %}Formations{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-graduation-cap me-2" style="color:#7c3aed;"></i>Formations</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle formation</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Titre</th><th>Thème</th><th>Formateur</th><th>Durée (h)</th><th>Date</th><th>Évaluation</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle formation</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Titre <span class="text-danger">*</span></label><input type="text" id="f_titre" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Thème</label><input type="text" id="f_theme" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Formateur</label><input type="text" id="f_formateur" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Participants</label><input type="text" id="f_participants" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Durée (heures)</label><input type="number" id="f_duree" class="form-control" step="0.5"></div>
+          <div class="col-md-4"><label class="form-label">Date</label><input type="date" id="f_date" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Évaluation</label><input type="text" id="f_evaluation" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("formations.api_liste") }}'; const CREATE = '{{ url_for("formations.api_creer") }}';
+const UPDATE = '{{ url_for("formations.api_modifier", item_id=0) }}'; const DELETE = '{{ url_for("formations.api_supprimer", item_id=0) }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucune formation</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.titre||''}</td><td>${r.theme||''}</td><td>${r.formateur||''}</td>
+      <td>${r.duree_heures||''}</td>
+      <td>${r.date_formation ? new Date(r.date_formation).toLocaleDateString('fr-FR') : ''}</td>
+      <td>${r.evaluation||''}</td>
+      <td><span class="badge bg-${r.statut==='planifiee'?'warning':r.statut==='realisee'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { titre: document.getElementById('f_titre').value, theme: document.getElementById('f_theme').value,
+    formateur: document.getElementById('f_formateur').value, participants: document.getElementById('f_participants').value,
+    duree_heures: document.getElementById('f_duree').value, date_formation: document.getElementById('f_date').value,
+    evaluation: document.getElementById('f_evaluation').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_titre').value = r.titre||'';
+    document.getElementById('f_theme').value = r.theme||''; document.getElementById('f_formateur').value = r.formateur||'';
+    document.getElementById('f_participants').value = r.participants||''; document.getElementById('f_duree').value = r.duree_heures||'';
+    document.getElementById('f_date').value = r.date_formation || ''; document.getElementById('f_evaluation').value = r.evaluation||'';
+    document.getElementById('modalTitle').textContent = 'Modifier la formation';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() { document.getElementById('itemId').value = ''; ['f_titre','f_theme','f_formateur','f_participants','f_duree','f_date','f_evaluation'].forEach(id => document.getElementById(id).value = ''); document.getElementById('modalTitle').textContent = 'Nouvelle formation'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

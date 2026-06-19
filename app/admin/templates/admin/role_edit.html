@@ -15,6 +15,7 @@
   <div class="row justify-content-center">
     <div class="col-lg-10">
       <form method="POST" action="{{ url_for('admin.role_update', role_id=role.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-body p-4">
             <div class="mb-3">

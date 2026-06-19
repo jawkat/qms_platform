@@ -76,26 +76,64 @@
           <div>
             {% if evaluation.article and evaluation.article.exigence_type %}
             <span class="badge bg-{{ 'danger' if evaluation.article.exigence_type.name in ('OBLIGATION','INTERDICTION') else 'warning' if evaluation.article.exigence_type.name == 'RECOMMANDATION' else 'info' }} me-1">
-              {{ evaluation.article.exigence_type.value }}
+              <i class="fas fa-{{ 'gavel' if evaluation.article.exigence_type.name == 'OBLIGATION' else 'ban' if evaluation.article.exigence_type.name == 'INTERDICTION' else 'lightbulb' if evaluation.article.exigence_type.name == 'RECOMMANDATION' else 'info-circle' }} me-1"></i>{{ evaluation.article.exigence_type.value }}
             </span>
             {% endif %}
             {% if evaluation.article and evaluation.article.niveau_risque %}
             <span class="badge bg-{{ 'danger' if evaluation.article.niveau_risque.name in ('CRITIQUE','ELEVE') else 'warning' if evaluation.article.niveau_risque.name == 'MOYEN' else 'secondary' }}">
-              {{ evaluation.article.niveau_risque.value }}
+              <i class="fas fa-{{ 'exclamation-triangle' if evaluation.article.niveau_risque.name in ('CRITIQUE','ELEVE') else 'exclamation-circle' if evaluation.article.niveau_risque.name == 'MOYEN' else 'info-circle' }} me-1"></i>{{ evaluation.article.niveau_risque.value }}
             </span>
             {% endif %}
           </div>
         </div>
         <div class="card-body">
           {% if evaluation.article %}
+
+          <!-- Résumé -->
           {% if evaluation.article.resume_article %}
-          <p class="fw-medium mb-2">{{ evaluation.article.resume_article }}</p>
-          {% endif %}
-          {% if evaluation.article.contenu %}
-          <div class="bg-light p-3 rounded small" style="max-height:300px;overflow-y:auto">
-            {{ evaluation.article.contenu }}
+          <div class="mb-3">
+            <h6 class="text-muted mb-1"><i class="fas fa-align-left me-1"></i>Résumé de l'article</h6>
+            <p class="fw-medium mb-0">{{ evaluation.article.resume_article }}</p>
           </div>
           {% endif %}
+
+          <!-- Contenu HTML -->
+          {% if evaluation.article.explication_detaillee or evaluation.article.contenu %}
+          <div class="mb-3">
+            <h6 class="text-muted mb-1"><i class="fas fa-file-alt me-1"></i>Détails de l'article</h6>
+            <div class="bg-light p-3 rounded small" style="max-height:400px;overflow-y:auto">
+              {% if evaluation.article.explication_detaillee %}
+              <div class="mb-2"><strong>Cet article dispose que :</strong></div>
+              {{ evaluation.article.explication_detaillee | safe }}
+              {% elif evaluation.article.contenu %}
+              {{ evaluation.article.contenu | safe }}
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Métadonnées -->
+          <div class="row g-2 mt-2">
+            {% if evaluation.article.domaine %}
+            <div class="col-auto">
+              <span class="badge bg-light text-dark border"><i class="fas fa-globe me-1"></i>Domaine : {{ evaluation.article.domaine }}</span>
+            </div>
+            {% endif %}
+            {% if evaluation.article.acteur %}
+            <div class="col-auto">
+              <span class="badge bg-light text-dark border"><i class="fas fa-user me-1"></i>Acteur : {{ evaluation.article.acteur }}</span>
+            </div>
+            {% endif %}
+          </div>
+
+          {% if evaluation.article.mots_cles %}
+          <div class="mt-2">
+            {% for mc in evaluation.article.mots_cles %}
+            <span class="badge bg-secondary me-1">{{ mc }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
           {% else %}
           <p class="text-muted mb-0">Article non disponible.</p>
           {% endif %}
@@ -204,6 +242,21 @@
 
         <!-- Panel: Preuves -->
         <div class="tab-pane fade" id="panel-preuves" role="tabpanel">
+          <!-- Comment prouver la conformité -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0"><i class="fas fa-lightbulb me-2 text-warning"></i>Comment prouver la conformité</h6>
+            </div>
+            <div class="card-body">
+              {% if evaluation.article and evaluation.article.preuve_conformite %}
+              <p class="mb-0 small">{{ evaluation.article.preuve_conformite }}</p>
+              {% else %}
+              <p class="small text-muted mb-0">Documentation attestant de la conformité à l'article (registres, rapports, procès-verbaux, affichages).</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Preuves attachées -->
           <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
               <h6 class="mb-0"><i class="fas fa-paperclip me-2 text-danger"></i>Preuves attachées</h6>
@@ -436,20 +489,85 @@
 
 <!-- Attach Proof Modal -->
 <div class="modal fade" id="attachProofModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Attacher une preuve</h5>
+        <h5 class="modal-title"><i class="fas fa-paperclip me-2 text-danger"></i>Attacher une preuve</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <select id="proofSelect" class="form-select" size="10">
-          <option value="" disabled>Chargement...</option>
-        </select>
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabExisting" type="button">
+              <i class="fas fa-list me-1"></i>Existant
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabUpload" type="button">
+              <i class="fas fa-upload me-1"></i>Nouveau
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- Existing proofs -->
+          <div class="tab-pane fade show active" id="tabExisting">
+            <div class="mb-2">
+              <input type="text" id="proofSearch" class="form-control form-control-sm" placeholder="Rechercher par nom ou catégorie..." oninput="filterProofs()">
+            </div>
+            <div id="proofListContainer" style="max-height:300px;overflow-y:auto">
+              <div class="text-center text-muted py-3"><small>Chargement...</small></div>
+            </div>
+          </div>
+
+          <!-- Upload new proof -->
+          <div class="tab-pane fade" id="tabUpload">
+            <form id="uploadProofForm" enctype="multipart/form-data">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Fichier <span class="text-danger">*</span></label>
+                  <input type="file" name="file" id="proofFile" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Nom</label>
+                  <input type="text" name="nom_fichier" id="proofNom" class="form-control">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Catégorie</label>
+                  <select name="categorie" id="proofCategorie" class="form-select">
+                    <option value="">— Sélectionner —</option>
+                    <option value="registre">Registre</option>
+                    <option value="rapport">Rapport</option>
+                    <option value="procedure">Procédure</option>
+                    <option value="certificat">Certificat</option>
+                    <option value="pv">Procès-verbal</option>
+                    <option value="affichage">Affichage</option>
+                    <option value="photo">Photo</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Description</label>
+                  <textarea name="description" id="proofDescription" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Date de validité</label>
+                  <input type="date" name="validite" id="proofValidite" class="form-control">
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="button" class="btn btn-danger" id="btnAttachProof">Attacher</button>
+        <button type="button" class="btn btn-danger d-none" id="btnUploadProof">
+          <i class="fas fa-upload me-1"></i>Uploader et attacher
+        </button>
+        <button type="button" class="btn btn-danger" id="btnAttachProof">
+          <i class="fas fa-link me-1"></i>Attacher
+        </button>
       </div>
     </div>
   </div>
@@ -494,6 +612,7 @@ function autoSavePartial() {
   status.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement...';
   fetch(window.location.href, {
     method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
     body: new URLSearchParams(formData)
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.success) {
@@ -589,31 +708,128 @@ document.getElementById('btnSaveAction').addEventListener('click', function() {
 });
 
 // === Attach Proof ===
+var selectedProofId = null;
+
+function filterProofs() {
+  var search = document.getElementById('proofSearch').value.toLowerCase();
+  document.querySelectorAll('#proofListContainer .proof-item').forEach(function(item) {
+    var text = (item.dataset.name + ' ' + item.dataset.categorie).toLowerCase();
+    item.style.display = text.includes(search) ? '' : 'none';
+  });
+}
+
+function loadProofList() {
+  var container = document.getElementById('proofListContainer');
+  container.innerHTML = '<div class="text-center text-muted py-3"><small>Chargement...</small></div>';
+  fetch('/documents/api/actives').then(function(r) { return r.json(); }).then(function(proofs) {
+    if (!proofs.length) {
+      container.innerHTML = '<div class="text-center text-muted py-3"><small>Aucun document disponible. Uploadez-en un dans l\'onglet "Nouveau".</small></div>';
+      return;
+    }
+    container.innerHTML = proofs.map(function(p) {
+      var cat = p.categorie || '';
+      var catBadge = cat ? '<span class="badge bg-secondary ms-1">' + cat + '</span>' : '';
+      return '<div class="proof-item list-group-item list-group-item-action d-flex align-items-center gap-2 py-2" ' +
+        'data-proof-id="' + p.id + '" data-name="' + (p.nom_fichier || '') + '" data-categorie="' + cat + '" ' +
+        'onclick="selectProof(this, ' + p.id + ')" style="cursor:pointer">' +
+        '<i class="fas fa-file text-muted"></i>' +
+        '<span class="flex-grow-1">' +
+          '<div class="fw-medium small">' + (p.nom_fichier || 'Sans nom') + catBadge + '</div>' +
+          '<small class="text-muted">' + (p.description || '') + '</small>' +
+        '</span>' +
+        '<i class="fas fa-check-circle text-success d-none check-icon"></i>' +
+      '</div>';
+    }).join('');
+  }).catch(function() {
+    container.innerHTML = '<div class="text-center text-muted py-3"><small>Erreur de chargement.</small></div>';
+  });
+}
+
+function selectProof(el, id) {
+  document.querySelectorAll('#proofListContainer .proof-item').forEach(function(item) {
+    item.classList.remove('active');
+    item.querySelector('.check-icon').classList.add('d-none');
+  });
+  el.classList.add('active');
+  el.querySelector('.check-icon').classList.remove('d-none');
+  selectedProofId = id;
+}
+
 document.getElementById('btnAttachProof').addEventListener('click', function() {
-  var sel = document.getElementById('proofSelect');
-  var proofId = sel.value;
-  if (!proofId || !proofId.startsWith('p')) return;
+  if (!selectedProofId) { alert('Veuillez sélectionner une preuve.'); return; }
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Attachement...';
   fetch('/conformite/evaluation/{{ evaluation.id }}/proof/attach', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({proof_id: parseInt(proofId.slice(1))})
+    body: JSON.stringify({proof_id: selectedProofId})
   }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.success) {
-      var modal = bootstrap.Modal.getInstance(document.getElementById('attachProofModal'));
-      if (modal) modal.hide();
+      bootstrap.Modal.getInstance(document.getElementById('attachProofModal')).hide();
       loadProofs();
+      selectedProofId = null;
     }
+  }).catch(function() {
+    alert('Erreur lors de l\'attachement.');
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-link me-1"></i>Attacher';
   });
 });
 
-document.getElementById('attachProofModal').addEventListener('show.bs.modal', function() {
-  var sel = document.getElementById('proofSelect');
-  sel.innerHTML = '<option value="" disabled>Chargement...</option>';
-  fetch('/documents/api/actives').then(function(r) { return r.json(); }).then(function(proofs) {
-    sel.innerHTML = proofs.length
-      ? proofs.map(function(p) { return '<option value="p' + p.id + '">' + (p.nom_fichier || '') + (p.description ? ' — ' + p.description : '') + '</option>'; }).join('')
-      : '<option value="" disabled>Aucun document disponible.</option>';
+// === Upload new proof and attach ===
+document.getElementById('btnUploadProof').addEventListener('click', function() {
+  var file = document.getElementById('proofFile').files[0];
+  if (!file) { alert('Veuillez sélectionner un fichier.'); return; }
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Upload...';
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('nom_fichier', document.getElementById('proofNom').value || file.name);
+  formData.append('categorie', document.getElementById('proofCategorie').value);
+  formData.append('description', document.getElementById('proofDescription').value);
+  formData.append('validite', document.getElementById('proofValidite').value);
+  fetch('/documents/upload?format=json', {
+    method: 'POST',
+    body: formData
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success && d.proof_id) {
+      return fetch('/conformite/evaluation/{{ evaluation.id }}/proof/attach', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({proof_id: d.proof_id})
+      }).then(function(r) { return r.json(); });
+    }
+    throw new Error('Upload failed');
+  }).then(function(d) {
+    if (d.success) {
+      bootstrap.Modal.getInstance(document.getElementById('attachProofModal')).hide();
+      loadProofs();
+      document.getElementById('uploadProofForm').reset();
+    }
+  }).catch(function() {
+    alert('Erreur lors de l\'upload.');
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload me-1"></i>Uploader et attacher';
   });
 });
+
+// Show/hide buttons based on active tab
+document.getElementById('attachProofModal').addEventListener('show.bs.modal', function() {
+  selectedProofId = null;
+  loadProofList();
+  updateModalButtons();
+});
+document.querySelectorAll('#attachProofModal .nav-link').forEach(function(tab) {
+  tab.addEventListener('shown.bs.tab', updateModalButtons);
+});
+function updateModalButtons() {
+  var isUpload = document.querySelector('#attachProofModal .nav-link.active').getAttribute('data-bs-target') === '#tabUpload';
+  document.getElementById('btnAttachProof').classList.toggle('d-none', isUpload);
+  document.getElementById('btnUploadProof').classList.toggle('d-none', !isUpload);
+}
 </script>
 {% endblock %}

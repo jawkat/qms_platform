@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block title %}Créneaux démo - Admin QMS{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="fas fa-calendar me-2"></i>Réservations démo</h4>
+  <a href="{{ url_for('admin.demo_disponibilites') }}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-clock me-1"></i>Disponibilités
+  </a>
+</div>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Date</th><th>Contact</th><th>Email</th><th>Visio</th><th>Rappels</th><th>Statut</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in creneaux %}
+      <tr>
+        <td>{{ c.date_heure_debut.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>{{ c.nom_contact }}</td>
+        <td>{{ c.email_contact }}</td>
+        <td>{% if c.lien_visio %}<a href="{{ c.lien_visio }}" target="_blank" class="small"><i class="fas fa-video me-1"></i>Rejoindre</a>{% else %}<span class="text-muted small">--</span>{% endif %}</td>
+        <td><span class="badge bg-{% if c.nb_rappels and c.nb_rappels > 0 %}info{% else %}light text-muted{% endif %}">{{ c.nb_rappels or 0 }}</span></td>
+        <td>
+          <span class="badge {% if c.statut == 'reserve' %}bg-warning text-dark{% elif c.statut == 'confirme' %}bg-success{% elif c.statut == 'annule' %}bg-secondary{% endif %}">
+            {{ c.statut }}
+          </span>
+        </td>
+        <td>
+          {% if c.statut == 'reserve' or c.statut == 'confirme' %}
+          <form method="POST" action="{{ url_for('admin.demo_rappel_creneau', creneau_id=c.id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-info"><i class="fas fa-bell"></i> Rappel</button>
+          </form>
+          {% endif %}
+          {% if c.statut == 'reserve' %}
+          <form method="POST" action="{{ url_for('admin.demo_confirmer_creneau', creneau_id=c.id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-success" onclick="return confirm('Confirmer ce rendez-vous ?')"><i class="fas fa-check"></i> Confirmer</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.demo_annuler_creneau', creneau_id=c.id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Annuler ce créneau ?')"><i class="fas fa-times"></i> Annuler</button>
+          </form>
+          {% elif c.statut == 'confirme' %}
+          <span class="text-success small"><i class="fas fa-check-circle"></i> Validé</span>
+          {% else %}
+          <span class="text-muted small">--</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">Aucune réservation dans les 30 prochains jours.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</div>
+{% endblock %}

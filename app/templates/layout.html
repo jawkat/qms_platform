@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}QMS Platform{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% block head_meta %}{% endblock %}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
@@ -40,14 +42,20 @@
       background: rgba(255,255,255,.1);
     }
     .sidebar .nav-link.active { border-left: 3px solid var(--primary); }
-    .sidebar-section h6 {
-      font-size: .7rem;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      color: rgba(255,255,255,.4);
-      padding: 0 .75rem;
-      margin: 1.5rem 0 .5rem;
+    .sidebar-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; padding: .5rem .75rem; border-radius: .375rem;
+      margin-top: .25rem; margin-bottom: .125rem;
+      transition: background .2s; user-select: none;
     }
+    .sidebar-section-header:hover { background: rgba(255,255,255,.05); }
+    .sidebar-section-header h6 { margin: 0; }
+    .sidebar-section-header .chevron { font-size: .65rem; color: rgba(255,255,255,.3); transition: transform .25s; }
+    .sidebar-section-header .chevron.open { transform: rotate(180deg); }
+    .sidebar-collapse { overflow: hidden; transition: max-height .3s ease; max-height: 0; }
+    .sidebar-collapse.open { max-height: 600px; }
+    .sidebar-collapse .nav-item:first-child { margin-top: .25rem; }
+    .sidebar-section:first-child .sidebar-section-header { margin-top: .5rem; }
     .content {
       margin-left: var(--sidebar-width);
       padding: 1.5rem;
@@ -76,7 +84,27 @@
       .sidebar.show { transform: translateX(0); }
       .content { margin-left: 0; }
     }
-    .flash-messages { position: fixed; top: 1rem; right: 1rem; z-index: 9999; }
+    .flash-messages { position: fixed; top: 1rem; right: 1rem; z-index: 9999; max-width: 420px; }
+    .flash-messages .alert { animation: slideInRight .3s ease; box-shadow: 0 4px 12px rgba(0,0,0,.12); border: none; }
+    @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .password-toggle { cursor: pointer; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; }
+    .password-toggle:hover { color: #343a40; }
+    .password-wrapper { position: relative; }
+    .password-strength-bar { height: 4px; border-radius: 2px; transition: all .3s; margin-top: 4px; background: #e9ecef; overflow: hidden; }
+    .password-strength-bar .fill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
+    .password-strength-text { font-size: .75rem; margin-top: 2px; }
+    .avatar-initials { transition: transform .2s; }
+    .avatar-initials:hover { transform: scale(1.1); }
+    .stat-card { transition: transform .2s, box-shadow .2s; cursor: pointer; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.1) !important; }
+    .skeleton { background: linear-gradient(90deg, #e9ecef 25%, #f5f6fa 50%, #e9ecef 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-text { height: 1.2rem; width: 60%; margin-bottom: .5rem; }
+    .skeleton-badge { height: 1.2rem; width: 4rem; display: inline-block; }
+    .btn-loading { position: relative; pointer-events: none; opacity: .8; }
+    .btn-loading::after { content: ''; position: absolute; inset: 0; background: inherit; border-radius: inherit; }
+    .btn-loading .spinner { display: inline-block; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -111,174 +139,39 @@
         </div>
         {% endif %}
 
-        <ul class="nav flex-column">
-          <!-- Super Admin -->
-          {% if current_user.role and current_user.role.est_systeme %}
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.') %}active{% endif %}"
-               href="{{ url_for('admin.dashboard') }}">
-              <i class="fas fa-crown me-2"></i><span>Administration</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint == 'admin.utilisateurs' %}active{% endif %}"
-               href="{{ url_for('admin.utilisateurs') }}">
-              <i class="fas fa-users-cog me-2"></i><span>Utilisateurs</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint == 'admin.admin_tickets' %}active{% endif %}"
-               href="{{ url_for('admin.admin_tickets') }}">
-              <i class="fas fa-headset me-2"></i><span>Tickets (admin)</span>
-            </a>
-          </li>
-          {% endif %}
-
-          <!-- Commun -->
-          <li class="nav-section"><h6>Général</h6></li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint == 'main.tableau_de_bord' %}active{% endif %}"
-               href="{{ url_for('main.tableau_de_bord') }}">
-              <i class="fas fa-chart-line me-2"></i><span>Tableau de bord</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint == 'main.search' %}active{% endif %}"
-               href="{{ url_for('main.search') }}">
-              <i class="fas fa-search me-2"></i><span>Recherche</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('actions.') %}active{% endif %}"
-               href="{{ url_for('actions.liste_actions') }}">
-              <i class="fas fa-tasks me-2"></i><span>Mes actions</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('documents.') %}active{% endif %}"
-               href="{{ url_for('documents.gestion') }}">
-              <i class="fas fa-folder-open me-2"></i><span>Documents</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('audit.') %}active{% endif %}"
-               href="{{ url_for('audit.index') }}">
-              <i class="fas fa-clipboard-check me-2"></i><span>Audits</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('indicateurs.') %}active{% endif %}"
-               href="{{ url_for('indicateurs.index') }}">
-              <i class="fas fa-chart-bar me-2"></i><span>Indicateurs</span>
-            </a>
-          </li>
-
-          <!-- Section HSE -->
-          {% if 'hse' in modules_actifs %}
-          <li class="nav-section"><h6>HSE</h6></li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('textes.library') %}active{% endif %}"
-               href="{{ url_for('textes.library_all') }}">
-              <i class="fas fa-book me-2"></i><span>Bibliothèque HSE</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('textes.') and not request.endpoint.startswith('textes.library') %}active{% endif %}"
-               href="{{ url_for('textes.index') }}">
-              <i class="fas fa-scroll me-2"></i><span>Textes HSE</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.') %}active{% endif %}"
-               href="{{ url_for('conformite.index') }}">
-              <i class="fas fa-clipboard-list me-2"></i><span>Suivi conformité</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.nonconformites') %}active{% endif %}"
-               href="{{ url_for('conformite.nonconformites') }}">
-              <i class="fas fa-exclamation-triangle me-2"></i><span>Constats et écarts</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.preuves') %}active{% endif %}"
-               href="{{ url_for('conformite.preuves_gestion') }}">
-              <i class="fas fa-shield-alt me-2"></i><span>Preuves de conformité</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('conformite.search') %}active{% endif %}"
-               href="{{ url_for('conformite.search') }}">
-              <i class="fas fa-search me-2"></i><span>Recherche</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('veille.') %}active{% endif %}"
-               href="{{ url_for('veille.index') }}">
-              <i class="fas fa-satellite-dish me-2"></i><span>Veille réglementaire</span>
-            </a>
-          </li>
-          {% endif %}
-
-          <!-- Section Qualité -->
-          {% if 'qualite' in modules_actifs %}
-          <li class="nav-section"><h6>Qualité</h6></li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.risques') %}active{% endif %}"
-               href="{{ url_for('qualite.risques') }}"><i class="fas fa-exclamation-triangle me-2"></i><span>Risques</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.haccp') %}active{% endif %}"
-               href="{{ url_for('qualite.haccp') }}"><i class="fas fa-utensils me-2"></i><span>HACCP</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.clients') %}active{% endif %}"
-               href="{{ url_for('qualite.clients') }}"><i class="fas fa-users me-2"></i><span>Clients</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.fournisseurs') %}active{% endif %}"
-               href="{{ url_for('qualite.fournisseurs') }}"><i class="fas fa-truck me-2"></i><span>Fournisseurs</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.formations') %}active{% endif %}"
-               href="{{ url_for('qualite.formations') }}"><i class="fas fa-graduation-cap me-2"></i><span>Formations</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.equipements') %}active{% endif %}"
-               href="{{ url_for('qualite.equipements') }}"><i class="fas fa-tools me-2"></i><span>Équipements</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.controle') %}active{% endif %}"
-               href="{{ url_for('qualite.controle') }}"><i class="fas fa-flask me-2"></i><span>Contrôle qualité</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.revue') %}active{% endif %}"
-               href="{{ url_for('qualite.revue') }}"><i class="fas fa-chart-pie me-2"></i><span>Revue de direction</span></a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('qualite.nonconformites') %}active{% endif %}"
-               href="{{ url_for('qualite.nonconformites') }}"><i class="fas fa-times-circle me-2"></i><span>Non-conformités</span></a>
-          </li>
-          {% endif %}
-
-          <!-- Support -->
-          <li class="nav-section"><h6>Assistance</h6></li>
-          <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('support.mes_tickets') }}"><i class="fas fa-life-ring me-2"></i><span>Support</span></a>
-          </li>
-
-          <!-- Utilisateur -->
-          <li class="nav-section"><h6>Mon compte</h6></li>
-          <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('users.profile') }}">
-              <i class="fas fa-user me-2"></i><span>{{ current_user.prenom }} {{ current_user.nom }}</span>
-            </a>
-          </li>
-          <li class="nav-item mb-1">
-            <a class="nav-link" href="{{ url_for('users.logout') }}">
-              <i class="fas fa-sign-out-alt me-2"></i><span>Déconnexion</span>
-            </a>
-          </li>
+        <ul class="nav flex-column" id="sidebarAccordion">
+          {% for section in sidebar_sections %}
+          <div class="sidebar-section" data-section="{{ section.id }}">
+            <div class="sidebar-section-header" onclick="toggleSection('{{ section.id }}')">
+              <h6><i class="fas {{ section.icon }} me-2"></i>{{ section.title }}</h6>
+              <i class="fas fa-chevron-down chevron"></i>
+            </div>
+            <div class="sidebar-collapse" id="section-{{ section.id }}">
+              {% for item in section['items'] %}
+              {% if item.is_profile %}
+              <li class="nav-item mb-2">
+                <a class="nav-link d-flex align-items-center gap-2{% if sidebar_is_active(item, request.endpoint) %} active{% endif %}" href="{{ url_for(item.endpoint) }}">
+                  <span class="avatar-initials rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:.8rem;font-weight:600;">{{ current_user.prenom[:1]|upper }}{{ current_user.nom[:1]|upper }}</span>
+                  <span class="text-truncate">{{ current_user.prenom }} {{ current_user.nom }}</span>
+                </a>
+              </li>
+              {% elif item.is_logout %}
+              <li class="nav-item mb-1">
+                <a class="nav-link" href="{{ url_for(item.endpoint) }}">
+                  {% if item.icon %}<i class="fas {{ item.icon }} me-2"></i>{% endif %}<span>{{ item.label }}</span>
+                </a>
+              </li>
+              {% else %}
+              <li class="nav-item mb-1">
+                <a class="nav-link{% if sidebar_is_active(item, request.endpoint) %} active{% endif %}" href="{{ url_for(item.endpoint) }}">
+                  <i class="fas {{ item.icon }} me-2"></i><span>{{ item.label }}</span>
+                </a>
+              </li>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
         </ul>
       </div>
     </nav>
@@ -330,6 +223,151 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    function togglePassword(btn) {
+      var input = btn.closest('.password-wrapper').querySelector('input');
+      var icon = btn.querySelector('i');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+      }
+    }
+
+    function updatePasswordStrength(input) {
+      var bar = input.closest('.password-wrapper').querySelector('.password-strength-bar .fill');
+      var text = input.closest('.password-wrapper').querySelector('.password-strength-text');
+      if (!bar && !text) return;
+      var val = input.value;
+      var score = 0;
+      if (val.length >= 8) score += 25;
+      if (val.length >= 12) score += 15;
+      if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score += 20;
+      if (/\d/.test(val)) score += 20;
+      if (/[^a-zA-Z0-9]/.test(val)) score += 20;
+      var levels = [
+        { min: 0, label: 'Faible', class: 'bg-danger', width: '25%' },
+        { min: 25, label: 'Moyen', class: 'bg-warning', width: '50%' },
+        { min: 50, label: 'Bon', class: 'bg-info', width: '75%' },
+        { min: 75, label: 'Fort', class: 'bg-success', width: '100%' },
+      ];
+      var level = levels[0];
+      for (var i = levels.length - 1; i >= 0; i--) {
+        if (score >= levels[i].min) { level = levels[i]; break; }
+      }
+      if (bar) { bar.style.width = level.width; bar.className = 'fill ' + level.class; }
+      if (text) { text.textContent = level.label; text.className = 'password-strength-text ' + level.class.replace('bg-', 'text-'); }
+    }
+
+    function setupPasswordToggles() {
+      document.querySelectorAll('.password-wrapper').forEach(function(wrapper) {
+        if (wrapper.querySelector('.password-toggle')) return;
+        var btn = document.createElement('span');
+        btn.className = 'password-toggle';
+        btn.innerHTML = '<i class="fas fa-eye"></i>';
+        btn.addEventListener('click', function() { togglePassword(this); });
+        wrapper.appendChild(btn);
+      });
+    }
+
+    function setupPasswordStrengths() {
+      document.querySelectorAll('input[type="password"]').forEach(function(input) {
+        var wrapper = input.closest('.password-wrapper');
+        if (!wrapper) return;
+        if (wrapper.querySelector('.password-strength-bar')) return;
+        var bar = document.createElement('div');
+        bar.className = 'password-strength-bar';
+        bar.innerHTML = '<div class="fill" style="width:0"></div>';
+        var text = document.createElement('div');
+        text.className = 'password-strength-text';
+        wrapper.appendChild(bar);
+        wrapper.appendChild(text);
+        input.addEventListener('input', function() { updatePasswordStrength(this); });
+      });
+    }
+
+    function setupFormLoading() {
+      document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+          var btn = this.querySelector('button[type="submit"]');
+          if (btn && !btn.classList.contains('no-loading')) {
+            var original = btn.innerHTML;
+            btn.classList.add('btn-loading');
+            btn.setAttribute('data-original', original);
+            btn.innerHTML = '<span class="spinner"><i class="fas fa-circle-notch"></i></span> ' + (btn.textContent.trim() || 'Chargement...');
+          }
+        });
+      });
+    }
+
+    function setupCsrfProtection() {
+      var csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
+      if (!csrfTokenEl) return;
+      var token = csrfTokenEl.getAttribute('content');
+      var originalFetch = window.fetch;
+      window.fetch = function(url, options) {
+        options = options || {};
+        options.headers = options.headers || {};
+        var method = (options.method || 'GET').toUpperCase();
+        if (method !== 'GET') {
+          if (options.headers instanceof Headers) {
+            if (!options.headers.has('X-CSRFToken')) {
+              options.headers.append('X-CSRFToken', token);
+            }
+          } else {
+            options.headers['X-CSRFToken'] = token;
+          }
+        }
+        return originalFetch.call(window, url, options);
+      };
+      document.querySelectorAll('form[method="POST"]').forEach(function(form) {
+        if (!form.querySelector('input[name="csrf_token"]')) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          input.value = token;
+          form.appendChild(input);
+        }
+      });
+    }
+
+    function toggleSection(id) {
+      var collapse = document.getElementById('section-' + id);
+      var header = collapse.closest('.sidebar-section').querySelector('.sidebar-section-header');
+      var chevron = header.querySelector('.chevron');
+      var isOpen = collapse.classList.contains('open');
+
+      // close all other sections
+      document.querySelectorAll('.sidebar-collapse.open').forEach(function(el) {
+        if (el.id !== 'section-' + id) {
+          el.classList.remove('open');
+          el.closest('.sidebar-section').querySelector('.chevron').classList.remove('open');
+        }
+      });
+
+      // toggle this one
+      if (isOpen) {
+        collapse.classList.remove('open');
+        chevron.classList.remove('open');
+      } else {
+        collapse.classList.add('open');
+        chevron.classList.add('open');
+      }
+    }
+
+    // auto-open section containing active link
+    function openActiveSection() {
+      var active = document.querySelector('.sidebar .nav-link.active');
+      if (active) {
+        var section = active.closest('.sidebar-section');
+        if (section) {
+          var id = section.getAttribute('data-section');
+          if (id) toggleSection(id);
+        }
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       setTimeout(function() {
         document.querySelectorAll('.flash-messages .alert').forEach(function(el) {
@@ -337,6 +375,11 @@
           setTimeout(function() { bsAlert.close(); }, 5000);
         });
       }, 100);
+      setupPasswordToggles();
+      setupCsrfProtection();
+      setupPasswordStrengths();
+      setupFormLoading();
+      openActiveSection();
 
       loadNotifications();
       if (document.getElementById('notifDropdown')) {

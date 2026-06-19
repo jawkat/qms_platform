@@ -6,7 +6,7 @@ from app.models import (
     ActionCorrective, ActionStatusEnum, ProofMaster, Audit,
     Indicateur, IndicateurValeur, Ticket,
     Risque, ReclamationClient, Fournisseur, Formation, Equipement,
-    ControleQualite, RevueDirection, NonConformiteQualite,
+    ControleQualite, RevueDirection, NonConformite,
 )
 
 
@@ -313,8 +313,9 @@ class TestQualityModels:
         assert rd.id is not None
 
     def test_non_conformite_qualite(self, session, entreprise, manager_user):
-        nc = NonConformiteQualite(
+        nc = NonConformite(
             entreprise_id=entreprise.id,
+            domaine='qualite',
             date_nc=date.today(),
             reference='NC-001',
             produit_processus='Process Y',

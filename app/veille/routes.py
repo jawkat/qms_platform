@@ -68,8 +68,8 @@ def api_sources():
 def api_create():
     data = request.get_json()
     v = Veille(
-        texte_id=data.get('texte_id', type=int),
-        source_id=data.get('source_id', type=int),
+        texte_id=data.get('texte_id'),
+        source_id=data.get('source_id'),
         date_detection=__import__('datetime').datetime.strptime(data['date_detection'], '%Y-%m-%d').date()
         if data.get('date_detection') else date.today(),
         statut=data.get('statut', 'nouveau'),

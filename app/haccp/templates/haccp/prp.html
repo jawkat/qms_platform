@@ -1,0 +1,96 @@
+{% extends 'layout.html' %}
+{% block title %}HACCP - PRP{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-hand-sparkles me-2 text-success"></i>Programmes Prérequis</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel élément</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Catégorie</th><th>Élément</th><th>Fréquence</th><th>Responsable</th><th>Prochaine vérif.</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau PRP</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Catégorie</label><select id="f_categorie" class="form-select">
+            <option value="hygiene">Hygiène / Nettoyage</option><option value="nuisibles">Lutte nuisibles</option>
+            <option value="dechets">Gestion déchets</option><option value="eau">Contrôle eau</option>
+            <option value="personnel">Hygiène personnel</option><option value="maintenance">Maintenance</option>
+            <option value="etalonnage">Étalonnage</option><option value="autre">Autre</option>
+          </select></div>
+          <div class="col-md-6"><label class="form-label">Élément <span class="text-danger">*</span></label><input type="text" id="f_element" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-4"><label class="form-label">Fréquence</label><input type="text" id="f_frequence" class="form-control" placeholder="Quotidien, hebdo..."></div>
+          <div class="col-md-4"><label class="form-label">Responsable</label><input type="text" id="f_responsable" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Procédure réf.</label><input type="text" id="f_procedure" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Dernière vérification</label><input type="date" id="f_verifie" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Prochaine vérification</label><input type="date" id="f_prochaine" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("haccp.api_prp") }}'; const CREATE = '{{ url_for("haccp.api_prp_create") }}';
+const UPDATE = '{{ url_for("haccp.api_prp_update", item_id=0) }}'; const DELETE = '{{ url_for("haccp.api_prp_delete", item_id=0) }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucun PRP</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><span class="badge bg-info">${r.categorie||''}</span></td><td>${r.element||''}</td>
+      <td>${r.frequence||''}</td><td>${r.responsable||''}</td>
+      <td>${r.prochaine_verification ? new Date(r.prochaine_verification).toLocaleDateString('fr-FR') : ''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { categorie: document.getElementById('f_categorie').value, element: document.getElementById('f_element').value,
+    description: document.getElementById('f_description').value, frequence: document.getElementById('f_frequence').value,
+    responsable: document.getElementById('f_responsable').value, procedure_reference: document.getElementById('f_procedure').value,
+    verifie_le: document.getElementById('f_verifie').value, prochaine_verification: document.getElementById('f_prochaine').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_categorie').value = r.categorie||'';
+    document.getElementById('f_element').value = r.element||''; document.getElementById('f_description').value = r.description||'';
+    document.getElementById('f_frequence').value = r.frequence||''; document.getElementById('f_responsable').value = r.responsable||'';
+    document.getElementById('f_procedure').value = r.procedure_reference||'';
+    document.getElementById('f_verifie').value = r.verifie_le || ''; document.getElementById('f_prochaine').value = r.prochaine_verification || '';
+    document.getElementById('modalTitle').textContent = 'Modifier le PRP';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() { document.getElementById('itemId').value = ''; ['f_element','f_description','f_frequence','f_responsable','f_procedure','f_verifie','f_prochaine'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_categorie').value = 'hygiene'; document.getElementById('modalTitle').textContent = 'Nouveau PRP'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

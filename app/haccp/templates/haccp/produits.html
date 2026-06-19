@@ -1,0 +1,91 @@
+{% extends 'layout.html' %}
+{% block title %}HACCP - Produits{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-box me-2 text-warning"></i>Produits</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau produit</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Nom</th><th>Référence</th><th>DLC</th><th>Stockage</th><th>Client</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau produit</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Référence</label><input type="text" id="f_reference" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-4"><label class="form-label">Durée conservation</label><input type="text" id="f_dlc" class="form-control" placeholder="Jours, mois..."></div>
+          <div class="col-md-4"><label class="form-label">Conditions stockage</label><input type="text" id="f_stockage" class="form-control" placeholder="0-4°C..."></div>
+          <div class="col-md-4"><label class="form-label">Type client</label><input type="text" id="f_client" class="form-control" placeholder="GMS, RHF..."></div>
+          <div class="col-12"><label class="form-label">Utilisation prévue</label><textarea id="f_utilisation" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("haccp.api_produits") }}'; const CREATE = '{{ url_for("haccp.api_produits_create") }}';
+const UPDATE = '{{ url_for("haccp.api_produits_update", item_id=0) }}'; const DELETE = '{{ url_for("haccp.api_produits_delete", item_id=0) }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucun produit</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.nom||''}</td><td>${r.reference||''}</td><td>${r.duree_conservation||''}</td>
+      <td>${r.conditions_stockage||''}</td><td>${r.type_client||''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { nom: document.getElementById('f_nom').value, reference: document.getElementById('f_reference').value,
+    description: document.getElementById('f_description').value, duree_conservation: document.getElementById('f_dlc').value,
+    conditions_stockage: document.getElementById('f_stockage').value, type_client: document.getElementById('f_client').value,
+    utilisation_prevue: document.getElementById('f_utilisation').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_nom').value = r.nom||'';
+    document.getElementById('f_reference').value = r.reference||''; document.getElementById('f_description').value = r.description||'';
+    document.getElementById('f_dlc').value = r.duree_conservation||''; document.getElementById('f_stockage').value = r.conditions_stockage||'';
+    document.getElementById('f_client').value = r.type_client||''; document.getElementById('f_utilisation').value = r.utilisation_prevue||'';
+    document.getElementById('modalTitle').textContent = 'Modifier le produit';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() {
+  document.getElementById('itemId').value = ''; ['f_nom','f_reference','f_description','f_dlc','f_stockage','f_client','f_utilisation'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modalTitle').textContent = 'Nouveau produit';
+}
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}
