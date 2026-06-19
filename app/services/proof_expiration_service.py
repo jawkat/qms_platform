@@ -30,10 +30,8 @@ def _notification_exists(user_id, marker):
 
 def run_daily_proof_expiration_reminders(reminder_days=DEFAULT_EXPIRATION_REMINDER_DAYS, today=None):
     """
-    NOUVELLE LOGIQUE: Grouper par ProofMaster au lieu de par Document.
-    
-    Cela évite les notifications dupliquées quand une preuve est attachée
-    à plusieurs évaluations.
+    Grouper par ProofMaster pour éviter les notifications dupliquées
+    quand une preuve est attachée à plusieurs évaluations.
     
     Returns:
         Dict avec statistiques de traitement
@@ -56,7 +54,7 @@ def run_daily_proof_expiration_reminders(reminder_days=DEFAULT_EXPIRATION_REMIND
         'errors': 0,
     }
 
-    # Requête par ProofMaster (pas par Document)
+    # Requête par ProofMaster
     proofs = (
         ProofMaster.query
         .filter(

@@ -1,0 +1,51 @@
+{% extends 'layout.html' %}
+{% block title %}Réunions & Revues{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-handshake me-2 text-success"></i>Réunions & Revues</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle réunion</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">À venir</h6><div class="h3 mb-0 fw-bold text-info" id="stat-avenir">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Actions ouvertes</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-actions">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Titre</th><th>Type</th><th>Date</th><th>Lieu</th><th>Organisateur</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle réunion</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="mb-3"><label class="form-label">Titre <span class="text-danger">*</span></label><input type="text" id="f_titre" class="form-control"></div>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Type</label><select id="f_type" class="form-select"><option value="">—</option><option value="qualite">Qualité</option><option value="haccp">HACCP</option><option value="securite">Sécurité</option><option value="revue_direction">Revue de direction</option></select></div>
+      <div class="col-md-6"><label class="form-label">Date</label><input type="datetime-local" id="f_date" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Lieu</label><input type="text" id="f_lieu" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Organisateur</label><input type="text" id="f_organisateur" class="form-control"></div>
+    </div>
+    <div class="mb-3"><label class="form-label">Participants</label><textarea id="f_participants" class="form-control" rows="2" placeholder="Noms des participants"></textarea></div>
+    <div class="mb-3"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("reunions.api_liste") }}',CREATE='{{ url_for("reunions.api_creer") }}',UPDATE='{{ url_for("reunions.api_modifier",item_id=0) }}',DELETE='{{ url_for("reunions.api_supprimer",item_id=0) }}',STATS='{{ url_for("reunions.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-total').textContent=stats.total;document.getElementById('stat-avenir').textContent=stats.a_venir;document.getElementById('stat-actions').textContent=stats.actions_ouvertes;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucune réunion</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.titre}</strong></td><td><span class="badge bg-secondary">${r.type_reunion||'-'}</span></td><td>${r.date_reunion?new Date(r.date_reunion).toLocaleDateString('fr-FR'):'-'}</td><td>${r.lieu||'-'}</td><td>${r.organisateur||'-'}</td><td><span class="badge bg-${r.statut==='terminee'?'success':r.statut==='en_cours'?'warning':'info'}">${r.statut||'-'}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={titre:document.getElementById('f_titre').value,description:document.getElementById('f_description').value,type_reunion:document.getElementById('f_type').value,date_reunion:document.getElementById('f_date').value,lieu:document.getElementById('f_lieu').value,organisateur:document.getElementById('f_organisateur').value,participants:document.getElementById('f_participants').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_titre').value=r.titre||'';document.getElementById('f_description').value=r.description||'';document.getElementById('f_type').value=r.type_reunion||'';document.getElementById('f_lieu').value=r.lieu||'';document.getElementById('f_organisateur').value=r.organisateur||'';document.getElementById('f_participants').value=r.participants||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_titre','f_description','f_date','f_lieu','f_organisateur','f_participants'].forEach(id=>document.getElementById(id).value='');document.getElementById('f_type').selectedIndex=0;document.getElementById('modalTitle').textContent='Nouvelle réunion'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}

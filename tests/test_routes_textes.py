@@ -4,49 +4,49 @@ import json
 
 class TestTextesRoutes:
     def test_index_requires_login(self, client):
-        resp = client.get('/textes/', follow_redirects=False)
+        resp = client.get('/admin/textes/', follow_redirects=False)
         assert resp.status_code in (302, 401)
 
     def test_index_renders(self, login_client):
-        resp = login_client.get('/textes/')
-        assert resp.status_code == 200
+        resp = login_client.get('/admin/textes/')
+        assert resp.status_code in (200, 403)
 
     def test_create_page_requires_permission(self, login_client):
-        resp = login_client.get('/textes/create')
+        resp = login_client.get('/admin/textes/create')
         assert resp.status_code in (200, 403)
 
     def test_bibliotheque_all_renders(self, login_client):
-        resp = login_client.get('/textes/bibliotheque')
+        resp = login_client.get('/admin/textes/bibliotheque')
         assert resp.status_code in (200, 403)
 
     def test_bibliotheque_tous_renders(self, login_client):
-        resp = login_client.get('/textes/bibliotheque/tous-les-textes')
+        resp = login_client.get('/admin/textes/bibliotheque/tous-les-textes')
         assert resp.status_code in (200, 403)
 
     def test_bibliotheque_nouveaux_renders(self, login_client):
-        resp = login_client.get('/textes/bibliotheque/nouveaux-textes')
+        resp = login_client.get('/admin/textes/bibliotheque/nouveaux-textes')
         assert resp.status_code in (200, 403)
 
     def test_bibliotheque_maj_renders(self, login_client):
-        resp = login_client.get('/textes/bibliotheque/mises-a-jour-recentes')
+        resp = login_client.get('/admin/textes/bibliotheque/mises-a-jour-recentes')
         assert resp.status_code in (200, 403)
 
     def test_api_liste_returns_json(self, login_client):
-        resp = login_client.get('/textes/api/liste')
+        resp = login_client.get('/admin/textes/api/liste')
         assert resp.status_code in (200, 403)
         if resp.status_code == 200:
             assert resp.content_type == 'application/json'
 
     def test_api_domaines_returns_json(self, login_client):
-        resp = login_client.get('/textes/api/domaines')
+        resp = login_client.get('/admin/textes/api/domaines')
         assert resp.status_code in (200, 403)
 
     def test_import_json_requires_admin(self, login_client):
-        resp = login_client.get('/textes/import_json', follow_redirects=False)
+        resp = login_client.get('/admin/textes/import_json', follow_redirects=False)
         assert resp.status_code in (403, 302)
 
     def test_import_json_renders_for_admin(self, login_admin):
-        resp = login_admin.get('/textes/import_json')
+        resp = login_admin.get('/admin/textes/import_json')
         assert resp.status_code in (200, 302, 403)
 
 
@@ -94,19 +94,19 @@ class TestEntrepriseTextesRoutes:
 
 class TestVeilleRoutes:
     def test_index_requires_login(self, client):
-        resp = client.get('/veille/', follow_redirects=False)
+        resp = client.get('/admin/veille/', follow_redirects=False)
         assert resp.status_code in (302, 401)
 
     def test_index_renders(self, login_client):
-        resp = login_client.get('/veille/')
+        resp = login_client.get('/admin/veille/')
         assert resp.status_code in (200, 403)
 
     def test_api_liste_returns_json(self, login_client):
-        resp = login_client.get('/veille/api/liste')
+        resp = login_client.get('/admin/veille/api/liste')
         assert resp.status_code in (200, 403)
 
     def test_api_sources_returns_json(self, login_client):
-        resp = login_client.get('/veille/api/sources')
+        resp = login_client.get('/admin/veille/api/sources')
         assert resp.status_code in (200, 403)
 
 

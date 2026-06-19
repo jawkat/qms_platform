@@ -1,0 +1,20 @@
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ title|default('Confirmer') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>{{ message|default('Êtes-vous sûr de vouloir effectuer cette action ?') }}</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form method="POST" action="{{ action_url }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token }}">
+          <button type="submit" class="btn btn-{{ btn_class|default('danger') }}">{{ confirm_text|default('Confirmer') }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

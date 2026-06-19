@@ -129,15 +129,15 @@ class TestHaccpRoutes:
 
     def test_fournisseurs_page_redirects(self, login_client):
         resp = login_client.get('/haccp/fournisseurs')
-        assert resp.status_code in (200, 302, 403)
+        assert resp.status_code in (404, 403)
 
     def test_formations_page_redirects(self, login_client):
         resp = login_client.get('/haccp/formations')
-        assert resp.status_code in (200, 302, 403)
+        assert resp.status_code in (404, 403)
 
     def test_reclamations_page_redirects(self, login_client):
         resp = login_client.get('/haccp/reclamations')
-        assert resp.status_code in (200, 302, 403)
+        assert resp.status_code in (404, 403)
 
     def test_rappels_page_renders(self, login_client):
         resp = login_client.get('/haccp/rappels')

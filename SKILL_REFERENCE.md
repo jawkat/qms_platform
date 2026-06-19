@@ -650,10 +650,11 @@ class ProofReference(db.Model):
 
 ## 18. Common Patterns & Gotchas
 
-### CRITICAL: Deleted `Document` model
-The old `Document` model was deleted. Any code importing it will crash at runtime:
-- `app/services/proof_expiration_service.py:5` — `from app.models import Document`
-- `app/services/conformite_service.py` — references `Document`
+### RESOLVED: Deleted `Document` model
+The old `Document` model was deleted. All references have been migrated to `ProofMaster`/`ProofReference`:
+- `app/services/proof_expiration_service.py` — now uses `ProofMaster`
+- `app/services/conformite_service.py` — now uses `ProofMaster`/`ProofReference`
+- `app/services/subscription_service.py` — renamed `_get_storage_size_for_proofs`
 
 ### Enum assignment
 Setting `db.Enum` column to `''` (empty string) crashes with `KeyError`. Use truthy checks:

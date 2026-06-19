@@ -1,0 +1,16 @@
+{% set badge_map = {
+  'ACTIF': 'success', 'actif': 'success',
+  'INACTIF': 'secondary', 'inactif': 'secondary',
+  'SUSPENDU': 'warning', 'suspendu': 'warning',
+  'A_FAIRE': 'warning', 'a_faire': 'warning',
+  'EN_COURS': 'info', 'en_cours': 'info',
+  'TERMINE': 'success', 'termine': 'success',
+  'CLOTURE': 'secondary', 'cloture': 'secondary',
+  'ANNULE': 'dark', 'annule': 'dark',
+  'OUVERT': 'danger', 'ouvert': 'danger',
+  'CONFORME': 'success', 'conforme': 'success',
+  'NON_CONFORME': 'danger', 'non_conforme': 'danger',
+  'RESERVE': 'primary', 'reserve': 'primary',
+  'CONFIRME': 'success', 'confirme': 'success',
+} %}
+<span class="badge bg-{{ badge_map.get(status, 'secondary') }}">{{ label|default(status) }}</span>

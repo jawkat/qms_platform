@@ -47,12 +47,17 @@
 {% endblock %}
 {% block scripts %}
 <script>
-const API = '{{ url_for("haccp.api_processus") }}'; const DANGER_API = '/haccp/api/dangers';
+const DANGER_API = '/haccp/api/dangers';
+const PROCESSUS_API = '/haccp/api/processus';
+
 function load() {
-  fetch('/haccp/api/stats').then(r=>r.json()); // warmup
-  fetch(DANGER_API).then(r=>r.json()).then(items => {
+  Promise.all([fetch(DANGER_API).then(r=>r.json()), fetch(PROCESSUS_API).then(r=>r.json())])
+  .then(([items, processus]) => {
+    window._processusList = processus;
+    const procSel = document.getElementById('f_processus');
+    procSel.innerHTML = '<option value="">-- Choisir --</option>' + processus.map(p => `<option value="${p.id}">${p.etape}</option>`).join('');
     const tbody = document.getElementById('tableBody');
-    if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Aucune analyse</td></tr>'; return; }
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Aucune analyse de danger</td></tr>'; return; }
     tbody.innerHTML = items.map(r => `<tr>
       <td>${r.etape||''}</td><td><span class="badge bg-${r.type_danger==='biologique'?'success':r.type_danger==='chimique'?'warning':r.type_danger==='physique'?'info':'secondary'}">${r.type_danger||''}</span></td>
       <td>${r.danger||''}</td><td>${r.cause||''}</td><td>${r.gravite||'-'}</td><td>${r.probabilite||'-'}</td>
@@ -63,10 +68,57 @@ function load() {
     </tr>`).join('');
   });
 }
-// This page uses the existing AnalyseDanger model via a simple inline approach
-// For simplicity we use the processus API to demonstrate the pattern
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('tableBody').innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Analyse des dangers - module en cours de déploiement</td></tr>';
-});
+
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = {
+    processus_id: document.getElementById('f_processus').value || null,
+    type_danger: document.getElementById('f_type').value,
+    danger: document.getElementById('f_danger').value,
+    cause: document.getElementById('f_cause').value,
+    gravite: parseInt(document.getElementById('f_gravite').value) || 1,
+    probabilite: parseInt(document.getElementById('f_probabilite').value) || 1,
+    detectabilite: parseInt(document.getElementById('f_detectabilite').value) || 1,
+    mesure_preventive: document.getElementById('f_mesure').value,
+    justification: document.getElementById('f_justification').value,
+    est_significatif: (parseInt(document.getElementById('f_gravite').value)||1) * (parseInt(document.getElementById('f_probabilite').value)||1) * (parseInt(document.getElementById('f_detectabilite').value)||1) >= 15
+  };
+  const url = id ? `/haccp/api/dangers/${id}/update` : `${DANGER_API}/create`;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+
+function edit(id) {
+  fetch(DANGER_API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id;
+    document.getElementById('f_type').value = r.type_danger||'biologique';
+    document.getElementById('f_processus').value = r.processus_id||'';
+    document.getElementById('f_danger').value = r.danger||'';
+    document.getElementById('f_cause').value = r.cause||'';
+    document.getElementById('f_gravite').value = r.gravite||1;
+    document.getElementById('f_probabilite').value = r.probabilite||1;
+    document.getElementById('f_detectabilite').value = r.detectabilite||1;
+    document.getElementById('f_mesure').value = r.mesure_preventive||'';
+    document.getElementById('f_justification').value = r.justification||'';
+    document.getElementById('modalTitle').textContent = 'Modifier l\'analyse';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+
+function del(id) { if(!confirm('Supprimer cette analyse ?')) return; fetch(`/haccp/api/dangers/${id}/delete`, {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+
+function resetForm() {
+  document.getElementById('itemId').value = '';
+  ['f_danger','f_cause','f_mesure','f_justification'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_type').value = 'biologique';
+  document.getElementById('f_processus').value = '';
+  document.getElementById('f_gravite').value = 1;
+  document.getElementById('f_probabilite').value = 1;
+  document.getElementById('f_detectabilite').value = 1;
+  document.getElementById('modalTitle').textContent = 'Nouvelle analyse';
+}
+
+document.addEventListener('DOMContentLoaded', load);
 </script>
 {% endblock %}

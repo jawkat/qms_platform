@@ -7,7 +7,7 @@ from app.models import (
 from app.services.conformite_service import (
     normalize_core_dict,
     build_evaluation_stats,
-    build_proof_state_for_documents,
+    build_proof_state_for_proofs,
     add_years_safe,
     parse_optional_date,
 )
@@ -75,32 +75,32 @@ class TestBuildEvaluationStats:
         assert stats['score_conformite'] == 0
 
 
-class TestBuildProofStateForDocuments:
-    def test_no_documents(self):
-        state = build_proof_state_for_documents([])
+class TestBuildProofStateForProofs:
+    def test_no_proofs(self):
+        state = build_proof_state_for_proofs([])
         assert state['state'] == 'missing'
         assert state['expires_at'] is None
 
     def test_no_validity_dates(self):
         docs = [SimpleNamespace(validite=None)]
-        state = build_proof_state_for_documents(docs)
+        state = build_proof_state_for_proofs(docs)
         assert state['state'] == 'valid'
         assert state['expires_at'] is None
 
-    def test_valid_document(self):
+    def test_valid_proof(self):
         docs = [SimpleNamespace(validite=date(2026, 1, 1))]
-        state = build_proof_state_for_documents(docs, reference_date=date(2025, 6, 1))
+        state = build_proof_state_for_proofs(docs, reference_date=date(2025, 6, 1))
         assert state['state'] == 'valid'
         assert state['expires_at'] == date(2026, 1, 1)
 
     def test_expiring_soon(self):
         docs = [SimpleNamespace(validite=date(2025, 6, 20))]
-        state = build_proof_state_for_documents(docs, reference_date=date(2025, 6, 1))
+        state = build_proof_state_for_proofs(docs, reference_date=date(2025, 6, 1))
         assert state['state'] == 'expiring_soon'
 
     def test_expired(self):
         docs = [SimpleNamespace(validite=date(2025, 1, 1))]
-        state = build_proof_state_for_documents(docs, reference_date=date(2025, 6, 1))
+        state = build_proof_state_for_proofs(docs, reference_date=date(2025, 6, 1))
         assert state['state'] == 'expired'
 
     def test_earliest_date_wins(self):
@@ -108,7 +108,7 @@ class TestBuildProofStateForDocuments:
             SimpleNamespace(validite=date(2026, 6, 1)),
             SimpleNamespace(validite=date(2025, 3, 1)),
         ]
-        state = build_proof_state_for_documents(docs, reference_date=date(2025, 6, 1))
+        state = build_proof_state_for_proofs(docs, reference_date=date(2025, 6, 1))
         assert state['state'] == 'expired'
         assert state['expires_at'] == date(2025, 3, 1)
 

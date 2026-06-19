@@ -21,6 +21,16 @@ from .echeancier import ObligationReglementaire
 from .veille import SourceReglementaire, Veille
 from .haccp import *
 
+# Nouveaux modules (8 modules manquants)
+from app.environnement.models import AspectEnvironnemental, SuiviEnvironnemental
+from app.maintenance.models import EquipementMaintenance, InterventionMaintenance
+from app.laboratoire.models import PlanAnalyse, Echantillon, ResultatAnalyse
+from app.planification.models import EvenementPlanification
+from app.reunions.models import Reunion, CompteRendu, ActionReunion
+from app.rh_qhse.models import EmployeQHSE
+from app.connaissances.models import REX, FAQ
+from app.urgences.models import PlanUrgence, ExerciceEvacuation, MainCourante
+
 # backward-compatible aliases pour migration progressive des routes
 ReclamationClient = Reclamation
 FournisseurHaccp = Fournisseur

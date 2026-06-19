@@ -1,15 +1,13 @@
-from flask import render_template, request, jsonify, abort, redirect, url_for
+from flask import render_template, request, jsonify, abort
 from flask_login import login_required, current_user
 from app.utils.permissions import module_access_required
 from app import db
-from app.models.entreprise import Entreprise
 from app.haccp import blueprint
 from app.haccp.models import (
-    ProcessusHaccp, ProduitHaccp, MatierePremiere, AnalyseDanger, Ccp,
+    ProcessusHaccp, ProduitHaccp, AnalyseDanger, Ccp,
     EnregistrementCcp, Prp,
     TracabiliteLot, RappelProduit,
 )
-from app.models.partages import Formation, Reclamation, Fournisseur
 from app.models.nonconformite import NonConformite
 from datetime import date, datetime
 
@@ -74,27 +72,6 @@ def tracabilite():
     return render_template('haccp/tracabilite.html')
 
 
-@blueprint.route('/fournisseurs')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def fournisseurs():
-    return redirect(url_for('fournisseurs.index'))
-
-
-@blueprint.route('/formations')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def formations():
-    return redirect(url_for('formations.index'))
-
-
-@blueprint.route('/reclamations')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def reclamations():
-    return redirect(url_for('reclamations.index'))
-
-
 @blueprint.route('/rappels')
 @login_required
 @module_access_required('haccp', 'haccp.voir')
@@ -124,7 +101,7 @@ def api_dangers():
 
 @blueprint.route('/api/dangers/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_dangers')
 def api_dangers_create():
     data = request.get_json()
     item = AnalyseDanger(
@@ -146,7 +123,7 @@ def api_dangers_create():
 
 @blueprint.route('/api/dangers/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_dangers')
 def api_dangers_update(item_id):
     item = AnalyseDanger.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -161,7 +138,7 @@ def api_dangers_update(item_id):
 
 @blueprint.route('/api/dangers/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_dangers')
 def api_dangers_delete(item_id):
     item = AnalyseDanger.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -180,11 +157,12 @@ def api_stats():
         'processus': ProcessusHaccp.query.filter_by(entreprise_id=eid).count(),
         'produits': ProduitHaccp.query.filter_by(entreprise_id=eid).count(),
         'ccp': Ccp.query.filter_by(entreprise_id=eid).count(),
+        'dangers': AnalyseDanger.query.filter_by(entreprise_id=eid).count(),
         'nonconformites': NonConformite.query.filter_by(entreprise_id=eid, domaine='haccp').count(),
-        'formations': Formation.query.filter_by(entreprise_id=eid).count(),
-        'fournisseurs': Fournisseur.query.filter_by(entreprise_id=eid).count(),
-        'reclamations': Reclamation.query.filter_by(entreprise_id=eid).count(),
         'enregistrements': EnregistrementCcp.query.filter_by(entreprise_id=eid).count(),
+        'prp': Prp.query.filter_by(entreprise_id=eid).count(),
+        'tracabilite': TracabiliteLot.query.filter_by(entreprise_id=eid).count(),
+        'rappels': RappelProduit.query.filter_by(entreprise_id=eid).count(),
     })
 
 
@@ -209,7 +187,7 @@ def api_processus():
 
 @blueprint.route('/api/processus/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_processus')
 def api_processus_create():
     data = request.get_json()
     item = ProcessusHaccp(
@@ -234,7 +212,7 @@ def api_processus_create():
 
 @blueprint.route('/api/processus/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_processus')
 def api_processus_update(item_id):
     item = ProcessusHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -251,7 +229,7 @@ def api_processus_update(item_id):
 
 @blueprint.route('/api/processus/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_processus')
 def api_processus_delete(item_id):
     item = ProcessusHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -279,7 +257,7 @@ def api_produits():
 
 @blueprint.route('/api/produits/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_produits')
 def api_produits_create():
     data = request.get_json()
     item = ProduitHaccp(
@@ -298,7 +276,7 @@ def api_produits_create():
 
 @blueprint.route('/api/produits/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_produits')
 def api_produits_update(item_id):
     item = ProduitHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -312,7 +290,7 @@ def api_produits_update(item_id):
 
 @blueprint.route('/api/produits/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_produits')
 def api_produits_delete(item_id):
     item = ProduitHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -342,7 +320,7 @@ def api_ccp():
 
 @blueprint.route('/api/ccp/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_ccp')
 def api_ccp_create():
     data = request.get_json()
     item = Ccp(
@@ -365,7 +343,7 @@ def api_ccp_create():
 
 @blueprint.route('/api/ccp/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_ccp')
 def api_ccp_update(item_id):
     item = Ccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -380,7 +358,7 @@ def api_ccp_update(item_id):
 
 @blueprint.route('/api/ccp/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_ccp')
 def api_ccp_delete(item_id):
     item = Ccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -408,7 +386,7 @@ def api_enregistrements():
 
 @blueprint.route('/api/enregistrements/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_enregistrements')
 def api_enregistrements_create():
     data = request.get_json()
     date_val = datetime.fromisoformat(data['date_controle']) if data.get('date_controle') else datetime.utcnow()
@@ -428,7 +406,7 @@ def api_enregistrements_create():
 
 @blueprint.route('/api/enregistrements/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_enregistrements')
 def api_enregistrements_update(item_id):
     item = EnregistrementCcp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -442,7 +420,7 @@ def api_enregistrements_update(item_id):
 
 @blueprint.route('/api/enregistrements/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_enregistrements')
 def api_enregistrements_delete(item_id):
     item = EnregistrementCcp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -471,7 +449,7 @@ def api_prp():
 
 @blueprint.route('/api/prp/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_prp')
 def api_prp_create():
     data = request.get_json()
     item = Prp(
@@ -493,7 +471,7 @@ def api_prp_create():
 
 @blueprint.route('/api/prp/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_prp')
 def api_prp_update(item_id):
     item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -511,7 +489,7 @@ def api_prp_update(item_id):
 
 @blueprint.route('/api/prp/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_prp')
 def api_prp_delete(item_id):
     item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -541,7 +519,7 @@ def api_tracabilite():
 
 @blueprint.route('/api/tracabilite/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_tracabilite')
 def api_tracabilite_create():
     data = request.get_json()
     item = TracabiliteLot(
@@ -563,7 +541,7 @@ def api_tracabilite_create():
 
 @blueprint.route('/api/tracabilite/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_tracabilite')
 def api_tracabilite_update(item_id):
     item = TracabiliteLot.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -581,7 +559,7 @@ def api_tracabilite_update(item_id):
 
 @blueprint.route('/api/tracabilite/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_tracabilite')
 def api_tracabilite_delete(item_id):
     item = TracabiliteLot.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
@@ -613,7 +591,7 @@ def api_rappels():
 
 @blueprint.route('/api/rappels/create', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_rappels')
 def api_rappels_create():
     data = request.get_json()
     item = RappelProduit(
@@ -635,7 +613,7 @@ def api_rappels_create():
 
 @blueprint.route('/api/rappels/<int:item_id>/update', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_rappels')
 def api_rappels_update(item_id):
     item = RappelProduit.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
@@ -653,7 +631,7 @@ def api_rappels_update(item_id):
 
 @blueprint.route('/api/rappels/<int:item_id>/delete', methods=['POST'])
 @login_required
-@module_access_required('haccp', 'haccp.voir')
+@module_access_required('haccp', 'haccp.gerer_rappels')
 def api_rappels_delete(item_id):
     item = RappelProduit.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)

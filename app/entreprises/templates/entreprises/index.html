@@ -75,7 +75,7 @@ async function loadData() {
       <td>${e.nb_utilisateurs}</td>
       <td>${statutBadge(e.statut)}</td>
       <td>
-        <a href="{{ url_for('entreprises.edit', entreprise_id=0) }}".replace('0', e.id) class="btn btn-sm btn-outline-primary me-1" title="Modifier">
+        <a href="/entreprises/${e.id}/edit" class="btn btn-sm btn-outline-primary me-1" title="Modifier">
           <i class="fas fa-edit"></i>
         </a>
         <button class="btn btn-sm btn-outline-info" onclick="showDetail(${e.id})" title="Détails">

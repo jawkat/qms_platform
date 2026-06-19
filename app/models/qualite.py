@@ -15,6 +15,13 @@ class Risque(db.Model):
     maitrise = db.Column(db.Text)
     statut = db.Column(db.String(20), default='identifie')
     responsable_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
+    categorie = db.Column(db.String(50))
+    processus_concerne = db.Column(db.String(200))
+    plan_traitement = db.Column(db.Text)
+    action_preventive = db.Column(db.Text)
+    action_corrective = db.Column(db.Text)
+    date_revu = db.Column(db.Date)
+    date_prochaine_revu = db.Column(db.Date)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     entreprise = db.relationship('Entreprise')
     responsable = db.relationship('Utilisateur')
@@ -22,6 +29,14 @@ class Risque(db.Model):
     @property
     def ipr(self):
         return self.gravite * self.probabilite * self.detection
+
+    @property
+    def niveau_risque(self):
+        ipr = self.ipr
+        if ipr >= 80: return 'critique'
+        if ipr >= 40: return 'eleve'
+        if ipr >= 15: return 'moyen'
+        return 'faible'
 
 class Equipement(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,0 +1,159 @@
+{% extends 'layout.html' %}
+{% block title %}Moteur de workflow{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-cogs me-2 text-primary"></i>Moteur de workflow</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modeleModal"><i class="fas fa-plus me-1"></i>Nouveau modèle</button>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Modèles</h6><div class="h3 mb-0 fw-bold" id="stat-modeles">-</div>
+    </div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Instances actives</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-actives">-</div>
+    </div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Terminées</h6><div class="h3 mb-0 fw-bold text-success" id="stat-terminees">-</div>
+    </div></div></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0"><i class="fas fa-shapes me-2 text-primary"></i>Modèles de workflow</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Nom</th><th>Module</th><th>Étapes</th><th>Actions</th></tr></thead>
+              <tbody id="modelesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0"><i class="fas fa-play-circle me-2 text-success"></i>Instances actives</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Modèle</th><th>Étape</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody id="instancesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modeleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouveau modèle de workflow</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Module cible</label>
+            <select id="f_module" class="form-select">
+              <option value="documents">Documents</option><option value="actions">Actions correctives</option>
+              <option value="change_management">Changements</option><option value="nonconformites">Non-conformités</option>
+            </select>
+          </div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+        </div>
+        <h6>Étapes du workflow</h6>
+        <div id="etapesContainer"></div>
+        <button class="btn btn-sm btn-outline-primary mt-2" onclick="addEtape()"><i class="fas fa-plus me-1"></i>Ajouter une étape</button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveModele()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var _etapeCount = 0;
+const STATS = '{{ url_for("workflow_engine.api_stats") }}';
+const MODELES = '{{ url_for("workflow_engine.api_modeles") }}';
+const INSTANCES = '{{ url_for("workflow_engine.api_instances") }}';
+
+function load() {
+  Promise.all([
+    fetch(STATS).then(r=>r.json()),
+    fetch(MODELES).then(r=>r.json()),
+    fetch(INSTANCES).then(r=>r.json()),
+  ]).then(([stats, modeles, instances]) => {
+    document.getElementById('stat-modeles').textContent = stats.modeles;
+    document.getElementById('stat-actives').textContent = stats.instances_actives;
+    document.getElementById('stat-terminees').textContent = stats.instances_terminees;
+
+    var mb = document.getElementById('modelesBody');
+    if (!modeles.length) { mb.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Aucun modèle</td></tr>'; return; }
+    mb.innerHTML = modeles.map(m => `<tr>
+      <td><strong>${m.nom}</strong><br><small class="text-muted">${m.description||''}</small></td>
+      <td><span class="badge bg-info">${m.module_cible}</span></td>
+      <td>${m.nb_etapes}</td>
+      <td><button class="btn btn-sm btn-outline-danger" onclick="deleteModele(${m.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+
+    var ib = document.getElementById('instancesBody');
+    if (!instances.length) { ib.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Aucune instance</td></tr>'; return; }
+    ib.innerHTML = instances.map(i => `<tr>
+      <td>${i.modele}</td><td>${i.etape_courante||'—'}</td>
+      <td><span class="badge bg-${i.statut==='en_cours'?'warning':i.statut==='termine'?'success':'danger'}">${i.statut}</span></td>
+      <td>${i.statut==='en_cours' ? `<button class="btn btn-sm btn-outline-success" onclick="valider(${i.id})"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="rejeter(${i.id})"><i class="fas fa-times"></i></button>` : ''}</td>
+    </tr>`).join('');
+  });
+}
+
+function addEtape() {
+  _etapeCount++;
+  var div = document.createElement('div');
+  div.className = 'row g-2 mb-2 etape-row';
+  div.innerHTML = `
+    <div class="col-md-4"><input type="text" class="form-control form-control-sm etape-nom" placeholder="Nom étape"></div>
+    <div class="col-md-3"><input type="text" class="form-control form-control-sm etape-role" placeholder="Rôle requis"></div>
+    <div class="col-md-3"><select class="form-select form-select-sm etape-action">
+      <option value="approuver">Approuver</option><option value="consulter">Consulter</option><option value="signer">Signer</option>
+    </select></div>
+    <div class="col-md-2"><button class="btn btn-sm btn-outline-danger" onclick="this.closest('.etape-row').remove()"><i class="fas fa-trash"></i></button></div>
+  `;
+  document.getElementById('etapesContainer').appendChild(div);
+}
+
+function saveModele() {
+  var etapes = [];
+  document.querySelectorAll('.etape-row').forEach(row => {
+    var nom = row.querySelector('.etape-nom').value;
+    if (nom) etapes.push({
+      nom: nom, role_requis: row.querySelector('.etape-role').value,
+      action_requise: row.querySelector('.etape-action').value,
+    });
+  });
+  var data = {
+    nom: document.getElementById('f_nom').value,
+    description: document.getElementById('f_description').value,
+    module_cible: document.getElementById('f_module').value,
+    etapes: etapes,
+  };
+  fetch('{{ url_for("workflow_engine.api_modeles_create") }}', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('modeleModal')).hide(); load(); } });
+}
+
+function deleteModele(id) { if(!confirm('Supprimer ?')) return; fetch(`/workflow-engine/api/modeles/${id}/delete`, {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function valider(id) { fetch(`/workflow-engine/api/instances/${id}/valider`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function rejeter(id) { var c = prompt('Commentaire de rejet:'); fetch(`/workflow-engine/api/instances/${id}/rejeter`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({commentaire:c})}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

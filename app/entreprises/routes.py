@@ -47,11 +47,18 @@ def create():
             plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
             return render_template('entreprises/create.html', secteurs=secteurs, plans=plans)
 
-        modules = ['hse']
-        if request.form.get('module_qualite'):
-            modules.append('qualite')
-        if request.form.get('module_haccp'):
-            modules.append('haccp')
+        # 23 modules activables
+        ALL_MODULES = [
+            'pilotage', 'ged', 'veille', 'processus', 'audits', 'qualite',
+            'nc_capa', 'formations', 'rh_qhse', 'haccp', 'hse', 'environnement',
+            'maintenance', 'laboratoire', 'fournisseurs', 'performance',
+            'planification', 'reunions', 'support', 'notifications',
+            'admin', 'connaissances', 'urgences',
+        ]
+        modules = []
+        for mod in ALL_MODULES:
+            if request.form.get(f'module_{mod}'):
+                modules.append(mod)
 
         selected_secteur_ids = request.form.getlist('secteurs')
 
@@ -163,21 +170,29 @@ def create():
 def edit(entreprise_id):
     entreprise = db.session.get(Entreprise, entreprise_id)
     if not entreprise:
-        abort(404)
+        flash('Entreprise introuvable.', 'danger')
+        return redirect(url_for('entreprises.index'))
     if request.method == 'POST':
         entreprise.nom = request.form.get('nom', entreprise.nom)
         entreprise.taille = request.form.get('taille', entreprise.taille)
         entreprise.adresse = request.form.get('adresse', entreprise.adresse)
         entreprise.telephone = request.form.get('telephone', entreprise.telephone)
         entreprise.pays = request.form.get('pays', entreprise.pays)
+
+        # 23 modules activables
+        ALL_MODULES = [
+            'pilotage', 'ged', 'veille', 'processus', 'audits', 'qualite',
+            'nc_capa', 'formations', 'rh_qhse', 'haccp', 'hse', 'environnement',
+            'maintenance', 'laboratoire', 'fournisseurs', 'performance',
+            'planification', 'reunions', 'support', 'notifications',
+            'admin', 'connaissances', 'urgences',
+        ]
         modules = []
-        if request.form.get('module_hse'):
-            modules.append('hse')
-        if request.form.get('module_qualite'):
-            modules.append('qualite')
-        if request.form.get('module_haccp'):
-            modules.append('haccp')
+        for mod in ALL_MODULES:
+            if request.form.get(f'module_{mod}'):
+                modules.append(mod)
         entreprise.modules_actifs = modules
+
         if request.form.get('abonnement_type'):
             entreprise.abonnement_type = request.form.get('abonnement_type')
         db.session.commit()

@@ -32,7 +32,7 @@
           </td>
           <td>
             <button class="btn btn-sm btn-outline-primary btn-manage" data-id="{{ t.id }}">Gérer</button>
-            <a href="{{ url_for('textes.detail_texte', texte_id=t.id) }}" class="btn btn-sm btn-outline-secondary">Voir</a>
+            <a href="{{ url_for('textes.detail', texte_id=t.id) }}" class="btn btn-sm btn-outline-secondary">Voir</a>
           </td>
         </tr>
         {% endfor %}

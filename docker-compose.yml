@@ -1,4 +1,28 @@
+# =============================================================================
+# QMS Platform — Docker Compose
+# =============================================================================
+#
+# Services :
+#   - db:        PostgreSQL 16 (port 5433)
+#   - redis:     Redis 7 (port 6380)
+#   - minio:     MINIO S3-compatible storage (port 9000 API, 9001 Console)
+#   - app:       Flask application (port 5006)
+#
+# Démarrage :
+#   docker-compose up -d
+#
+# Arrêt :
+#   docker-compose down
+#
+# Réinitialiser les données :
+#   docker-compose down -v && docker-compose up -d
+#
+# =============================================================================
+
 services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL 16 — Base de données principale
+  # -------------------------------------------------------------------------
   db:
     image: postgres:16-alpine
     container_name: qms_db
@@ -17,6 +41,9 @@ services:
       timeout: 5s
       retries: 10
 
+  # -------------------------------------------------------------------------
+  # Redis 7 — Cache et tâches asynchrones
+  # -------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: qms_redis
@@ -24,6 +51,34 @@ services:
     ports:
       - "6380:6379"
 
+  # -------------------------------------------------------------------------
+  # MINIO — Stockage objet S3-compatible
+  # -------------------------------------------------------------------------
+  # Console web : http://localhost:9001 (minioadmin/minioadmin)
+  # API S3 : http://localhost:9000
+  # Bucket par défaut : qms-platform
+  minio:
+    image: minio/minio:latest
+    container_name: qms_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Console web
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # Flask Application
+  # -------------------------------------------------------------------------
   app:
     build: .
     container_name: qms_app
@@ -31,6 +86,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -44,6 +101,29 @@ services:
       - .:/app
       - uploads_data:/app/uploads
 
+  # -------------------------------------------------------------------------
+  # RQ Worker — Tâches asynchrones (emails, alertes, exports)
+  # -------------------------------------------------------------------------
+  worker:
+    build: .
+    container_name: qms_worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+    command: python run_worker.py
+
+# =============================================================================
+# Volumes persistants
+# =============================================================================
 volumes:
   pgdata:
+    driver: local
+  minio_data:
+    driver: local
   uploads_data:
+    driver: local

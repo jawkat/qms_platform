@@ -219,3 +219,35 @@ def search():
             results['Tickets'] = [{'id': t.id, 'title': t.sujet or t.description[:80], 'url': url_for('support.detail_ticket', ticket_id=t.id)} for t in tickets]
 
     return render_template('main/search.html', results=results, query=q)
+
+
+@main.route('/api/alerts/trigger', methods=['POST'])
+@login_required
+def api_trigger_alerts():
+    """Déclenche manuellement les alertes (admin only)."""
+    if not current_user.role or not current_user.role.est_systeme:
+        abort(403)
+    from app.services.alert_engine import run_daily_alerts
+    results = run_daily_alerts()
+    return jsonify({'success': True, 'results': results})
+
+
+@main.route('/export/<module>')
+@login_required
+def export_module(module):
+    """Export Excel pour un module donné."""
+    from app.services.report_service import (
+        export_actions_excel, export_audits_excel, export_nc_excel, export_risques_excel
+    )
+    eid = current_user.entreprise_id
+    domaine = session.get('domaine_actif', 'hse')
+
+    exporters = {
+        'actions': lambda: export_actions_excel(eid, domaine),
+        'audits': lambda: export_audits_excel(eid, domaine),
+        'nc': lambda: export_nc_excel(eid, domaine),
+        'risques': lambda: export_risques_excel(eid),
+    }
+    if module not in exporters:
+        abort(404)
+    return exporters[module]()

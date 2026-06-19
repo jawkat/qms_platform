@@ -1,0 +1,159 @@
+{% extends 'layout.html' %}
+{% block title %}Processus{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-project-diagram me-2 text-primary"></i>Cartographie des processus</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau processus</button>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div>
+    </div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Actifs</h6><div class="h3 mb-0 fw-bold text-success" id="stat-actifs">-</div>
+    </div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">À revoir</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-a_revoir">-</div>
+    </div></div></div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Nom</th><th>Type</th><th>Propriétaire</th><th>Entrée</th><th>Sortie</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau processus</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-8"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Type</label>
+            <select id="f_type" class="form-select">
+              <option value="operationnel">Opérationnel</option><option value="support">Support</option>
+              <option value="management">Management</option><option value="strategique">Stratégique</option>
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Propriétaire</label>
+            <select id="f_proprietaire" class="form-select">
+              <option value="">—</option>
+              {% for u in utilisateurs %}<option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Statut</label>
+            <select id="f_statut" class="form-select">
+              <option value="actif">Actif</option><option value="inactif">Inactif</option><option value="en_definition">En définition</option>
+            </select>
+          </div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Entrée</label><textarea id="f_entree" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Sortie</label><textarea id="f_sortie" class="form-control" rows="2"></textarea></div>
+          <div class="col-12"><label class="form-label">Objectifs</label><textarea id="f_objectifs" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Dernière revue</label><input type="date" id="f_derniere_revu" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Prochaine revue</label><input type="date" id="f_prochaine_revu" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("processus.api_liste") }}';
+const CREATE = '{{ url_for("processus.api_creer") }}';
+const UPDATE = '{{ url_for("processus.api_modifier", item_id=0) }}';
+const DELETE = '{{ url_for("processus.api_supprimer", item_id=0) }}';
+const STATS = '{{ url_for("processus.api_stats") }}';
+const BPMN_BASE = '/processus/';
+
+function openBpmn(id) {
+  window.location.href = BPMN_BASE + id + '/bpmn';
+}
+
+var _items = [];
+function load() {
+  Promise.all([fetch(API).then(r=>r.json()), fetch(STATS).then(r=>r.json())])
+  .then(([items, stats]) => {
+    _items = items;
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-actifs').textContent = stats.actifs;
+    document.getElementById('stat-a_revoir').textContent = stats.a_revoir;
+    var tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucun processus</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><strong>${r.nom||''}</strong></td>
+      <td><span class="badge bg-info">${r.type_processus||''}</span></td>
+      <td>${r.proprietaire||''}</td>
+      <td class="text-truncate" style="max-width:150px">${r.entree||''}</td>
+      <td class="text-truncate" style="max-width:150px">${r.sortie||''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-info" onclick="openBpmn(${r.id})" title="Éditeur BPMN"><i class="fas fa-project-diagram"></i></button>
+          <button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = {
+    nom: document.getElementById('f_nom').value,
+    description: document.getElementById('f_description').value,
+    type_processus: document.getElementById('f_type').value,
+    proprietaire_id: document.getElementById('f_proprietaire').value || null,
+    statut: document.getElementById('f_statut').value,
+    entree: document.getElementById('f_entree').value,
+    sortie: document.getElementById('f_sortie').value,
+    objectifs: document.getElementById('f_objectifs').value,
+    date_derniere_revu: document.getElementById('f_derniere_revu').value,
+    date_prochaine_revu: document.getElementById('f_prochaine_revu').value,
+  };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+
+function edit(id) {
+  const r = _items.find(x=>x.id===id); if(!r) return;
+  document.getElementById('itemId').value = r.id;
+  document.getElementById('f_nom').value = r.nom||'';
+  document.getElementById('f_description').value = r.description||'';
+  document.getElementById('f_type').value = r.type_processus||'operationnel';
+  document.getElementById('f_proprietaire').value = r.proprietaire_id||'';
+  document.getElementById('f_statut').value = r.statut||'actif';
+  document.getElementById('f_entree').value = r.entree||'';
+  document.getElementById('f_sortie').value = r.sortie||'';
+  document.getElementById('f_objectifs').value = r.objectifs||'';
+  document.getElementById('modalTitle').textContent = 'Modifier le processus';
+  new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+
+function resetForm() {
+  document.getElementById('itemId').value = '';
+  ['f_nom','f_description','f_entree','f_sortie','f_objectifs','f_derniere_revu','f_prochaine_revu'].forEach(id => document.getElementById(id).value = '');
+  ['f_type','f_proprietaire','f_statut'].forEach(id => document.getElementById(id).selectedIndex = 0);
+  document.getElementById('modalTitle').textContent = 'Nouveau processus';
+}
+
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

@@ -97,13 +97,13 @@ def link_create():
     texte_id = request.form.get('texte_id') or request.form.get('texte')
     if not texte_id:
         flash('Aucun texte specifie pour le lien.', 'warning')
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('textes.library_all'))
 
     # Use entreprise_id from current_user
     entreprise_id = current_user.entreprise_id
     if not entreprise_id:
         flash('Votre compte n\'est pas rattache a une entreprise.', 'warning')
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('textes.library_all'))
 
     payload = request.form if request.form else (request.get_json(silent=True) or {})
     metadata = _normalize_link_metadata(payload)
@@ -146,7 +146,7 @@ def link_create():
         texte_version_id=et.texte_version_id,
     )
     flash('Lien cree entre votre entreprise et le texte.', 'success')
-    return redirect(url_for('textes.index'))
+    return redirect(url_for('conformite.index'))
 
 
 @entreprise_textes.route('/toggle_link', methods=['GET', 'POST'])
@@ -276,12 +276,12 @@ def evaluate_linked_text():
     version_id = request.form.get('version_id', type=int)
     if not version_id:
         flash('Version de texte manquante pour lancer l\'evaluation.', 'warning')
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('conformite.index'))
 
     entreprise_id = current_user.entreprise_id
     if not entreprise_id:
         flash('Votre compte n\'est pas rattache a une entreprise.', 'warning')
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('conformite.index'))
 
     entreprise_texte = EntrepriseTexte.query.filter_by(
         entreprise_id=entreprise_id,
@@ -290,7 +290,7 @@ def evaluate_linked_text():
 
     if not entreprise_texte:
         flash('Le texte doit etre lie a votre entreprise avant evaluation.', 'warning')
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('conformite.index'))
 
     try:
         created_count = _create_missing_evaluations_for_link(entreprise_texte)
@@ -307,7 +307,7 @@ def evaluate_linked_text():
             level='warning',
         )
         flash('Erreur lors de la creation des evaluations.', 'danger')
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('conformite.index'))
 
     if created_count > 0:
         flash(f'{created_count} evaluations creees avec succes.', 'success')
@@ -324,4 +324,4 @@ def evaluate_linked_text():
         created_count=created_count,
     )
 
-    return redirect(url_for('conformite.evaluations_texte', texte_id=entreprise_texte.id))
+    return redirect(url_for('conformite.index'))

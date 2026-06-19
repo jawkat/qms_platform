@@ -6,48 +6,110 @@
     <h1 class="h3 mb-0"><i class="fas fa-headset me-2" style="color:#7c3aed;"></i>Réclamations</h1>
     <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle réclamation</button>
   </div>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr><th>Date</th><th>Client</th><th>Produit</th><th>Type</th><th>Statut</th><th>Responsable</th><th>Actions</th></tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Ouvertes</h6><div class="h3 mb-0 fw-bold text-danger" id="stat-ouvertes">-</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">En cours</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-en-cours">-</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Clôturées</h6><div class="h3 mb-0 fw-bold text-success" id="stat-cloturees">-</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr><th>Date</th><th>Client</th><th>Produit</th><th>Type</th><th>Sévérité</th><th>Statut</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0"><i class="fas fa-chart-bar me-2 text-warning"></i>Pareto par type</h5>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center" style="min-height:280px;">
+          <canvas id="chart-pareto" style="max-height:250px;"></canvas>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
 <div class="modal fade" id="itemModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle réclamation</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <input type="hidden" id="itemId" value="">
-        <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">Date <span class="text-danger">*</span></label><input type="date" id="f_date" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">Client <span class="text-danger">*</span></label><input type="text" id="f_client" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">Produit</label><input type="text" id="f_produit" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">Lot</label><input type="text" id="f_lot" class="form-control"></div>
-          <div class="col-md-6"><label class="form-label">Type</label>
-            <select id="f_type" class="form-select">
-              <option value="qualite">Qualité</option>
-              <option value="delai">Délai</option>
-              <option value="service">Service</option>
-              <option value="autre">Autre</option>
-            </select>
+        <ul class="nav nav-tabs mb-3" id="rcTabs">
+          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-info">Informations</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-investigation">Investigation</a></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="tab-info">
+            <div class="row g-3">
+              <div class="col-md-6"><label class="form-label">Date <span class="text-danger">*</span></label><input type="date" id="f_date" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Client <span class="text-danger">*</span></label><input type="text" id="f_client" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Produit</label><input type="text" id="f_produit" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Lot</label><input type="text" id="f_lot" class="form-control"></div>
+              <div class="col-md-4"><label class="form-label">Type</label>
+                <select id="f_type" class="form-select">
+                  <option value="qualite">Qualité</option><option value="delai">Délai</option>
+                  <option value="service">Service</option><option value="prix">Prix</option><option value="autre">Autre</option>
+                </select>
+              </div>
+              <div class="col-md-4"><label class="form-label">Sévérité</label>
+                <select id="f_severite" class="form-select">
+                  <option value="faible">Faible</option><option value="moyenne" selected>Moyenne</option>
+                  <option value="grave">Grave</option><option value="critique">Critique</option>
+                </select>
+              </div>
+              <div class="col-md-4"><label class="form-label">Responsable</label>
+                <select id="f_responsable" class="form-select">
+                  <option value="">—</option>
+                  {% for u in utilisateurs %}<option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="f_description" class="form-control" rows="3"></textarea></div>
+              <div class="col-12"><label class="form-label">Action</label><textarea id="f_action" class="form-control" rows="2"></textarea></div>
+            </div>
           </div>
-          <div class="col-md-6"><label class="form-label">Responsable</label>
-            <select id="f_responsable" class="form-select">
-              <option value="">—</option>
-              {% for u in utilisateurs %}
-              <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
-              {% endfor %}
-            </select>
+          <div class="tab-pane fade" id="tab-investigation">
+            <div class="row g-3">
+              <div class="col-12"><label class="form-label">Investigation</label><textarea id="f_investigation" class="form-control" rows="3" placeholder="Description de l'investigation menée..."></textarea></div>
+              <div class="col-12"><label class="form-label">Cause racine</label><textarea id="f_cause_racine" class="form-control" rows="2" placeholder="Cause racine identifiée..."></textarea></div>
+              <div class="col-md-6"><label class="form-label">Statut</label>
+                <select id="f_statut" class="form-select">
+                  <option value="ouverte">Ouverte</option><option value="en_cours">En cours</option>
+                  <option value="cloturee">Clôturée</option>
+                </select>
+              </div>
+              <div class="col-md-6"><label class="form-label">Date clôture</label><input type="date" id="f_cloture_le" class="form-control"></div>
+            </div>
           </div>
-          <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="f_description" class="form-control" rows="3"></textarea></div>
-          <div class="col-12"><label class="form-label">Action</label><textarea id="f_action" class="form-control" rows="2"></textarea></div>
         </div>
       </div>
       <div class="modal-footer">
@@ -60,8 +122,13 @@
 {% endblock %}
 {% block scripts %}
 <script>
-const API = '{{ url_for("reclamations.api_liste") }}'; const CREATE = '{{ url_for("reclamations.api_creer") }}';
-const UPDATE = '{{ url_for("reclamations.api_modifier", item_id=0) }}'; const DELETE = '{{ url_for("reclamations.api_supprimer", item_id=0) }}';
+const API = '{{ url_for("reclamations.api_liste") }}';
+const CREATE = '{{ url_for("reclamations.api_creer") }}';
+const UPDATE = '{{ url_for("reclamations.api_modifier", item_id=0) }}';
+const DELETE = '{{ url_for("reclamations.api_supprimer", item_id=0) }}';
+const STATS_API = '{{ url_for("reclamations.api_stats") }}';
+const PARETO_API = '{{ url_for("reclamations.api_pareto") }}';
+
 function load() {
   fetch(API).then(r=>r.json()).then(items => {
     const tbody = document.getElementById('tableBody');
@@ -69,37 +136,93 @@ function load() {
     tbody.innerHTML = items.map(r => `<tr>
       <td>${r.date_reclamation ? new Date(r.date_reclamation).toLocaleDateString('fr-FR') : ''}</td>
       <td>${r.client||''}</td><td>${r.produit||''}</td><td>${r.type_reclamation||''}</td>
+      <td><span class="badge bg-${r.severite==='critique'?'danger':r.severite==='grave'?'warning':r.severite==='moyenne'?'info':'secondary'}">${r.severite||'moyenne'}</span></td>
       <td><span class="badge bg-${r.statut==='ouverte'?'danger':r.statut==='en_cours'?'warning':'success'}">${r.statut||''}</span></td>
-      <td>${r.responsable||''}</td>
       <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
     </tr>`).join('');
   });
+  fetch(STATS_API).then(r=>r.json()).then(d => {
+    document.getElementById('stat-total').textContent = d.total;
+    document.getElementById('stat-ouvertes').textContent = d.ouvertes;
+    document.getElementById('stat-en-cours').textContent = d.en_cours;
+    document.getElementById('stat-cloturees').textContent = d.cloturees;
+  });
+  fetch(PARETO_API).then(r=>r.json()).then(data => {
+    if (!data.length) return;
+    var ctx = document.getElementById('chart-pareto');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(d => d.type),
+        datasets: [
+          { label: 'Nombre', data: data.map(d => d.count), backgroundColor: '#3b82f6', order: 2 },
+          { label: 'Cumulé %', data: data.map(d => d.cumulative_pct), type: 'line', borderColor: '#ef4444', yAxisID: 'y1', order: 1, pointRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, y1: { position: 'right', beginAtZero: true, max: 100, grid: { display: false } } },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  });
 }
+
 function saveItem() {
   const id = document.getElementById('itemId').value;
-  const data = { date_reclamation: document.getElementById('f_date').value, client: document.getElementById('f_client').value,
-    produit: document.getElementById('f_produit').value, lot: document.getElementById('f_lot').value,
-    type_reclamation: document.getElementById('f_type').value, description: document.getElementById('f_description').value,
-    action: document.getElementById('f_action').value, responsable_id: document.getElementById('f_responsable').value };
+  const data = {
+    date_reclamation: document.getElementById('f_date').value,
+    client: document.getElementById('f_client').value,
+    produit: document.getElementById('f_produit').value,
+    lot: document.getElementById('f_lot').value,
+    type_reclamation: document.getElementById('f_type').value,
+    severite: document.getElementById('f_severite').value,
+    description: document.getElementById('f_description').value,
+    action: document.getElementById('f_action').value,
+    responsable_id: document.getElementById('f_responsable').value,
+    investigation: document.getElementById('f_investigation').value,
+    cause_racine: document.getElementById('f_cause_racine').value,
+    statut: document.getElementById('f_statut').value,
+    cloture_le: document.getElementById('f_cloture_le').value,
+  };
   const url = id ? UPDATE.replace('0', id) : CREATE;
   fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
     .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
 }
+
 function edit(id) {
   fetch(API).then(r=>r.json()).then(items => {
     const r = items.find(x=>x.id===id); if(!r) return;
-    document.getElementById('itemId').value = r.id; document.getElementById('f_date').value = r.date_reclamation||'';
-    document.getElementById('f_client').value = r.client||''; document.getElementById('f_produit').value = r.produit||'';
-    document.getElementById('f_lot').value = r.lot||''; document.getElementById('f_type').value = r.type_reclamation||'';
-    document.getElementById('f_description').value = r.description||''; document.getElementById('f_action').value = r.action||'';
+    document.getElementById('itemId').value = r.id;
+    document.getElementById('f_date').value = r.date_reclamation||'';
+    document.getElementById('f_client').value = r.client||'';
+    document.getElementById('f_produit').value = r.produit||'';
+    document.getElementById('f_lot').value = r.lot||'';
+    document.getElementById('f_type').value = r.type_reclamation||'';
+    document.getElementById('f_severite').value = r.severite||'moyenne';
+    document.getElementById('f_description').value = r.description||'';
+    document.getElementById('f_action').value = r.action||'';
     document.getElementById('f_responsable').value = r.responsable_id||'';
+    document.getElementById('f_investigation').value = r.investigation||'';
+    document.getElementById('f_cause_racine').value = r.cause_racine||'';
+    document.getElementById('f_statut').value = r.statut||'ouverte';
+    document.getElementById('f_cloture_le').value = r.cloture_le||'';
     document.getElementById('modalTitle').textContent = 'Modifier la réclamation';
     new bootstrap.Modal(document.getElementById('itemModal')).show();
   });
 }
+
 function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
-function resetForm() { document.getElementById('itemId').value = ''; ['f_date','f_client','f_produit','f_lot','f_type','f_description','f_action','f_responsable'].forEach(id => document.getElementById(id).value = ''); document.getElementById('modalTitle').textContent = 'Nouvelle réclamation'; }
+
+function resetForm() {
+  document.getElementById('itemId').value = '';
+  ['f_date','f_client','f_produit','f_lot','f_description','f_action','f_investigation','f_cause_racine','f_cloture_le'].forEach(id => document.getElementById(id).value = '');
+  ['f_type','f_severite','f_responsable','f_statut'].forEach(id => document.getElementById(id).selectedIndex = 0);
+  document.getElementById('modalTitle').textContent = 'Nouvelle réclamation';
+}
+
 document.addEventListener('DOMContentLoaded', load);
 </script>
 {% endblock %}

@@ -72,7 +72,7 @@
 
   <div class="row g-3 mb-4">
     <div class="col-md-3">
-      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('nonconformites.index') }}">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('nonconformites.index', domaine='haccp') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
@@ -87,12 +87,26 @@
       </a>
     </div>
     <div class="col-md-3">
-      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.fournisseurs') }}">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.rappels') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Rappels</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-rappels"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fde8e8;">
+              <i class="fas fa-exclamation-circle text-danger"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('fournisseurs.index') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Fournisseurs</h6>
-              <div class="h3 mb-0 fw-bold" id="stat-fournisseurs"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#f3e8ff;">
               <i class="fas fa-truck" style="color:#7c3aed;"></i>
@@ -102,30 +116,14 @@
       </a>
     </div>
     <div class="col-md-3">
-      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.reclamations') }}">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('reclamations.index') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <h6 class="text-muted text-uppercase small mb-2">Réclamations</h6>
-              <div class="h3 mb-0 fw-bold" id="stat-reclamations"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#fff3e0;">
               <i class="fas fa-headset" style="color:#e65100;"></i>
-            </div>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-md-3">
-      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.formations') }}">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <h6 class="text-muted text-uppercase small mb-2">Formations</h6>
-              <div class="h3 mb-0 fw-bold" id="stat-formations"><span class="skeleton skeleton-text d-inline-block"></span></div>
-            </div>
-            <div class="rounded-3 p-2" style="background:#e0f2f1;">
-              <i class="fas fa-graduation-cap" style="color:#0d9488;"></i>
             </div>
           </div>
         </div>
@@ -145,12 +143,12 @@
             <a href="{{ url_for('haccp.ccp') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-exclamation-triangle me-1"></i>CCP</a>
             <a href="{{ url_for('haccp.prp') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-hand-sparkles me-1"></i>PRP</a>
             <a href="{{ url_for('haccp.enregistrements') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-clipboard-check me-1"></i>Enregistrements</a>
-            <a href="{{ url_for('nonconformites.index') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-times-circle me-1"></i>Non-conformités</a>
+            <a href="{{ url_for('nonconformites.index', domaine='haccp') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-times-circle me-1"></i>Non-conformités</a>
             <a href="{{ url_for('haccp.tracabilite') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sitemap me-1"></i>Traçabilité</a>
-            <a href="{{ url_for('haccp.fournisseurs') }}" class="btn btn-outline-purple btn-sm"><i class="fas fa-truck me-1"></i>Fournisseurs</a>
-            <a href="{{ url_for('haccp.formations') }}" class="btn btn-outline-teal btn-sm"><i class="fas fa-graduation-cap me-1"></i>Formations</a>
-            <a href="{{ url_for('haccp.reclamations') }}" class="btn btn-outline-orange btn-sm"><i class="fas fa-headset me-1"></i>Réclamations</a>
             <a href="{{ url_for('haccp.rappels') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-exclamation-circle me-1"></i>Rappels</a>
+            <a href="{{ url_for('fournisseurs.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-truck me-1"></i>Fournisseurs</a>
+            <a href="{{ url_for('formations.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-graduation-cap me-1"></i>Formations</a>
+            <a href="{{ url_for('reclamations.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-headset me-1"></i>Réclamations</a>
           </div>
         </div>
       </div>
@@ -168,11 +166,9 @@ fetch('{{ url_for("haccp.api_stats") }}').then(function(r) { return r.json(); })
   setStat('stat-processus', d.processus);
   setStat('stat-produits', d.produits);
   setStat('stat-ccp', d.ccp);
-  setStat('stat-nonconformites', d.nonconformites);
-  setStat('stat-formations', d.formations);
-  setStat('stat-fournisseurs', d.fournisseurs);
-  setStat('stat-reclamations', d.reclamations);
   setStat('stat-enregistrements', d.enregistrements);
+  setStat('stat-nonconformites', d.nonconformites);
+  setStat('stat-rappels', d.rappels);
 }).catch(function() {
   document.querySelectorAll('[id^="stat-"]').forEach(function(el) { el.textContent = '0'; });
 });

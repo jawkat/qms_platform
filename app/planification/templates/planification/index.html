@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+{% block title %}Planification{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-calendar-alt me-2 text-primary"></i>Planification</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel événement</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">À venir</h6><div class="h3 mb-0 fw-bold text-info" id="stat-avenir">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Terminées</h6><div class="h3 mb-0 fw-bold text-success" id="stat-terminees">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Titre</th><th>Type</th><th>Date</th><th>Lieu</th><th>Responsable</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="mb-3"><label class="form-label">Titre <span class="text-danger">*</span></label><input type="text" id="f_titre" class="form-control"></div>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Type</label><select id="f_type" class="form-select"><option value="">—</option><option value="audit">Audit</option><option value="formation">Formation</option><option value="inspection">Inspection</option><option value="maintenance">Maintenance</option><option value="reunion">Réunion</option><option value="echeance">Échéance</option></select></div>
+      <div class="col-md-6"><label class="form-label">Statut</label><select id="f_statut" class="form-select"><option value="planifie">Planifié</option><option value="en_cours">En cours</option><option value="termine">Terminé</option><option value="annule">Annulé</option></select></div>
+      <div class="col-md-6"><label class="form-label">Date début</label><input type="datetime-local" id="f_date_debut" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Date fin</label><input type="datetime-local" id="f_date_fin" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Lieu</label><input type="text" id="f_lieu" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Responsable</label><input type="text" id="f_responsable" class="form-control"></div>
+    </div>
+    <div class="mb-3"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("planification.api_liste") }}',CREATE='{{ url_for("planification.api_creer") }}',UPDATE='{{ url_for("planification.api_modifier",item_id=0) }}',DELETE='{{ url_for("planification.api_supprimer",item_id=0) }}',STATS='{{ url_for("planification.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-total').textContent=stats.total;document.getElementById('stat-avenir').textContent=stats.a_venir;document.getElementById('stat-terminees').textContent=stats.terminees;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucun événement</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.titre}</strong></td><td><span class="badge bg-secondary">${r.type_evenement||'-'}</span></td><td>${r.date_debut?new Date(r.date_debut).toLocaleDateString('fr-FR'):'-'}</td><td>${r.lieu||'-'}</td><td>${r.responsable||'-'}</td><td><span class="badge bg-${r.statut==='termine'?'success':r.statut==='en_cours'?'warning':'info'}">${r.statut||'-'}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={titre:document.getElementById('f_titre').value,description:document.getElementById('f_description').value,type_evenement:document.getElementById('f_type').value,statut:document.getElementById('f_statut').value,date_debut:document.getElementById('f_date_debut').value,date_fin:document.getElementById('f_date_fin').value,lieu:document.getElementById('f_lieu').value,responsable:document.getElementById('f_responsable').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_titre').value=r.titre||'';document.getElementById('f_description').value=r.description||'';document.getElementById('f_type').value=r.type_evenement||'';document.getElementById('f_statut').value=r.statut||'planifie';document.getElementById('f_lieu').value=r.lieu||'';document.getElementById('f_responsable').value=r.responsable||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_titre','f_description','f_date_debut','f_date_fin','f_lieu','f_responsable'].forEach(id=>document.getElementById(id).value='');['f_type','f_statut'].forEach(id=>document.getElementById(id).selectedIndex=0);document.getElementById('modalTitle').textContent='Nouvel événement'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}

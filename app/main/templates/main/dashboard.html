@@ -133,6 +133,29 @@
     </div>
     <div class="col-lg-5">
       <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-warning"></i>Actions par statut</h5>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center" style="min-height:280px;">
+          <canvas id="chart-actions-statut" style="max-height:250px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Actions en retard par priorité</h5>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center" style="min-height:280px;">
+          <canvas id="chart-retard-priorite" style="max-height:250px;"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
           <h5 class="mb-0"><i class="fas fa-folder-open me-2 text-warning"></i>Documents récents</h5>
           <a href="{{ url_for('documents.gestion') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
@@ -141,6 +164,22 @@
           <ul class="list-group list-group-flush" id="recent-documents-list">
             <li class="list-group-item text-center text-muted py-3">Chargement...</li>
           </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body py-3">
+          <h6 class="text-muted text-uppercase small mb-3"><i class="fas fa-file-export me-1"></i>Exporter les données</h6>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('main.export_module', module='actions') }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-excel me-1"></i>Actions (Excel)</a>
+            <a href="{{ url_for('main.export_module', module='audits') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Audits (Excel)</a>
+            <a href="{{ url_for('main.export_module', module='nc') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-excel me-1"></i>Non-conformités (Excel)</a>
+            <a href="{{ url_for('main.export_module', module='risques') }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-file-excel me-1"></i>Risques (Excel)</a>
+          </div>
         </div>
       </div>
     </div>
@@ -161,7 +200,7 @@
             <a href="{{ url_for('audit.index') }}" class="btn btn-outline-success btn-sm">
               <i class="fas fa-clipboard-check me-1"></i>Audits
             </a>
-            <a href="{{ url_for('textes.index') }}" class="btn btn-outline-info btn-sm">
+            <a href="{{ url_for('textes.library_all') }}" class="btn btn-outline-info btn-sm">
               <i class="fas fa-scroll me-1"></i>Textes
             </a>
             <a href="{{ url_for('conformite.index') }}" class="btn btn-outline-secondary btn-sm">
@@ -273,6 +312,49 @@ fetch('/documents/api/liste').then(function(r) { return r.json(); }).then(functi
 }).catch(function() {
   document.getElementById('recent-documents-list').innerHTML =
     '<li class="list-group-item text-center text-danger py-3">Erreur de chargement</li>';
+});
+
+fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function(actions) {
+  var statuts = {};
+  var retards = {'haute': 0, 'moyenne': 0, 'basse': 0};
+  actions.forEach(function(a) {
+    statuts[a.statut] = (statuts[a.statut] || 0) + 1;
+    if (a.date_echeance && new Date(a.date_echeance) < new Date() && a.statut !== 'SOLDE' && a.statut !== 'ANNULE') {
+      retards[a.priorite || 'moyenne'] = (retards[a.priorite || 'moyenne'] || 0) + 1;
+    }
+  });
+
+  var statutLabels = {'A_FAIRE': 'À faire', 'EN_COURS': 'En cours', 'REALISE': 'Réalisé', 'SOLDE': 'Soldé', 'ANNULE': 'Annulé'};
+  var statutColors = {'A_FAIRE': '#6c757d', 'EN_COURS': '#0dcaf0', 'REALISE': '#198754', 'SOLDE': '#212529', 'ANNULE': '#dc3545'};
+
+  new Chart(document.getElementById('chart-actions-statut'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(statuts).map(function(k) { return statutLabels[k] || k; }),
+      datasets: [{
+        data: Object.values(statuts),
+        backgroundColor: Object.keys(statuts).map(function(k) { return statutColors[k] || '#6c757d'; }),
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  new Chart(document.getElementById('chart-retard-priorite'), {
+    type: 'bar',
+    data: {
+      labels: ['Haute', 'Moyenne', 'Basse'],
+      datasets: [{
+        label: 'Actions en retard',
+        data: [retards.haute, retards.moyenne, retards.basse],
+        backgroundColor: ['#dc3545', '#ffc107', '#198754'],
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
 });
 </script>
 {% endblock %}

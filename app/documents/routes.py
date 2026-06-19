@@ -226,7 +226,15 @@ def dossier_delete(dossier_id):
 @has_permission('documents.upload')
 @check_quota('documents')
 def upload():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
+    """
+    Upload un document vers la GED.
+
+    Utilise StorageService pour le stockage (MINIO ou local).
+    Le fichier est passé directement au ProofService qui gère
+    la détection de doublons et le stockage.
+    """
+    from flask import session as flask_session
+    domaine = flask_session.get('domaine_actif', 'hse')
     eid = current_user.entreprise_id
 
     if 'file' not in request.files:
@@ -239,21 +247,16 @@ def upload():
         return redirect(url_for('documents.gestion'))
 
     original_filename = secure_filename(file.filename)
-    ext = os.path.splitext(original_filename)[1].lower().lstrip('.')
-    stored_name = f"{uuid.uuid4().hex}_{original_filename}"
-    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'preuves', str(eid))
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, stored_name)
-    file.save(file_path)
 
     # Générer numéro document auto
     last_num = db.session.query(func.max(ProofMaster.id)).filter_by(entreprise_id=eid).scalar() or 0
     numero_doc = f"DOC-{datetime.utcnow().strftime('%Y%m')}-{last_num + 1:04d}"
 
+    # Upload via ProofService (utilise StorageService en interne)
     proof = ProofService.create_or_reuse_proof(
         entreprise_id=eid,
         nom_fichier=original_filename,
-        file_path=file_path,
+        file_obj=file.stream,
         domaine=domaine,
         description=request.form.get('description'),
         validite=datetime.strptime(request.form['validite'], '%Y-%m-%d').date()
@@ -433,8 +436,15 @@ def demander_revision(proof_id):
 @has_permission('documents.upload')
 @check_quota('documents')
 def nouvelle_version(proof_id):
+    """
+    Upload une nouvelle version d'un document.
+
+    L'ancienne version passe en statut 'REMPLACE' et la nouvelle
+    est créée avec un numéro de version incrémenté.
+    """
+    from flask import session as flask_session
     old_proof = tenant_get_or_404(ProofMaster, proof_id)
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
+    domaine = flask_session.get('domaine_actif', 'hse')
     eid = current_user.entreprise_id
 
     if 'file' not in request.files:
@@ -447,21 +457,16 @@ def nouvelle_version(proof_id):
         return redirect(url_for('documents.detail', proof_id=proof_id))
 
     original_filename = secure_filename(file.filename)
-    ext = os.path.splitext(original_filename)[1].lower().lstrip('.')
-    stored_name = f"{uuid.uuid4().hex}_{original_filename}"
-    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'preuves', str(eid))
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, stored_name)
-    file.save(file_path)
 
     # Incrémenter le numéro de version
     old_version = int(old_proof.version) if old_proof.version and old_proof.version.isdigit() else 1
     new_version = str(old_version + 1)
 
+    # Upload via ProofService (utilise StorageService en interne)
     proof = ProofService.create_or_reuse_proof(
         entreprise_id=eid,
         nom_fichier=original_filename,
-        file_path=file_path,
+        file_obj=file.stream,
         domaine=domaine,
         description=request.form.get('description') or old_proof.description,
         validite=datetime.strptime(request.form['validite'], '%Y-%m-%d').date()
@@ -667,12 +672,27 @@ def api_liste():
 @login_required
 @has_permission('documents.voir')
 def download(proof_id):
+    """
+    Télécharge un document depuis la GED.
+
+    Utilise StorageService pour récupérer le fichier (MINIO ou local).
+    Retourne le fichier comme attachment.
+    """
     proof = tenant_get_or_404(ProofMaster, proof_id)
-    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], proof.chemin)
-    if not os.path.exists(file_path):
-        flash('Fichier introuvable.', 'danger')
+
+    # Utiliser ProofService pour récupérer le stream
+    file_stream = ProofService.get_proof_stream(proof.id)
+    if not file_stream:
+        flash('Fichier introuvable dans le stockage.', 'danger')
         return redirect(url_for('documents.gestion'))
-    return send_file(file_path, as_attachment=True, download_name=proof.nom_fichier)
+
+    from flask import send_file
+    return send_file(
+        file_stream,
+        as_attachment=True,
+        download_name=proof.nom_fichier,
+        mimetype=f'application/{proof.type}' if proof.type else None,
+    )
 
 
 @blueprint.route('/<int:proof_id>/archiver', methods=['POST'])
@@ -691,10 +711,13 @@ def archiver(proof_id):
 @login_required
 @has_permission('documents.archiver')
 def supprimer(proof_id):
+    """
+    Supprime définitivement un document.
+
+    Supprime le fichier du stockage (MINIO ou local) puis
+    l'enregistrement de la base de données.
+    """
     proof = tenant_get_or_404(ProofMaster, proof_id)
-    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], proof.chemin)
-    if os.path.exists(file_path):
-        os.remove(file_path)
     ProofService.hard_delete_proof(proof.id)
     db.session.commit()
     flash('Document supprimé définitivement.', 'success')

@@ -1,0 +1,211 @@
+{% extends 'layout.html' %}
+{% block title %}Gestion des changements{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-exchange-alt me-2 text-primary"></i>Gestion des changements</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvelle demande</button>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Total</h6><div class="h4 mb-0 fw-bold" id="stat-total">-</div>
+    </div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Brouillons</h6><div class="h4 mb-0 fw-bold text-secondary" id="stat-brouillon">-</div>
+    </div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Soumis</h6><div class="h4 mb-0 fw-bold text-warning" id="stat-soumis">-</div>
+    </div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Approuvés</h6><div class="h4 mb-0 fw-bold text-success" id="stat-approuve">-</div>
+    </div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">En réalisation</h6><div class="h4 mb-0 fw-bold text-info" id="stat-en_realisation">-</div>
+    </div></div></div>
+    <div class="col-md-2"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Rejetés</h6><div class="h4 mb-0 fw-bold text-danger" id="stat-rejete">-</div>
+    </div></div></div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Réf.</th><th>Titre</th><th>Type</th><th>Priorité</th><th>Statut</th><th>Demandeur</th><th>Date</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvelle demande de changement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <ul class="nav nav-tabs mb-3">
+          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-desc">Description</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-impact">Analyse d'impact</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-risques">Risques</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-decision">Décision</a></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="tab-desc">
+            <div class="row g-3">
+              <div class="col-md-4"><label class="form-label">Titre <span class="text-danger">*</span></label><input type="text" id="f_titre" class="form-control"></div>
+              <div class="col-md-4"><label class="form-label">Type</label>
+                <select id="f_type" class="form-select">
+                  <option value="processus">Processus</option><option value="document">Document</option>
+                  <option value="logiciel">Logiciel</option><option value="equipement">Équipement</option>
+                  <option value="organisation">Organisation</option><option value="autre">Autre</option>
+                </select>
+              </div>
+              <div class="col-md-4"><label class="form-label">Priorité</label>
+                <select id="f_priorite" class="form-select">
+                  <option value="basse">Basse</option><option value="moyenne" selected>Moyenne</option>
+                  <option value="haute">Haute</option><option value="critique">Critique</option>
+                </select>
+              </div>
+              <div class="col-md-6"><label class="form-label">Date demandée</label><input type="date" id="f_date_souhaitee" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Statut</label>
+                <select id="f_statut" class="form-select">
+                  <option value="brouillon">Brouillon</option><option value="soumis">Soumis</option>
+                  <option value="approuve">Approuvé</option><option value="en_realisation">En réalisation</option>
+                  <option value="cloture">Clôturé</option><option value="rejete">Rejeté</option>
+                </select>
+              </div>
+              <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="f_description" class="form-control" rows="3"></textarea></div>
+              <div class="col-12"><label class="form-label">Raison du changement</label><textarea id="f_raison" class="form-control" rows="2"></textarea></div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="tab-impact">
+            <div class="row g-3">
+              <div class="col-12"><label class="form-label">Description de l'impact</label><textarea id="f_impact_description" class="form-control" rows="3"></textarea></div>
+              <div class="col-md-6"><label class="form-label">Secteurs impactés</label><input type="text" id="f_impact_secteurs" class="form-control" placeholder="Séparer par virgules"></div>
+              <div class="col-md-6"><label class="form-label">Utilisateurs impactés</label><input type="text" id="f_impact_utilisateurs" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Documents impactés</label><input type="text" id="f_impact_documents" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Délai estimé</label><input type="text" id="f_impact_delai" class="form-control" placeholder="Ex: 2 semaines"></div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="tab-risques">
+            <div class="row g-3">
+              <div class="col-12"><label class="form-label">Risques identifiés</label><textarea id="f_risques" class="form-control" rows="4"></textarea></div>
+              <div class="col-12"><label class="form-label">Mesures de mitigation</label><textarea id="f_mesures" class="form-control" rows="3"></textarea></div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="tab-decision">
+            <div class="row g-3">
+              <div class="col-md-6"><label class="form-label">Approbateur</label>
+                <select id="f_approbateur" class="form-select">
+                  <option value="">—</option>
+                  {% for u in utilisateurs %}<option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6"><label class="form-label">Commentaire approbation</label><input type="text" id="f_commentaire_approbation" class="form-control"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("change_management.api_liste") }}';
+const CREATE = '{{ url_for("change_management.api_creer") }}';
+const UPDATE = '{{ url_for("change_management.api_modifier", item_id=0) }}';
+const DELETE = '{{ url_for("change_management.api_supprimer", item_id=0) }}';
+const STATS = '{{ url_for("change_management.api_stats") }}';
+
+var _items = [];
+function load() {
+  Promise.all([fetch(API).then(r=>r.json()), fetch(STATS).then(r=>r.json())])
+  .then(([items, stats]) => {
+    _items = items;
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-brouillon').textContent = stats.brouillon;
+    document.getElementById('stat-soumis').textContent = stats.soumis;
+    document.getElementById('stat-approuve').textContent = stats.approuve;
+    document.getElementById('stat-en_realisation').textContent = stats.en_realisation;
+    document.getElementById('stat-rejete').textContent = stats.rejete;
+    var tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucune demande</td></tr>'; return; }
+    var statutMap = {brouillon:'secondary',soumis:'warning',approuve:'success',en_realisation:'info',cloture:'dark',rejete:'danger'};
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><small class="text-muted">${r.reference||''}</small></td>
+      <td>${r.titre||''}</td><td>${r.type_changement||''}</td>
+      <td><span class="badge bg-${r.priorite==='critique'?'danger':r.priorite==='haute'?'warning':'info'}">${r.priorite||''}</span></td>
+      <td><span class="badge bg-${statutMap[r.statut]||'secondary'}">${r.statut||''}</span></td>
+      <td>${r.demandeur||''}</td>
+      <td>${r.date_demande ? new Date(r.date_demande).toLocaleDateString('fr-FR') : ''}</td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = {
+    titre: document.getElementById('f_titre').value,
+    description: document.getElementById('f_description').value,
+    type_changement: document.getElementById('f_type').value,
+    priorite: document.getElementById('f_priorite').value,
+    statut: document.getElementById('f_statut').value,
+    date_souhaitee: document.getElementById('f_date_souhaitee').value,
+    raison: document.getElementById('f_raison').value,
+    impact_description: document.getElementById('f_impact_description').value,
+    impact_secteurs: document.getElementById('f_impact_secteurs').value,
+    impact_utilisateurs: document.getElementById('f_impact_utilisateurs').value,
+    impact_documents: document.getElementById('f_impact_documents').value,
+    impact_delai: document.getElementById('f_impact_delai').value,
+    risques_identifies: document.getElementById('f_risques').value,
+    mesures_mitigation: document.getElementById('f_mesures').value,
+    approbateur_id: document.getElementById('f_approbateur').value || null,
+    commentaire_approbation: document.getElementById('f_commentaire_approbation').value,
+  };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+
+function edit(id) {
+  const r = _items.find(x=>x.id===id); if(!r) return;
+  document.getElementById('itemId').value = r.id;
+  document.getElementById('f_titre').value = r.titre||'';
+  document.getElementById('f_description').value = r.description||'';
+  document.getElementById('f_type').value = r.type_changement||'processus';
+  document.getElementById('f_priorite').value = r.priorite||'moyenne';
+  document.getElementById('f_statut').value = r.statut||'brouillon';
+  document.getElementById('f_date_souhaitee').value = r.date_souhaitee||'';
+  document.getElementById('f_raison').value = r.raison||'';
+  document.getElementById('f_impact_description').value = r.impact_description||'';
+  document.getElementById('f_impact_secteurs').value = r.impact_secteurs||'';
+  document.getElementById('f_risques').value = r.risques_identifies||'';
+  document.getElementById('f_commentaire_approbation').value = r.commentaire_approbation||'';
+  document.getElementById('modalTitle').textContent = 'Modifier - ' + (r.reference||'');
+  new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+
+function resetForm() {
+  document.getElementById('itemId').value = '';
+  ['f_titre','f_description','f_raison','f_date_souhaitee','f_impact_description','f_impact_secteurs','f_impact_utilisateurs','f_impact_documents','f_impact_delai','f_risques','f_mesures','f_commentaire_approbation'].forEach(id => document.getElementById(id).value = '');
+  ['f_type','f_priorite','f_statut','f_approbateur'].forEach(id => document.getElementById(id).selectedIndex = 0);
+  document.getElementById('modalTitle').textContent = 'Nouvelle demande de changement';
+}
+
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

@@ -20,6 +20,14 @@ class Fournisseur(db.Model):
     dernier_audit = db.Column(db.Date)
     prochain_audit = db.Column(db.Date)
     statut = db.Column(db.String(20), default='actif')
+    pays = db.Column(db.String(50))
+    delai_livraison = db.Column(db.String(50))
+    taux_defaut = db.Column(db.Float, default=0)
+    score_qualite = db.Column(db.Float, default=0)
+    score_delai = db.Column(db.Float, default=0)
+    score_prix = db.Column(db.Float, default=0)
+    score_global = db.Column(db.Float, default=0)
+    commentaire_score = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     entreprise = db.relationship('Entreprise')
 
@@ -30,6 +38,14 @@ class Fournisseur(db.Model):
     @produit_fourni.setter
     def produit_fourni(self, value):
         self.produit = value
+
+    def calculer_score_global(self):
+        self.score_global = round(
+            (self.score_qualite or 0) * 0.4 +
+            (self.score_delai or 0) * 0.3 +
+            (self.score_prix or 0) * 0.3, 1
+        )
+        return self.score_global
 
 
 class Formation(db.Model):
@@ -65,10 +81,15 @@ class Reclamation(db.Model):
     lot = db.Column(db.String(100))
     description = db.Column(db.Text, nullable=False)
     type_reclamation = db.Column(db.String(50))
+    severite = db.Column(db.String(20), default='moyenne')
+    categorie = db.Column(db.String(50))
     action = db.Column(db.Text)
     responsable_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
     cloture_le = db.Column(db.Date)
     statut = db.Column(db.String(20), default='ouverte')
+    investigation = db.Column(db.Text)
+    cause_racine = db.Column(db.Text)
+    action_corrective_id = db.Column(db.Integer, db.ForeignKey('action_corrective.id'))
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     entreprise = db.relationship('Entreprise')
-    responsable = db.relationship('Utilisateur')
+    responsable = db.relationship('Utilisateur', foreign_keys=[responsable_id])

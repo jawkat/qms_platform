@@ -14,21 +14,21 @@ from app.utils.subscriptions import (
 BLOCKED_LIFECYCLE_STATES = {'suspended', 'cancelled', 'archived'}
 
 
-def _document_storage_key(doc):
-    chemin = (getattr(doc, 'chemin', None) or '').strip()
+def _proof_storage_key(proof):
+    chemin = (getattr(proof, 'chemin', None) or '').strip()
     if chemin:
         return ('chemin', chemin)
-    return ('id', getattr(doc, 'id', None))
+    return ('id', getattr(proof, 'id', None))
 
 
-def _get_storage_size_for_documents(documents):
+def _get_storage_size_for_proofs(proofs):
     upload_root = current_app.config.get('UPLOAD_FOLDER')
     if not upload_root:
         return 0
 
     total = 0
     seen_paths = set()
-    for doc in documents:
+    for doc in proofs:
         if not doc.chemin:
             continue
         if doc.chemin in seen_paths:
@@ -119,7 +119,7 @@ def get_documents_limit_status(entreprise_id, extra_documents=1):
         .all()
     )
 
-    current_count = len({_document_storage_key(pm) for pm in proof_masters})
+    current_count = len({_proof_storage_key(pm) for pm in proof_masters})
     reached = (current_count + extra_documents) > limit
     plan = get_subscription_plan(plan_key)
     return reached, current_count, limit, (plan['label'] if plan else plan_key)
@@ -136,7 +136,7 @@ def get_storage_limit_status(entreprise_id, extra_bytes=0):
         return False, None, None, None
 
     proof_masters = ProofMaster.query.filter(ProofMaster.entreprise_id == entreprise_id).all()
-    current_bytes = _get_storage_size_for_documents(proof_masters)
+    current_bytes = _get_storage_size_for_proofs(proof_masters)
     limit_bytes = int(limit_mb * 1024 * 1024)
     reached = (current_bytes + int(extra_bytes or 0)) > limit_bytes
     plan = get_subscription_plan(plan_key)

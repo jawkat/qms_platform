@@ -219,7 +219,7 @@
 document.getElementById('attribuerModal').addEventListener('show.bs.modal', function() {
   const sel = document.getElementById('texteSelect');
   sel.innerHTML = '<option value="">Chargement...</option>';
-  fetch('/textes/api/liste').then(function(r) { return r.json(); }).then(function(textes) {
+  fetch('/admin/textes/api/liste').then(function(r) { return r.json(); }).then(function(textes) {
     sel.innerHTML = '<option value="">Sélectionnez un texte...</option>';
     textes.forEach(function(t) {
       if (t.version_active_id) {

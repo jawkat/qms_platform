@@ -191,9 +191,9 @@ def attach_article_navigation(evaluation):
     return evaluation, current_index, total_articles
 
 
-def build_proof_state_for_documents(documents, reference_date=None):
-    """Determine the compliance state of a set of documents based on validity dates."""
-    docs = list(documents or [])
+def build_proof_state_for_proofs(proofs, reference_date=None):
+    """Determine the compliance state of a set of proofs based on validity dates."""
+    docs = list(proofs or [])
     today = reference_date or date.today()
     if not docs:
         return {'state': 'missing', 'expires_at': None}
@@ -367,7 +367,7 @@ def build_proof_alert_rows(entreprise_id, state_filter='all', show_missing=False
 
     for evaluation in evaluations:
         attachments = get_evaluation_attachment_views(evaluation)
-        proof_state = build_proof_state_for_documents(attachments)
+        proof_state = build_proof_state_for_proofs(attachments)
         state = proof_state.get('state')
         summary['total'] += 1
         if state in summary:

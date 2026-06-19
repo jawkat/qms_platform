@@ -1,0 +1,465 @@
+{% extends 'layout.html' %}
+{% block title %}Processus — {{ processus.nom }}{% endblock %}
+{% block content %}
+<style>
+  .editor-layout { display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 500px; }
+  .tab-bar { display: flex; border-bottom: 2px solid #e9ecef; background: #f8f9fa; flex-shrink: 0; }
+  .tab-bar .tab { padding: .5rem 1rem; cursor: pointer; font-size: .85rem; border-bottom: 2px solid transparent;
+                  margin-bottom: -2px; transition: all .2s; color: #6c757d; }
+  .tab-bar .tab:hover { color: #333; }
+  .tab-bar .tab.active { color: #e63946; border-bottom-color: #e63946; font-weight: 600; }
+  .tab-content { display: none; flex: 1; min-height: 0; overflow: hidden; }
+  .tab-content.active { display: flex; flex-direction: column; }
+  .fiche-form { padding: 1.25rem; overflow-y: auto; }
+  .fiche-form .form-label { font-size: .8rem; font-weight: 600; color: #495057; margin-bottom: .25rem; }
+  .fiche-form .form-control, .fiche-form .form-select { font-size: .85rem; }
+  .save-indicator { font-size: .75rem; color: #6c757d; }
+  .save-indicator.saving { color: #e63946; }
+  .save-indicator.saved { color: #28a745; }
+
+  /* BPMN Modeler layout */
+  .bpmn-editor-wrap { display: flex; flex: 1; min-height: 0; position: relative; }
+  .bpmn-canvas { flex: 1; position: relative; }
+  .bpmn-canvas .djs-container { width: 100% !important; height: 100% !important; }
+
+  /* Palette styling */
+  .bpp-properties-container { width: 300px; border-left: 1px solid #ddd; overflow-y: auto; }
+
+  /* Empty state */
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center;
+                 flex: 1; color: #6c757d; }
+  .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: .4; }
+</style>
+
+<div class="container-fluid px-3" style="height: calc(100vh - 70px);">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center py-2">
+    <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('processus.index') }}" class="text-decoration-none text-muted small">
+        <i class="fas fa-arrow-left me-1"></i>Processus
+      </a>
+      <h5 class="mb-0">
+        <span id="titleDisplay">{{ processus.nom }}</span>
+        <span class="badge bg-secondary ms-2" id="statutBadge">{{ processus.statut or 'actif' }}</span>
+      </h5>
+      <span class="save-indicator" id="saveIndicator"></span>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <button class="btn btn-outline-secondary btn-sm" onclick="generateFromProcessus()" title="Générer BPMN depuis la fiche">
+        <i class="fas fa-magic me-1"></i>Générer
+      </button>
+      <label class="btn btn-outline-secondary btn-sm mb-0" title="Importer un fichier BPMN">
+        <i class="fas fa-file-import me-1"></i>Importer
+        <input type="file" accept=".bpmn,.xml,.bnm" onchange="importBpmn(this)" hidden>
+      </label>
+      <button class="btn btn-outline-secondary btn-sm" onclick="exportBpmn()" title="Exporter en BPMN">
+        <i class="fas fa-download me-1"></i>Exporter
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="saveAll()" title="Sauvegarder tout">
+        <i class="fas fa-save me-1"></i>Sauvegarder
+      </button>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="editor-layout">
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <div class="tab active" data-tab="bpmn" onclick="switchTab('bpmn')">
+        <i class="fas fa-project-diagram me-1"></i>Diagramme BPMN
+      </div>
+      <div class="tab" data-tab="fiche" onclick="switchTab('fiche')">
+        <i class="fas fa-file-alt me-1"></i>Fiche Processus
+      </div>
+    </div>
+
+    <!-- Onglet BPMN — Éditeur complet -->
+    <div class="tab-content active" id="tab-bpmn">
+      <div class="bpmn-editor-wrap">
+        <div class="bpmn-canvas" id="bpmn-container"></div>
+        <!-- Panneau de propriétés bpmn-js -->
+        <div class="bpp-properties-container" id="properties-panel"></div>
+      </div>
+    </div>
+
+    <!-- Onglet Fiche -->
+    <div class="tab-content" id="tab-fiche">
+      <div class="fiche-form">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Nom du processus <span class="text-danger">*</span></label>
+            <input type="text" id="f_nom" class="form-control" value="{{ processus.nom }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Type</label>
+            <select id="f_type" class="form-select">
+              <option value="operationnel" {{ 'selected' if processus.type_processus == 'operationnel' }}>Opérationnel</option>
+              <option value="support" {{ 'selected' if processus.type_processus == 'support' }}>Support</option>
+              <option value="management" {{ 'selected' if processus.type_processus == 'management' }}>Management</option>
+              <option value="strategique" {{ 'selected' if processus.type_processus == 'strategique' }}>Stratégique</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Propriétaire</label>
+            <select id="f_proprietaire" class="form-select">
+              <option value="">— Non assigné —</option>
+              {% for u in utilisateurs %}
+              <option value="{{ u.id }}" {{ 'selected' if processus.proprietaire_id == u.id }}>{{ u.prenom }} {{ u.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Statut</label>
+            <select id="f_statut" class="form-select">
+              <option value="actif" {{ 'selected' if processus.statut == 'actif' }}>Actif</option>
+              <option value="inactif" {{ 'selected' if processus.statut == 'inactif' }}>Inactif</option>
+              <option value="en_definition" {{ 'selected' if processus.statut == 'en_definition' }}>En définition</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Description</label>
+            <textarea id="f_description" class="form-control" rows="3">{{ processus.description or '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Entrées du processus</label>
+            <textarea id="f_entree" class="form-control" rows="3" placeholder="Ex: Commandes clients, Matières premières...">{{ processus.entree or '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Sorties du processus</label>
+            <textarea id="f_sortie" class="form-control" rows="3" placeholder="Ex: Produits finis, Rapports...">{{ processus.sortie or '' }}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Objectifs</label>
+            <textarea id="f_objectifs" class="form-control" rows="2">{{ processus.objectifs or '' }}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Risques associés</label>
+            <textarea id="f_risques" class="form-control" rows="2">{{ processus.risques_associes or '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Dernière revue</label>
+            <input type="date" id="f_derniere_revu" class="form-control"
+                   value="{{ processus.date_derniere_revu.isoformat() if processus.date_derniere_revu else '' }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Prochaine revue</label>
+            <input type="date" id="f_prochaine_revu" class="form-control"
+                   value="{{ processus.date_prochaine_revu.isoformat() if processus.date_prochaine_revu else '' }}">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- ============================================================
+     bpmn-js — Éditeur complet avec Modeler + Properties Panel + Palette
+     ============================================================ -->
+<link rel="stylesheet" href="https://unpkg.com/bpmn-js@17.3.0/dist/assets/diagram-js.css">
+<link rel="stylesheet" href="https://unpkg.com/bpmn-js@17.3.0/dist/assets/bpmn-js.css">
+<link rel="stylesheet" href="https://unpkg.com/bpmn-js@17.3.0/dist/assets/bpmn-font/css/bpmn.css">
+<link rel="stylesheet" href="https://unpkg.com/@bpmn-io/properties-panel@5/assets/properties-panel.css">
+
+<script src="https://unpkg.com/bpmn-js@17.3.0/dist/bpmn-modeler.production.min.js"></script>
+
+<script>
+// =========================================================================
+// Configuration
+// =========================================================================
+const PROCESSUS_ID = {{ processus.id }};
+const API_MODIFY  = '/processus/api/' + PROCESSUS_ID + '/modifier';
+const BPMN_SAVE   = '/processus/api/' + PROCESSUS_ID + '/bpmn';
+const BPMN_GET    = '/processus/api/' + PROCESSUS_ID + '/bpmn';
+const BPMN_GEN    = '/processus/api/' + PROCESSUS_ID + '/bpmn/generate';
+const BPMN_IMPORT = '/processus/api/' + PROCESSUS_ID + '/bpmn/import';
+
+var modeler = null;
+var currentXml = null;
+var hasUnsavedChanges = false;
+
+// =========================================================================
+// Tabs
+// =========================================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.tab[data-tab="' + tab + '"]').classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+
+  // Resize modeler when switching back to BPMN tab
+  if (tab === 'bpmn' && modeler) {
+    setTimeout(function() {
+      var eventBus = modeler.get('eventBus');
+      eventBus.fire('canvas.resized');
+    }, 150);
+  }
+}
+
+// =========================================================================
+// BPMN Modeler — Éditeur complet
+// =========================================================================
+function initModeler() {
+  var container = document.getElementById('bpmn-container');
+  var propertiesPanel = document.getElementById('properties-panel');
+
+  modeler = new BpmnJS({
+    container: container,
+    keyboard: { bindTo: document },
+    propertiesPanel: {
+      parent: propertiesPanel,
+    },
+    additionalModules: [],
+    moddleExtensions: {},
+  });
+
+  // Détecter les changements pour "non sauvagé"
+  modeler.get('eventBus').on('commandStack.changed', function() {
+    markDirty();
+  });
+
+  // Créer un diagramme vide au démarrage si aucun XML
+  createEmptyDiagram();
+}
+
+function createEmptyDiagram() {
+  var xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" ' +
+    'xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" ' +
+    'xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" ' +
+    'id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" ' +
+    ' exporter="QMS Platform" exporterVersion="2.0">' +
+    '<bpmn:process id="Process_' + PROCESSUS_ID + '" isExecutable="false">' +
+    '<bpmn:startEvent id="StartEvent_1" name="Début">' +
+    '<bpmn:outgoing>Flow_1</bpmn:outgoing>' +
+    '</bpmn:startEvent>' +
+    '<bpmn:task id="Task_1" name="Activité principale">' +
+    '<bpmn:incoming>Flow_1</bpmn:incoming>' +
+    '<bpmn:outgoing>Flow_2</bpmn:outgoing>' +
+    '</bpmn:task>' +
+    '<bpmn:endEvent id="EndEvent_1" name="Fin">' +
+    '<bpmn:incoming>Flow_2</bpmn:incoming>' +
+    '</bpmn:endEvent>' +
+    '<bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_1" />' +
+    '<bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="EndEvent_1" />' +
+    '</bpmn:process>' +
+    '<bpmndi:BPMNDiagram id="BPMNDiagram_1">' +
+    '<bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_' + PROCESSUS_ID + '">' +
+    '<bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">' +
+    '<dc:Bounds x="179" y="99" width="36" height="36" />' +
+    '</bpmndi:BPMNShape>' +
+    '<bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">' +
+    '<dc:Bounds x="270" y="77" width="100" height="80" />' +
+    '</bpmndi:BPMNShape>' +
+    '<bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">' +
+    '<dc:Bounds x="432" y="99" width="36" height="36" />' +
+    '</bpmndi:BPMNShape>' +
+    '<bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">' +
+    '<di:waypoint x="215" y="117" />' +
+    '<di:waypoint x="270" y="117" />' +
+    '</bpmndi:BPMNEdge>' +
+    '<bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">' +
+    '<di:waypoint x="370" y="117" />' +
+    '<di:waypoint x="432" y="117" />' +
+    '</bpmndi:BPMNEdge>' +
+    '</bpmndi:BPMNPlane>' +
+    '</bpmndi:BPMNDiagram>' +
+    '</bpmn:definitions>';
+
+  currentXml = xml;
+  return modeler.importXML(xml);
+}
+
+// =========================================================================
+// Charger un diagramme existant
+// =========================================================================
+function loadDiagram(xml) {
+  if (!xml) {
+    createEmptyDiagram().then(function() {
+      modeler.get('canvas').zoom('fit-viewport');
+    });
+    return;
+  }
+
+  modeler.importXML(xml).then(function(result) {
+    modeler.get('canvas').zoom('fit-viewport');
+    currentXml = xml;
+    hasUnsavedChanges = false;
+  }).catch(function(err) {
+    console.error('BPMN load error:', err);
+    showToast('Erreur de chargement du diagramme', 'danger');
+  });
+}
+
+// =========================================================================
+// Dirty state
+// =========================================================================
+function markDirty() {
+  hasUnsavedChanges = true;
+  var el = document.getElementById('saveIndicator');
+  el.textContent = '● Non sauvegardé';
+  el.className = 'save-indicator saving';
+}
+
+function markSaved() {
+  hasUnsavedChanges = false;
+  var el = document.getElementById('saveIndicator');
+  el.textContent = '✓ Sauvegardé';
+  el.className = 'save-indicator saved';
+  setTimeout(function() { el.textContent = ''; }, 2000);
+}
+
+// =========================================================================
+// Sauvegarder la fiche processus
+// =========================================================================
+function saveFiche() {
+  var data = {
+    nom: document.getElementById('f_nom').value,
+    description: document.getElementById('f_description').value,
+    type_processus: document.getElementById('f_type').value,
+    proprietaire_id: document.getElementById('f_proprietaire').value || null,
+    statut: document.getElementById('f_statut').value,
+    entree: document.getElementById('f_entree').value,
+    sortie: document.getElementById('f_sortie').value,
+    objectifs: document.getElementById('f_objectifs').value,
+    risques_associes: document.getElementById('f_risques').value,
+    date_derniere_revu: document.getElementById('f_derniere_revu').value,
+    date_prochaine_revu: document.getElementById('f_prochaine_revu').value,
+  };
+  return fetch(API_MODIFY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(function(r) { return r.json(); }).then(function(r) {
+    if (r.success) {
+      document.getElementById('titleDisplay').textContent = data.nom;
+      document.getElementById('statutBadge').textContent = data.statut;
+    }
+    return r;
+  });
+}
+
+// =========================================================================
+// Sauvegarder le BPMN
+// =========================================================================
+function saveBpmn() {
+  if (!modeler) return Promise.resolve({ success: true });
+  return modeler.saveXML({ format: true }).then(function(result) {
+    return fetch(BPMN_SAVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bpmn_xml: result.xml }),
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.success) currentXml = result.xml;
+      return data;
+    });
+  });
+}
+
+// =========================================================================
+// Sauvegarder tout
+// =========================================================================
+function saveAll() {
+  var el = document.getElementById('saveIndicator');
+  el.textContent = '● Sauvegarde...';
+  el.className = 'save-indicator saving';
+
+  Promise.all([saveFiche(), saveBpmn()]).then(function(results) {
+    var allOk = results.every(function(r) { return r.success; });
+    if (allOk) {
+      markSaved();
+      showToast('Fiche et diagramme sauvegardés', 'success');
+    } else {
+      showToast('Erreur de sauvegarde', 'danger');
+    }
+  }).catch(function() {
+    showToast('Erreur de sauvegarde', 'danger');
+  });
+}
+
+// =========================================================================
+// Générer depuis la fiche
+// =========================================================================
+function generateFromProcessus() {
+  fetch(BPMN_GEN, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      loadDiagram(data.bpmn_xml);
+      switchTab('bpmn');
+      showToast('Diagramme généré — éditez-le librement', 'success');
+    }
+  });
+}
+
+// =========================================================================
+// Importer un fichier BPMN
+// =========================================================================
+function importBpmn(input) {
+  if (!input.files.length) return;
+  var fd = new FormData();
+  fd.append('file', input.files[0]);
+  fetch(BPMN_IMPORT, { method: 'POST', body: fd }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      loadDiagram(data.bpmn_xml || currentXml);
+      switchTab('bpmn');
+      showToast('Fichier BPMN importé — éditez-le librement', 'success');
+    } else {
+      showToast(data.error || 'Erreur d\'import', 'danger');
+    }
+  });
+  input.value = '';
+}
+
+// =========================================================================
+// Exporter en BPMN
+// =========================================================================
+function exportBpmn() {
+  if (!modeler) return;
+  modeler.saveXML({ format: true }).then(function(result) {
+    var blob = new Blob([result.xml], { type: 'application/xml' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'processus_' + PROCESSUS_ID + '.bpmn';
+    a.click();
+  });
+}
+
+// =========================================================================
+// Toast
+// =========================================================================
+function showToast(msg, type) {
+  var t = document.createElement('div');
+  t.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed';
+  t.style.cssText = 'top:1rem;right:1rem;z-index:9999;max-width:400px';
+  t.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  document.body.appendChild(t);
+  setTimeout(function() { if (t.parentNode) t.remove(); }, 3000);
+}
+
+// =========================================================================
+// Warn before leaving
+// =========================================================================
+window.addEventListener('beforeunload', function(e) {
+  if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// =========================================================================
+// Init
+// =========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  initModeler();
+
+  // Charger le BPMN existant
+  fetch(BPMN_GET).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.bpmn_xml) {
+      loadDiagram(data.bpmn_xml);
+    }
+  });
+
+  // Track fiche changes
+  document.querySelectorAll('#tab-fiche input, #tab-fiche select, #tab-fiche textarea').forEach(function(el) {
+    el.addEventListener('change', markDirty);
+  });
+});
+</script>
+{% endblock %}

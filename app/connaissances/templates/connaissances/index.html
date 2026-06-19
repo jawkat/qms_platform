@@ -1,0 +1,53 @@
+{% extends 'layout.html' %}
+{% block title %}Connaissances{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-book-open me-2 text-info"></i>Gestion des Connaissances</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau REX</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">REX total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Publiés</h6><div class="h3 mb-0 fw-bold text-success" id="stat-publies">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">FAQ</h6><div class="h3 mb-0 fw-bold text-info" id="stat-faq">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Titre</th><th>Catégorie</th><th>Auteur</th><th>Date</th><th>Leçons apprises</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau REX</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="row g-3">
+      <div class="col-md-8"><label class="form-label">Titre <span class="text-danger">*</span></label><input type="text" id="f_titre" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Catégorie</label><select id="f_categorie" class="form-select"><option value="">—</option><option value="incident">Incident</option><option value="amelioration">Amélioration</option><option value="best_practice">Bonne pratique</option><option value="lecon">Leçon apprise</option></select></div>
+      <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-6"><label class="form-label">Contexte</label><textarea id="f_contexte" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-6"><label class="form-label">Causes</label><textarea id="f_causes" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-6"><label class="form-label">Actions menées</label><textarea id="f_actions" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-6"><label class="form-label">Résultats</label><textarea id="f_resultats" class="form-control" rows="2"></textarea></div>
+      <div class="col-12"><label class="form-label">Leçons apprises</label><textarea id="f_lecons" class="form-control" rows="2"></textarea></div>
+      <div class="col-md-6"><label class="form-label">Auteur</label><input type="text" id="f_auteur" class="form-control"></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("connaissances.api_liste") }}',CREATE='{{ url_for("connaissances.api_creer") }}',UPDATE='{{ url_for("connaissances.api_modifier",item_id=0) }}',DELETE='{{ url_for("connaissances.api_supprimer",item_id=0) }}',STATS='{{ url_for("connaissances.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-total').textContent=stats.rex_total;document.getElementById('stat-publies').textContent=stats.rex_publies;document.getElementById('stat-faq').textContent=stats.faq;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucun REX</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.titre}</strong></td><td><span class="badge bg-secondary">${r.categorie||'-'}</span></td><td>${r.auteur||'-'}</td><td>${r.date_rex||'-'}</td><td class="text-truncate" style="max-width:200px">${r.lecons_apprises||'-'}</td><td><span class="badge bg-${r.statut==='publie'?'success':'warning'}">${r.statut||'-'}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={titre:document.getElementById('f_titre').value,description:document.getElementById('f_description').value,categorie:document.getElementById('f_categorie').value,contexte:document.getElementById('f_contexte').value,causes:document.getElementById('f_causes').value,actions_menees:document.getElementById('f_actions').value,resultats:document.getElementById('f_resultats').value,lecons_apprises:document.getElementById('f_lecons').value,auteur:document.getElementById('f_auteur').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_titre').value=r.titre||'';document.getElementById('f_description').value=r.description||'';document.getElementById('f_categorie').value=r.categorie||'';document.getElementById('f_contexte').value=r.contexte||'';document.getElementById('f_causes').value=r.causes||'';document.getElementById('f_actions').value=r.actions_menees||'';document.getElementById('f_resultats').value=r.resultats||'';document.getElementById('f_lecons').value=r.lecons_apprises||'';document.getElementById('f_auteur').value=r.auteur||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_titre','f_description','f_contexte','f_causes','f_actions','f_resultats','f_lecons','f_auteur'].forEach(id=>document.getElementById(id).value='');document.getElementById('f_categorie').selectedIndex=0;document.getElementById('modalTitle').textContent='Nouveau REX'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}

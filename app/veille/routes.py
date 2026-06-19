@@ -3,12 +3,13 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import Veille, SourceReglementaire, TexteReglementaire
 from app.veille import veille
-from app.utils.permissions import has_permission
+from app.utils.permissions import has_permission, system_admin_required
 from datetime import date
 
 
 @veille.route('/')
 @login_required
+@system_admin_required
 @has_permission('textes.voir')
 def index():
     sources = SourceReglementaire.query.order_by(SourceReglementaire.nom).all()
@@ -24,6 +25,7 @@ def index():
 
 @veille.route('/<int:veille_id>')
 @login_required
+@system_admin_required
 @has_permission('textes.voir')
 def detail(veille_id):
     v = Veille.query.get_or_404(veille_id)
@@ -32,6 +34,7 @@ def detail(veille_id):
 
 @veille.route('/api/liste')
 @login_required
+@system_admin_required
 @has_permission('textes.voir')
 def api_liste():
     veilles = Veille.query.order_by(Veille.date_detection.desc()).all()
@@ -51,6 +54,7 @@ def api_liste():
 
 @veille.route('/api/sources')
 @login_required
+@system_admin_required
 @has_permission('textes.voir')
 def api_sources():
     sources = SourceReglementaire.query.order_by(SourceReglementaire.nom).all()
@@ -64,6 +68,7 @@ def api_sources():
 
 @veille.route('/api/create', methods=['POST'])
 @login_required
+@system_admin_required
 @has_permission('textes.modifier')
 def api_create():
     data = request.get_json()
@@ -83,6 +88,7 @@ def api_create():
 
 @veille.route('/api/<int:id>/update', methods=['POST'])
 @login_required
+@system_admin_required
 @has_permission('textes.modifier')
 def api_update(id):
     v = Veille.query.get_or_404(id)
@@ -101,6 +107,7 @@ def api_update(id):
 
 @veille.route('/api/<int:id>/delete', methods=['POST'])
 @login_required
+@system_admin_required
 @has_permission('textes.modifier')
 def api_delete(id):
     v = Veille.query.get_or_404(id)
@@ -111,6 +118,7 @@ def api_delete(id):
 
 @veille.route('/api/source/create', methods=['POST'])
 @login_required
+@system_admin_required
 @has_permission('textes.modifier')
 def api_source_create():
     data = request.get_json()
@@ -127,6 +135,7 @@ def api_source_create():
 
 @veille.route('/api/source/<int:id>/delete', methods=['POST'])
 @login_required
+@system_admin_required
 @has_permission('textes.modifier')
 def api_source_delete(id):
     s = SourceReglementaire.query.get_or_404(id)

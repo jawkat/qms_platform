@@ -175,7 +175,7 @@ document.getElementById('veilleForm').addEventListener('submit', function(e) {
 });
 
 function editVeille(id) {
-  fetch(`/veille/api/liste`).then(r => r.json()).then(data => {
+  fetch(`/admin/veille/api/liste`).then(r => r.json()).then(data => {
     const v = data.find(x => x.id === id);
     if (!v) return;
     document.querySelector('#veilleForm [name="id"]').value = v.id;
@@ -192,7 +192,7 @@ function editVeille(id) {
 
 function deleteVeille(id) {
   if (!confirm('Supprimer cette veille ?')) return;
-  fetch(`/veille/api/${id}/delete`, { method: 'POST' })
+  fetch(`/admin/veille/api/${id}/delete`, { method: 'POST' })
     .then(r => r.json()).then(d => { if (d.success) { location.reload(); } });
 });
 </script>

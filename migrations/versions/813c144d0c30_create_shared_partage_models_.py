@@ -8,6 +8,7 @@ Create Date: 2026-06-18 23:43:44.157039
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.engine import reflection
 
 # revision identifiers, used by Alembic.
 revision = '813c144d0c30'
@@ -17,6 +18,15 @@ depends_on = None
 
 
 def upgrade():
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_tables = set(inspector.get_table_names())
+
+    old_tables = {'reclamation_client', 'haccp_fournisseur', 'haccp_reclamation',
+                  'formation', 'fournisseur', 'haccp_formation'}
+    if not old_tables.intersection(existing_tables):
+        return
+
     # Drop old FK constraints before dropping old tables
     with op.batch_alter_table('audit', schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f('audit_fournisseur_id_fkey'), type_='foreignkey')

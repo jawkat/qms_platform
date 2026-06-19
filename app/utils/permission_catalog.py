@@ -98,9 +98,6 @@ PERMISSION_CATALOG = {
         ('haccp.gerer_enregistrements', 'Gerer les enregistrements CCP'),
         ('haccp.gerer_prp', 'Gerer les programmes prerequis'),
         ('haccp.gerer_tracabilite', 'Gerer la tracabilite'),
-        ('haccp.gerer_fournisseurs', 'Gerer les fournisseurs'),
-        ('haccp.gerer_formations', 'Gerer les formations'),
-        ('haccp.gerer_reclamations', 'Gerer les reclamations clients'),
         ('haccp.gerer_rappels', 'Gerer les rappels produits'),
     ],
     'nonconformites': [
@@ -123,6 +120,50 @@ PERMISSION_CATALOG = {
         ('hse.gerer_permis', 'Gerer les permis de travail'),
         ('hse.voir_risques', 'Voir les risques HSE'),
         ('hse.gerer_risques', 'Gerer les risques HSE'),
+    ],
+    'change_management': [
+        ('change_management.voir', 'Voir les demandes de changement'),
+        ('change_management.gerer', 'Gerer les demandes de changement'),
+    ],
+    'processus': [
+        ('processus.voir', 'Voir les processus'),
+        ('processus.gerer', 'Gerer les processus'),
+    ],
+    'workflow_engine': [
+        ('workflow_engine.voir', 'Voir les workflows'),
+        ('workflow_engine.gerer', 'Gerer les workflows'),
+    ],
+    'environnement': [
+        ('environnement.voir', 'Voir les aspects environnementaux'),
+        ('environnement.gerer', 'Gerer les aspects environnementaux'),
+    ],
+    'maintenance': [
+        ('maintenance.voir', 'Voir les equipements et interventions'),
+        ('maintenance.gerer', 'Gerer les equipements et interventions'),
+    ],
+    'laboratoire': [
+        ('laboratoire.voir', 'Voir les plans d analyse et resultats'),
+        ('laboratoire.gerer', 'Gerer les plans d analyse et resultats'),
+    ],
+    'planification': [
+        ('planification.voir', 'Voir les evenements planifies'),
+        ('planification.gerer', 'Gerer les evenements planifies'),
+    ],
+    'reunions': [
+        ('reunions.voir', 'Voir les reunions'),
+        ('reunions.gerer', 'Gerer les reunions'),
+    ],
+    'rh': [
+        ('rh.voir', 'Voir les employes QHSE'),
+        ('rh.gerer', 'Gerer les employes QHSE'),
+    ],
+    'connaissances': [
+        ('connaissances.voir', 'Voir les REX et FAQ'),
+        ('connaissances.gerer', 'Gerer les REX et FAQ'),
+    ],
+    'urgences': [
+        ('urgences.voir', 'Voir les plans d urgence'),
+        ('urgences.gerer', 'Gerer les plans d urgence'),
     ],
 }
 
@@ -149,9 +190,7 @@ DEFAULT_ENTERPRISE_ROLE_PERMISSIONS = {
         'qualite.gerer_controle', 'qualite.gerer_revue',
         'haccp.voir', 'haccp.gerer_processus', 'haccp.gerer_produits',
         'haccp.gerer_dangers', 'haccp.gerer_ccp', 'haccp.gerer_enregistrements',
-        'haccp.gerer_prp', 'haccp.gerer_tracabilite',
-        'haccp.gerer_fournisseurs', 'haccp.gerer_formations',
-        'haccp.gerer_reclamations', 'haccp.gerer_rappels',
+        'haccp.gerer_prp', 'haccp.gerer_tracabilite', 'haccp.gerer_rappels',
         'fournisseurs.voir', 'fournisseurs.gerer',
         'formations.voir', 'formations.gerer',
         'reclamations.voir', 'reclamations.gerer',
@@ -160,6 +199,17 @@ DEFAULT_ENTERPRISE_ROLE_PERMISSIONS = {
         'hse.voir_inspections', 'hse.gerer_inspections', 'hse.voir_permis', 'hse.gerer_permis',
         'hse.voir_risques', 'hse.gerer_risques',
         'ishikawa.voir', 'ishikawa.gerer',
+        'change_management.voir', 'change_management.gerer',
+        'processus.voir', 'processus.gerer',
+        'workflow_engine.voir', 'workflow_engine.gerer',
+        'environnement.voir', 'environnement.gerer',
+        'maintenance.voir', 'maintenance.gerer',
+        'laboratoire.voir', 'laboratoire.gerer',
+        'planification.voir', 'planification.gerer',
+        'reunions.voir', 'reunions.gerer',
+        'rh.voir', 'rh.gerer',
+        'connaissances.voir', 'connaissances.gerer',
+        'urgences.voir', 'urgences.gerer',
         'entreprises.voir', 'entreprises.cree', 'entreprises.modifier',
         'facturation.voir', 'facturation.gerer',
         'plans.voir', 'plans.gerer',

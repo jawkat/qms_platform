@@ -1,0 +1,15 @@
+<form method="GET" class="d-flex gap-2 align-items-center flex-grow-1" style="max-width: 400px;">
+  <div class="input-group">
+    <input type="text" name="q" class="form-control form-control-sm"
+           placeholder="{{ placeholder|default('Rechercher...') }}"
+           value="{{ request.args.get('q', '') }}">
+    <button class="btn btn-sm btn-outline-secondary" type="submit">
+      <i class="fas fa-search"></i>
+    </button>
+    {% if request.args.get('q') %}
+      <a href="?" class="btn btn-sm btn-outline-danger">
+        <i class="fas fa-times"></i>
+      </a>
+    {% endif %}
+  </div>
+</form>

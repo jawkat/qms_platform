@@ -73,9 +73,9 @@ class TestSupportRoutes:
 
 
 class TestTextesRoutes:
-    def test_list_textes_renders(self, login_client):
-        resp = login_client.get('/textes/')
-        assert resp.status_code == 200
+    def test_list_textes_requires_admin(self, login_client):
+        resp = login_client.get('/admin/textes/')
+        assert resp.status_code == 403
 
 
 class TestAuditRoutes:

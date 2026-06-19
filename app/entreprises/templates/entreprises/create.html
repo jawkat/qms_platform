@@ -189,33 +189,45 @@
 
               <div class="col-section-title mt-3"><i class="fas fa-puzzle-piece me-2"></i>Modules actifs</div>
 
-              <div class="form-check form-switch mb-2">
-                <input type="checkbox" name="module_hse" class="form-check-input" id="mhse" checked>
-                <label class="form-check-label fw-medium" for="mhse">HSE</label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <h6 class="text-muted" style="font-size:.65rem;">🏢 PILOTAGE</h6>
+                  {% for mod, label in [('pilotage','Pilotage'),('ged','GED'),('veille','Veille'),('processus','Processus'),('performance','KPI'),('planification','Planification')] %}
+                  <div class="form-check form-switch mb-1">
+                    <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}" {% if mod in ['pilotage','ged'] %}checked{% endif %}>
+                    <label class="form-check-label small" for="m_{{ mod }}">{{ label }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="col-6">
+                  <h6 class="text-muted" style="font-size:.65rem;">✅ QUALITÉ</h6>
+                  {% for mod, label in [('qualite','Qualité / ISO 9001'),('audits','Audits'),('nc_capa','NC & CAPA'),('fournisseurs','Fournisseurs'),('formations','Formations'),('rh_qhse','RH QHSE'),('reunions','Réunions'),('connaissances','Connaissances')] %}
+                  <div class="form-check form-switch mb-1">
+                    <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}">
+                    <label class="form-check-label small" for="m_{{ mod }}">{{ label }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="col-6">
+                  <h6 class="text-muted" style="font-size:.65rem;">⛑️ HSE & ENVIRONNEMENT</h6>
+                  {% for mod, label in [('hse','HSE'),('haccp','HACCP'),('environnement','Environnement'),('urgences','Urgences')] %}
+                  <div class="form-check form-switch mb-1">
+                    <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}" {% if mod == 'hse' %}checked{% endif %}>
+                    <label class="form-check-label small" for="m_{{ mod }}">{{ label }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="col-6">
+                  <h6 class="text-muted" style="font-size:.65rem;">⚙️ OPÉRATIONS & SYSTÈME</h6>
+                  {% for mod, label in [('maintenance','Maintenance'),('laboratoire','Laboratoire'),('support','Support'),('notifications','Notifications'),('admin','Admin')] %}
+                  <div class="form-check form-switch mb-1">
+                    <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}">
+                    <label class="form-check-label small" for="m_{{ mod }}">{{ label }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
               </div>
-              <div class="form-check form-switch mb-2">
-                <input type="checkbox" name="module_qualite" class="form-check-input" id="mq">
-                <label class="form-check-label fw-medium" for="mq">Qualité</label>
-              </div>
-              <div class="form-check form-switch mb-2">
-                <input type="checkbox" name="module_haccp" class="form-check-input" id="mh">
-                <label class="form-check-label fw-medium" for="mh">HACCP</label>
-              </div>
-              <hr class="hr-modern">
-              <div class="col-section-title mt-3"><i class="fas fa-share-alt me-2"></i>Modules transverses <span class="badge bg-secondary bg-opacity-10 text-secondary fw-normal" style="font-size:.7rem;">automatiques</span></div>
-              <div class="form-check form-switch mb-2">
-                <input type="checkbox" class="form-check-input" id="mfour" disabled checked>
-                <label class="form-check-label fw-medium text-muted" for="mfour">Fournisseurs <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
-              </div>
-              <div class="form-check form-switch mb-2">
-                <input type="checkbox" class="form-check-input" id="mform" disabled checked>
-                <label class="form-check-label fw-medium text-muted" for="mform">Formations <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
-              </div>
-              <div class="form-check form-switch mb-2">
-                <input type="checkbox" class="form-check-input" id="mrec" disabled checked>
-                <label class="form-check-label fw-medium text-muted" for="mrec">Réclamations <span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:.65rem;">lié</span></label>
-              </div>
-              <div class="form-text-modern">Ces modules sont activés automatiquement avec Qualité et/ou HACCP.</div>
+              <div class="form-text-modern mt-2">23 modules disponibles. L'admin peut tout activer/désactiver depuis l'édition.</div>
             </div>
           </div>
 

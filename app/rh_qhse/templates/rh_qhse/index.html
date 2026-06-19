@@ -1,0 +1,50 @@
+{% extends 'layout.html' %}
+{% block title %}RH QHSE{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>RH QHSE</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel employé</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Actifs</h6><div class="h3 mb-0 fw-bold text-success" id="stat-actifs">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Visites à faire</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-visites">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Nom</th><th>Matricule</th><th>Poste</th><th>Département</th><th>Visite médicale</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel employé</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Matricule</label><input type="text" id="f_matricule" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Poste</label><input type="text" id="f_poste" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Département</label><input type="text" id="f_department" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Date embauche</label><input type="date" id="f_date_embauche" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Dernière visite médicale</label><input type="date" id="f_date_visite" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Prochaine visite</label><input type="date" id="f_date_prochaine_visite" class="form-control"></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("rh_qhse.api_liste") }}',CREATE='{{ url_for("rh_qhse.api_creer") }}',UPDATE='{{ url_for("rh_qhse.api_modifier",item_id=0) }}',DELETE='{{ url_for("rh_qhse.api_supprimer",item_id=0) }}',STATS='{{ url_for("rh_qhse.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-total').textContent=stats.total;document.getElementById('stat-actifs').textContent=stats.actifs;document.getElementById('stat-visites').textContent=stats.visites_a_faire;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucun employé</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.utilisateur||'-'}</strong></td><td>${r.matricule||'-'}</td><td>${r.poste||'-'}</td><td>${r.department||'-'}</td><td>${r.date_prochaine_visite||'-'}</td><td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||'-'}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={matricule:document.getElementById('f_matricule').value,poste:document.getElementById('f_poste').value,department:document.getElementById('f_department').value,date_embauche:document.getElementById('f_date_embauche').value,date_visite_medicale:document.getElementById('f_date_visite').value,date_prochaine_visite:document.getElementById('f_date_prochaine_visite').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_matricule').value=r.matricule||'';document.getElementById('f_poste').value=r.poste||'';document.getElementById('f_department').value=r.department||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_matricule','f_poste','f_department','f_date_embauche','f_date_visite','f_date_prochaine_visite'].forEach(id=>document.getElementById(id).value='');document.getElementById('modalTitle').textContent='Nouvel employé'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}

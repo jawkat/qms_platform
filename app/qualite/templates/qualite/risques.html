@@ -3,50 +3,71 @@
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Gestion des risques et opportunités</h1>
+    <h1 class="h3 mb-0"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Gestion des risques</h1>
     <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#riskModal">
       <i class="fas fa-plus me-1"></i>Nouveau risque
     </button>
   </div>
 
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-      <h6 class="fw-semibold"><i class="fas fa-info-circle me-2 text-danger"></i>Contexte ISO 9001</h6>
-      <p class="text-muted small mb-0">
-        L'organisme doit déterminer les risques et opportunités à traiter pour garantir le système de management de la qualité.
-        La cotation est basée sur la criticité = Gravité &times; Probabilité &times; Détection (IPR).
-      </p>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Critiques</h6><div class="h3 mb-0 fw-bold text-danger" id="stat-critique">-</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Élevés</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-eleve">-</div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center">
+        <h6 class="text-muted text-uppercase small">Maîtrisés</h6><div class="h3 mb-0 fw-bold text-success" id="stat-maitrise">-</div>
+      </div></div>
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Risque</th>
-              <th>Cause</th>
-              <th>Effet</th>
-              <th>Gravité</th>
-              <th>Probabilité</th>
-              <th>Détection</th>
-              <th>IPR</th>
-              <th>Action</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="risquesTableBody">
-            <tr id="emptyRow">
-              <td colspan="10" class="text-center text-muted py-4">
-                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                Aucun risque enregistré.<br>
-                <small>Ajoutez des risques via le bouton "Nouveau risque".</small>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+  <div class="row g-3 mb-4">
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0"><i class="fas fa-th me-2 text-danger"></i>Matrice de risque (Heat Map)</h5>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-2"><small class="text-muted fw-bold">Probabilité →</small></div>
+          <table class="table table-bordered text-center mb-0" style="font-size:0.85rem;">
+            <thead><tr>
+              <th class="text-muted" style="width:80px;"><small>Gravité ↓</small></th>
+              <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+            </tr></thead>
+            <tbody id="heatmapBody"></tbody>
+          </table>
+          <div class="mt-2 d-flex justify-content-center gap-3">
+            <small><span class="badge bg-success">&nbsp;</span> Faible</small>
+            <small><span class="badge bg-info">&nbsp;</span> Moyen</small>
+            <small><span class="badge bg-warning">&nbsp;</span> Élevé</small>
+            <small><span class="badge bg-danger">&nbsp;</span> Critique</small>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr><th>Risque</th><th>IPR</th><th>Niveau</th><th>Statut</th><th>Processus</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="risquesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -61,42 +82,41 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="riskId" value="">
-        <div class="row g-3">
-          <div class="col-12">
-            <label class="form-label">Risque <span class="text-danger">*</span></label>
-            <input type="text" id="riskDesignation" class="form-control" placeholder="Défaut matière première...">
+        <ul class="nav nav-tabs mb-3">
+          <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-ident">Identification</a></li>
+          <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-traitement">Traitement</a></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="tab-ident">
+            <div class="row g-3">
+              <div class="col-12"><label class="form-label">Risque <span class="text-danger">*</span></label><input type="text" id="riskDesignation" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Cause</label><input type="text" id="riskCause" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Effet</label><input type="text" id="riskEffet" class="form-control"></div>
+              <div class="col-md-4"><label class="form-label">Gravité (1-5)</label><select id="riskGravite" class="form-select">{% for i in range(1,6) %}<option value="{{i}}">{{i}}</option>{% endfor %}</select></div>
+              <div class="col-md-4"><label class="form-label">Probabilité (1-5)</label><select id="riskProbabilite" class="form-select">{% for i in range(1,6) %}<option value="{{i}}">{{i}}</option>{% endfor %}</select></div>
+              <div class="col-md-4"><label class="form-label">Détection (1-5)</label><select id="riskDetection" class="form-select">{% for i in range(1,6) %}<option value="{{i}}">{{i}}</option>{% endfor %}</select></div>
+              <div class="col-md-6"><label class="form-label">Catégorie</label>
+                <select id="riskCategorie" class="form-select">
+                  <option value="">—</option><option value="strategique">Stratégique</option><option value="operational">Opérationnel</option>
+                  <option value="financier">Financier</option><option value="juridique">Juridique</option><option value="qualite">Qualité</option>
+                </select>
+              </div>
+              <div class="col-md-6"><label class="form-label">Processus concerné</label><input type="text" id="riskProcessus" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Statut</label>
+                <select id="riskStatut" class="form-select">
+                  <option value="identifie">Identifié</option><option value="en_cours">En cours</option>
+                  <option value="maitrise">Maîtrisé</option><option value="accepte">Accepté</option>
+                </select>
+              </div>
+              <div class="col-md-6"><label class="form-label">Prochaine revue</label><input type="date" id="riskDateRevu" class="form-control"></div>
+            </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Cause</label>
-            <input type="text" id="riskCause" class="form-control" placeholder="Cause racine...">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Effet</label>
-            <input type="text" id="riskEffet" class="form-control" placeholder="Conséquence...">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Gravité (1-4)</label>
-            <select id="riskGravite" class="form-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Probabilité (1-4)</label>
-            <select id="riskProbabilite" class="form-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Détection (1-4)</label>
-            <select id="riskDetection" class="form-select"><option>1</option><option>2</option><option>3</option><option>4</option></select>
-          </div>
-          <div class="col-12">
-            <label class="form-label">Action proposée</label>
-            <textarea id="riskMaitrise" class="form-control" rows="2" placeholder="Description de l'action corrective..."></textarea>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Statut</label>
-            <select id="riskStatut" class="form-select">
-              <option value="identifie">Identifié</option>
-              <option value="en_cours">En cours</option>
-              <option value="maitrise">Maîtrisé</option>
-            </select>
+          <div class="tab-pane fade" id="tab-traitement">
+            <div class="row g-3">
+              <div class="col-12"><label class="form-label">Plan de traitement</label><textarea id="riskPlan" class="form-control" rows="3"></textarea></div>
+              <div class="col-12"><label class="form-label">Action préventive</label><textarea id="riskPreventive" class="form-control" rows="2"></textarea></div>
+              <div class="col-12"><label class="form-label">Mesure de maîtrise</label><textarea id="riskMaitrise" class="form-control" rows="2"></textarea></div>
+            </div>
           </div>
         </div>
       </div>
@@ -110,36 +130,46 @@
 {% endblock %}
 {% block scripts %}
 <script>
+var _risques = [];
 function loadRisques() {
-  fetch('{{ url_for("qualite.api_risques") }}')
-    .then(r => r.json())
-    .then(items => {
-      const tbody = document.getElementById('risquesTableBody');
-      if (items.length === 0) return;
-      const empty = document.getElementById('emptyRow');
-      if (empty) empty.remove();
-      tbody.innerHTML = items.map(r => {
-        const ipr = r.gravite * r.probabilite * r.detection;
-        const badgeClass = ipr >= 27 ? 'danger' : ipr >= 12 ? 'warning' : 'info';
-        const statutClass = r.statut === 'maitrise' ? 'success' : r.statut === 'en_cours' ? 'warning' : 'info';
-        return `<tr>
-          <td>${r.designation || ''}</td>
-          <td>${r.cause || ''}</td>
-          <td>${r.effet || ''}</td>
-          <td>${r.gravite}</td>
-          <td>${r.probabilite}</td>
-          <td>${r.detection}</td>
-          <td><span class="badge bg-${badgeClass}">${ipr}</span></td>
-          <td>${r.maitrise || ''}</td>
-          <td><span class="badge bg-${statutClass}">${r.statut || ''}</span></td>
-          <td>
-            <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editRisk(${r.id})"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteRisk(${r.id})"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>`;
-      }).join('');
-    })
-    .catch(() => {});
+  Promise.all([
+    fetch('{{ url_for("qualite.api_risques") }}').then(r=>r.json()),
+    fetch('{{ url_for("qualite.api_risques_heatmap") }}').then(r=>r.json()),
+    fetch('{{ url_for("qualite.api_risques_stats") }}').then(r=>r.json())
+  ]).then(([items, heatmap, stats]) => {
+    _risques = items;
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-critique').textContent = stats.par_niveau.critique || 0;
+    document.getElementById('stat-eleve').textContent = stats.par_niveau.eleve || 0;
+    document.getElementById('stat-maitrise').textContent = stats.par_statut.maitrise || 0;
+
+    var tbody = document.getElementById('risquesTableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Aucun risque</td></tr>'; return; }
+    var niveauColor = {critique:'danger',eleve:'warning',moyen:'info',faible:'success'};
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.designation||''}</td>
+      <td><span class="badge bg-${niveauColor[r.niveau_risque]||'secondary'}">${r.ipr}</span></td>
+      <td><span class="badge bg-${niveauColor[r.niveau_risque]||'secondary'}">${r.niveau_risque||''}</span></td>
+      <td>${r.statut||''}</td><td>${r.processus_concerne||''}</td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="editRisk(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteRisk(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+
+    var grid = heatmap.grid;
+    var hBody = document.getElementById('heatmapBody');
+    var colors = ['#198754','#198754','#0dcaf0','#ffc107','#dc3545'];
+    hBody.innerHTML = '';
+    for (var g = 4; g >= 0; g--) {
+      var row = '<tr><td class="fw-bold text-muted">' + (g+1) + '</td>';
+      for (var p = 0; p < 5; p++) {
+        var count = grid[g][p];
+        var ipr = (g+1)*(p+1);
+        var bg = ipr >= 20 ? '#dc3545' : ipr >= 12 ? '#ffc107' : ipr >= 6 ? '#0dcaf0' : '#198754';
+        row += '<td style="background:' + bg + ';color:#fff;font-weight:bold;">' + (count || '') + '</td>';
+      }
+      hBody.innerHTML += row + '</tr>';
+    }
+  });
 }
 
 function saveRisk() {
@@ -153,57 +183,44 @@ function saveRisk() {
     detection: document.getElementById('riskDetection').value,
     maitrise: document.getElementById('riskMaitrise').value,
     statut: document.getElementById('riskStatut').value,
+    categorie: document.getElementById('riskCategorie').value,
+    processus_concerne: document.getElementById('riskProcessus').value,
+    plan_traitement: document.getElementById('riskPlan').value,
+    action_preventive: document.getElementById('riskPreventive').value,
+    date_prochaine_revu: document.getElementById('riskDateRevu').value,
   };
   const url = id ? '{{ url_for("qualite.api_risques_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_risques_create") }}';
-  fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
-    .then(r => r.json())
-    .then(resp => {
-      if (resp.success) {
-        bootstrap.Modal.getInstance(document.getElementById('riskModal')).hide();
-        loadRisques();
-        resetRiskForm();
-      }
-    })
-    .catch(() => {});
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('riskModal')).hide(); loadRisques(); resetRiskForm(); } });
 }
 
 function editRisk(id) {
-  fetch('{{ url_for("qualite.api_risques") }}')
-    .then(r => r.json())
-    .then(items => {
-      const r = items.find(x => x.id === id);
-      if (!r) return;
-      document.getElementById('riskId').value = r.id;
-      document.getElementById('riskDesignation').value = r.designation || '';
-      document.getElementById('riskCause').value = r.cause || '';
-      document.getElementById('riskEffet').value = r.effet || '';
-      document.getElementById('riskGravite').value = r.gravite;
-      document.getElementById('riskProbabilite').value = r.probabilite;
-      document.getElementById('riskDetection').value = r.detection;
-      document.getElementById('riskMaitrise').value = r.maitrise || '';
-      document.getElementById('riskStatut').value = r.statut || 'identifie';
-      document.getElementById('riskModalTitle').textContent = 'Modifier le risque';
-      new bootstrap.Modal(document.getElementById('riskModal')).show();
-    });
+  const r = _risques.find(x=>x.id===id); if(!r) return;
+  document.getElementById('riskId').value = r.id;
+  document.getElementById('riskDesignation').value = r.designation||'';
+  document.getElementById('riskCause').value = r.cause||'';
+  document.getElementById('riskEffet').value = r.effet||'';
+  document.getElementById('riskGravite').value = r.gravite;
+  document.getElementById('riskProbabilite').value = r.probabilite;
+  document.getElementById('riskDetection').value = r.detection;
+  document.getElementById('riskMaitrise').value = r.maitrise||'';
+  document.getElementById('riskStatut').value = r.statut||'identifie';
+  document.getElementById('riskCategorie').value = r.categorie||'';
+  document.getElementById('riskProcessus').value = r.processus_concerne||'';
+  document.getElementById('riskPlan').value = r.plan_traitement||'';
+  document.getElementById('riskPreventive').value = r.action_preventive||'';
+  document.getElementById('riskDateRevu').value = r.date_prochaine_revu||'';
+  document.getElementById('riskModalTitle').textContent = 'Modifier le risque';
+  new bootstrap.Modal(document.getElementById('riskModal')).show();
 }
 
-function deleteRisk(id) {
-  if (!confirm('Supprimer ce risque ?')) return;
-  fetch('{{ url_for("qualite.api_risques_delete", item_id=0) }}'.replace('0', id), { method: 'POST' })
-    .then(r => r.json())
-    .then(resp => { if (resp.success) loadRisques(); });
-}
+function deleteRisk(id) { if(!confirm('Supprimer ?')) return; fetch('{{ url_for("qualite.api_risques_delete", item_id=0) }}'.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) loadRisques();}); }
 
 function resetRiskForm() {
   document.getElementById('riskId').value = '';
-  document.getElementById('riskDesignation').value = '';
-  document.getElementById('riskCause').value = '';
-  document.getElementById('riskEffet').value = '';
-  document.getElementById('riskMaitrise').value = '';
-  document.getElementById('riskStatut').value = 'identifie';
-  document.getElementById('riskGravite').value = '1';
-  document.getElementById('riskProbabilite').value = '1';
-  document.getElementById('riskDetection').value = '1';
+  ['riskDesignation','riskCause','riskEffet','riskMaitrise','riskProcessus','riskPlan','riskPreventive','riskDateRevu'].forEach(id => document.getElementById(id).value = '');
+  ['riskGravite','riskProbabilite','riskDetection'].forEach(id => document.getElementById(id).value = '1');
+  ['riskStatut','riskCategorie'].forEach(id => document.getElementById(id).selectedIndex = 0);
   document.getElementById('riskModalTitle').textContent = 'Nouveau risque';
 }
 

@@ -1,0 +1,55 @@
+{% extends 'layout.html' %}
+{% block title %}Laboratoire{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-flask me-2 text-info"></i>Laboratoire / Qualité Analytique</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau plan</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Plans</h6><div class="h3 mb-0 fw-bold" id="stat-plans">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Échantillons</h6><div class="h3 mb-0 fw-bold text-info" id="stat-echantillons">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Résultats</h6><div class="h3 mb-0 fw-bold text-success" id="stat-resultats">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Non-conformes</h6><div class="h3 mb-0 fw-bold text-danger" id="stat-nc">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Nom</th><th>Produit</th><th>Paramètre</th><th>Méthode</th><th>Fréquence</th><th>Seuil</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau plan d'analyse</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="mb-3"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control"></div>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Produit concerné</label><input type="text" id="f_produit" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Paramètre</label><input type="text" id="f_parametre" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Méthode</label><input type="text" id="f_methode" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Fréquence</label><select id="f_frequence" class="form-select"><option value="">—</option><option value="quotidienne">Quotidienne</option><option value="hebdomadaire">Hebdomadaire</option><option value="mensuelle">Mensuelle</option><option value="trimestrielle">Trimestrielle</option></select></div>
+      <div class="col-md-4"><label class="form-label">Seuil min</label><input type="number" id="f_seuil_min" class="form-control" step="any"></div>
+      <div class="col-md-4"><label class="form-label">Seuil max</label><input type="number" id="f_seuil_max" class="form-control" step="any"></div>
+      <div class="col-md-4"><label class="form-label">Unité</label><input type="text" id="f_unite" class="form-control"></div>
+    </div>
+    <div class="mb-3"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("laboratoire.api_liste") }}',CREATE='{{ url_for("laboratoire.api_creer") }}',UPDATE='{{ url_for("laboratoire.api_modifier",item_id=0) }}',DELETE='{{ url_for("laboratoire.api_supprimer",item_id=0) }}',STATS='{{ url_for("laboratoire.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-plans').textContent=stats.plans;document.getElementById('stat-echantillons').textContent=stats.echantillons;document.getElementById('stat-resultats').textContent=stats.resultats;document.getElementById('stat-nc').textContent=stats.non_conformes;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucun plan</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.nom}</strong></td><td>${r.produit_concerne||'-'}</td><td>${r.parametre||'-'}</td><td>${r.methode||'-'}</td><td>${r.frequence||'-'}</td><td>${r.seuil_min!=null?r.seuil_min+' - '+r.seuil_max+' '+r.unite:'-'}</td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={nom:document.getElementById('f_nom').value,description:document.getElementById('f_description').value,produit_concerne:document.getElementById('f_produit').value,parametre:document.getElementById('f_parametre').value,methode:document.getElementById('f_methode').value,frequence:document.getElementById('f_frequence').value,seuil_min:parseFloat(document.getElementById('f_seuil_min').value)||null,seuil_max:parseFloat(document.getElementById('f_seuil_max').value)||null,unite:document.getElementById('f_unite').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_nom').value=r.nom||'';document.getElementById('f_description').value=r.description||'';document.getElementById('f_produit').value=r.produit_concerne||'';document.getElementById('f_parametre').value=r.parametre||'';document.getElementById('f_methode').value=r.methode||'';document.getElementById('f_frequence').value=r.frequence||'';document.getElementById('f_seuil_min').value=r.seuil_min||'';document.getElementById('f_seuil_max').value=r.seuil_max||'';document.getElementById('f_unite').value=r.unite||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_nom','f_description','f_produit','f_parametre','f_methode','f_seuil_min','f_seuil_max','f_unite'].forEach(id=>document.getElementById(id).value='');document.getElementById('f_frequence').selectedIndex=0;document.getElementById('modalTitle').textContent='Nouveau plan'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}

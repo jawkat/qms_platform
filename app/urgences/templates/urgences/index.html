@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+{% block title %}Gestion des Urgences{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-bolt me-2 text-danger"></i>Gestion des Urgences</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouveau plan</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Plans</h6><div class="h3 mb-0 fw-bold" id="stat-plans">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Exercices</h6><div class="h3 mb-0 fw-bold text-info" id="stat-exercices">-</div></div></div></div>
+    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Incidents ouverts</h6><div class="h3 mb-0 fw-bold text-danger" id="stat-incidents">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Nom</th><th>Type</th><th>Description</th><th>Dernière revue</th><th>Prochaine revue</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouveau plan d'urgence</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="mb-3"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control"></div>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Type</label><select id="f_type" class="form-select"><option value="">—</option><option value="incendie">Incendie</option><option value="accident">Accident</option><option value="pollution">Pollution</option><option value="autre">Autre</option></select></div>
+      <div class="col-md-6"><label class="form-label">Statut</label><select id="f_statut" class="form-select"><option value="actif">Actif</option><option value="inactif">Inactif</option></select></div>
+      <div class="col-md-6"><label class="form-label">Dernière revue</label><input type="date" id="f_date_revu" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Prochaine revue</label><input type="date" id="f_date_prochaine_revu" class="form-control"></div>
+    </div>
+    <div class="mb-3"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+    <div class="mb-3"><label class="form-label">Procédures</label><textarea id="f_procedures" class="form-control" rows="3"></textarea></div>
+    <div class="mb-3"><label class="form-label">Matériel</label><textarea id="f_materiel" class="form-control" rows="2"></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("urgences.api_liste") }}',CREATE='{{ url_for("urgences.api_creer") }}',UPDATE='{{ url_for("urgences.api_modifier",item_id=0) }}',DELETE='{{ url_for("urgences.api_supprimer",item_id=0) }}',STATS='{{ url_for("urgences.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-plans').textContent=stats.plans;document.getElementById('stat-exercices').textContent=stats.exercices;document.getElementById('stat-incidents').textContent=stats.incidents_ouverts;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucun plan</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.nom}</strong></td><td><span class="badge bg-secondary">${r.type_urgence||'-'}</span></td><td class="text-truncate" style="max-width:200px">${r.description||'-'}</td><td>${r.date_derniere_revu||'-'}</td><td>${r.date_prochaine_revu||'-'}</td><td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||'-'}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={nom:document.getElementById('f_nom').value,description:document.getElementById('f_description').value,type_urgence:document.getElementById('f_type').value,statut:document.getElementById('f_statut').value,procedures:document.getElementById('f_procedures').value,materiel:document.getElementById('f_materiel').value,date_derniere_revu:document.getElementById('f_date_revu').value,date_prochaine_revu:document.getElementById('f_date_prochaine_revu').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_nom').value=r.nom||'';document.getElementById('f_description').value=r.description||'';document.getElementById('f_type').value=r.type_urgence||'';document.getElementById('f_statut').value=r.statut||'actif';document.getElementById('f_procedures').value=r.procedures||'';document.getElementById('f_materiel').value=r.materiel||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_nom','f_description','f_procedures','f_materiel','f_date_revu','f_date_prochaine_revu'].forEach(id=>document.getElementById(id).value='');['f_type','f_statut'].forEach(id=>document.getElementById(id).selectedIndex=0);document.getElementById('modalTitle').textContent='Nouveau plan'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}

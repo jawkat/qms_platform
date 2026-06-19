@@ -1,0 +1,53 @@
+{% extends 'layout.html' %}
+{% block title %}Maintenance{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-wrench me-2 text-warning"></i>Maintenance</h4>
+    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel équipement</button>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Actifs</h6><div class="h3 mb-0 fw-bold text-success" id="stat-actifs">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">En panne</h6><div class="h3 mb-0 fw-bold text-danger" id="stat-panne">-</div></div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Maintenance due</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-due">-</div></div></div></div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>Nom</th><th>Référence</th><th>Localisation</th><th>Catégorie</th><th>Prochaine maint.</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+  </div></div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel équipement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><input type="hidden" id="itemId">
+    <div class="row g-3">
+      <div class="col-md-8"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_nom" class="form-control"></div>
+      <div class="col-md-4"><label class="form-label">Référence</label><input type="text" id="f_reference" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Localisation</label><input type="text" id="f_localisation" class="form-control"></div>
+      <div class="col-md-6"><label class="form-label">Catégorie</label><select id="f_categorie" class="form-select"><option value="">—</option><option value="machine">Machine</option><option value="outil">Outil</option><option value="vehicule">Véhicule</option><option value="batiment">Bâtiment</option></select></div>
+      <div class="col-md-6"><label class="form-label">Fréquence maintenance</label><select id="f_frequence" class="form-select"><option value="">—</option><option value="hebdomadaire">Hebdomadaire</option><option value="mensuelle">Mensuelle</option><option value="trimestrielle">Trimestrielle</option><option value="semestrielle">Semestrielle</option><option value="annuelle">Annuelle</option></select></div>
+      <div class="col-md-6"><label class="form-label">Prochaine maintenance</label><input type="date" id="f_date_prochaine" class="form-control"></div>
+      <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger btn-sm" onclick="saveItem()">Enregistrer</button></div>
+</div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API='{{ url_for("maintenance.api_liste") }}',CREATE='{{ url_for("maintenance.api_creer") }}',UPDATE='{{ url_for("maintenance.api_modifier",item_id=0) }}',DELETE='{{ url_for("maintenance.api_supprimer",item_id=0) }}',STATS='{{ url_for("maintenance.api_stats") }}';
+var _items=[];
+function load(){Promise.all([fetch(API).then(r=>r.json()),fetch(STATS).then(r=>r.json())]).then(([items,stats])=>{_items=items;document.getElementById('stat-total').textContent=stats.total;document.getElementById('stat-actifs').textContent=stats.actifs;document.getElementById('stat-panne').textContent=stats.en_panne;document.getElementById('stat-due').textContent=stats.maintenances_due;var tb=document.getElementById('tableBody');if(!items.length){tb.innerHTML='<tr><td colspan="7" class="text-center text-muted py-4">Aucun équipement</td></tr>';return}tb.innerHTML=items.map(r=>`<tr><td><strong>${r.nom}</strong></td><td>${r.reference||'-'}</td><td>${r.localisation||'-'}</td><td><span class="badge bg-info">${r.categorie||'-'}</span></td><td>${r.date_prochaine_maintenance||'-'}</td><td><span class="badge bg-${r.statut==='actif'?'success':r.statut==='en_panne'?'danger':'warning'}">${r.statut||'-'}</span></td><td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td></tr>`).join('')})}
+function saveItem(){const id=document.getElementById('itemId').value;const d={nom:document.getElementById('f_nom').value,reference:document.getElementById('f_reference').value,description:document.getElementById('f_description').value,localisation:document.getElementById('f_localisation').value,categorie:document.getElementById('f_categorie').value,frequence_maintenance:document.getElementById('f_frequence').value,date_prochaine_maintenance:document.getElementById('f_date_prochaine').value};fetch(id?UPDATE.replace('0',id):CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).then(r=>{if(r.success){bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();load();resetForm()}})}
+function edit(id){const r=_items.find(x=>x.id===id);if(!r)return;document.getElementById('itemId').value=r.id;document.getElementById('f_nom').value=r.nom||'';document.getElementById('f_reference').value=r.reference||'';document.getElementById('f_description').value=r.description||'';document.getElementById('f_localisation').value=r.localisation||'';document.getElementById('f_categorie').value=r.categorie||'';document.getElementById('modalTitle').textContent='Modifier';new bootstrap.Modal(document.getElementById('itemModal')).show()}
+function del(id){if(!confirm('Supprimer ?'))return;fetch(DELETE.replace('0',id),{method:'POST'}).then(r=>r.json()).then(r=>{if(r.success)load()})}
+function resetForm(){document.getElementById('itemId').value='';['f_nom','f_reference','f_description','f_localisation','f_date_prochaine'].forEach(id=>document.getElementById(id).value='');['f_categorie','f_frequence'].forEach(id=>document.getElementById(id).selectedIndex=0);document.getElementById('modalTitle').textContent='Nouvel équipement'}
+document.addEventListener('DOMContentLoaded',load);
+</script>
+{% endblock %}
