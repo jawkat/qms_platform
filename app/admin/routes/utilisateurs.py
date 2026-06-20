@@ -35,7 +35,8 @@ def admin_toggle_user(user_id):
     user.actif = not user.actif
     db.session.commit()
     flash(f"Utilisateur {'activé' if user.actif else 'désactivé'}.", 'success')
-    return redirect(url_for('admin.utilisateurs'))
+    dest = request.form.get('redirect_url') or request.referrer or url_for('admin.utilisateurs')
+    return redirect(dest)
 
 
 @admin.route('/utilisateurs/<int:user_id>/reset-password', methods=['POST'])
@@ -47,7 +48,8 @@ def admin_reset_user_password(user_id):
     user.set_password(temp)
     db.session.commit()
     flash(f"Mot de passe réinitialisé. Nouveau : {temp}", 'success')
-    return redirect(url_for('admin.utilisateurs'))
+    dest = request.form.get('redirect_url') or request.referrer or url_for('admin.utilisateurs')
+    return redirect(dest)
 
 
 # ─── Tickets support ────────────────────────────────────────────

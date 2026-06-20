@@ -140,6 +140,13 @@
     background-clip: text;
   }
 
+  .features-bg-orb {
+    position: absolute; width: 600px; height: 600px; border-radius: 50%;
+    filter: blur(120px); opacity: .06; pointer-events: none;
+  }
+  .features-bg-orb:nth-child(1) { top: -200px; left: -200px; background: #e63946; }
+  .features-bg-orb:nth-child(2) { bottom: -200px; right: -200px; background: #3b82f6; }
+
   .feature-card-pro {
     background: #fff;
     border: 1px solid rgba(0,0,0,.06);
@@ -463,12 +470,14 @@
 </section>
 
 <!-- Features -->
-<section class="py-5" id="features" style="background:#f8fafc;">
-  <div class="container py-4">
+<section class="py-5 position-relative overflow-hidden" id="features" style="background:#f8fafc;">
+  <div class="features-bg-orb"></div>
+  <div class="features-bg-orb"></div>
+  <div class="container py-4 position-relative" style="z-index:1;">
     <div class="text-center mb-5">
       <div class="section-tag d-inline-flex"><i class="fas fa-bolt"></i> Fonctionnalités</div>
-      <h2 class="display-6 fw-bold mb-2" style="letter-spacing:-.02em;">Tout le QMS en un seul endroit</h2>
-      <p class="text-muted mx-auto" style="max-width:560px;">Modules complets pour couvrir l'ensemble de vos besoins en gestion qualité, HSE, HACCP et conformité.</p>
+      <h2 class="display-6 fw-bold mb-2" style="letter-spacing:-.02em;">La plateforme QMS universelle</h2>
+      <p class="text-muted mx-auto" style="max-width:600px;">23 modules intégrés pour piloter l'ensemble de votre système de management qualité, HSE, HACCP et conformité réglementaire.</p>
     </div>
     <div class="row g-4">
       {% for f in features %}

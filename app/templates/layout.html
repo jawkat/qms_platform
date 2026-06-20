@@ -383,6 +383,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+      setupCsrfProtection();
       openActiveSection();
       loadNotifications();
       setInterval(function() {

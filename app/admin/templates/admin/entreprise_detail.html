@@ -9,206 +9,603 @@
     </ol>
   </nav>
 
-  <div class="row g-3">
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white py-3">
-          <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-1">{{ entreprise.nom }}</h4>
+      <div class="d-flex gap-2 align-items-center">
+        {% set s = entreprise.statut|lower %}
+        {% if s in ('actif', 'active') %}
+        <span class="badge bg-success">Actif</span>
+        {% elif s in ('suspendu', 'suspended') %}
+        <span class="badge bg-danger">Suspendu</span>
+        {% elif s == 'trial' %}
+        <span class="badge bg-warning text-dark">Trial</span>
+        {% elif s == 'cancelled' %}
+        <span class="badge bg-secondary">Annulé</span>
+        {% elif s == 'archived' %}
+        <span class="badge bg-dark">Archivé</span>
+        {% else %}
+        <span class="badge bg-warning text-dark">{{ entreprise.statut }}</span>
+        {% endif %}
+        <span class="text-muted small">Créée le {{ entreprise.date_inscription.strftime('%d/%m/%Y') if entreprise.date_inscription else '-' }}</span>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <form method="POST" action="{{ url_for('admin.entreprise_suspendre', eid=entreprise.id) }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% set is_active = s in ('actif', 'active', 'trial') %}
+        <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if is_active else 'success' }}"
+                onclick="return confirm('Confirmer la {% if is_active %}suspension{% else %}réactivation{% endif %} de {{ entreprise.nom }} ?')">
+          <i class="fas fa-{{ 'pause' if is_active else 'play' }} me-1"></i>{{ 'Suspendre' if is_active else 'Réactiver' }}
+        </button>
+      </form>
+      <a href="{{ url_for('admin.entreprises') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Retour
+      </a>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3" id="entrepriseTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="infos-tab" data-bs-toggle="tab" data-bs-target="#infos" type="button" role="tab">
+        <i class="fas fa-info-circle me-1"></i>Informations
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="abo-tab" data-bs-toggle="tab" data-bs-target="#abo" type="button" role="tab">
+        <i class="fas fa-credit-card me-1"></i>Abonnement & Paiements
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+        <i class="fas fa-users me-1"></i>Utilisateurs ({{ utilisateurs|length }})
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="modules-tab" data-bs-toggle="tab" data-bs-target="#modules" type="button" role="tab">
+        <i class="fas fa-puzzle-piece me-1"></i>Modules & Quotas
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="actions-tab" data-bs-toggle="tab" data-bs-target="#actions" type="button" role="tab">
+        <i class="fas fa-tools me-1"></i>Actions
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="entrepriseTabContent">
+
+    {# Onglet 1: Informations #}
+    <div class="tab-pane fade show active" id="infos" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold">Détails</h6>
+            </div>
+            <div class="card-body">
+              <dl class="row mb-0 small">
+                <dt class="col-sm-4 text-muted">Nom</dt>
+                <dd class="col-sm-8 fw-medium">{{ entreprise.nom }}</dd>
+                <dt class="col-sm-4 text-muted">Adresse</dt>
+                <dd class="col-sm-8">{{ entreprise.adresse or '-' }}</dd>
+                <dt class="col-sm-4 text-muted">Pays</dt>
+                <dd class="col-sm-8">{{ entreprise.pays or '-' }}</dd>
+                <dt class="col-sm-4 text-muted">Taille</dt>
+                <dd class="col-sm-8">{{ entreprise.taille or '-' }}</dd>
+                <dt class="col-sm-4 text-muted">Téléphone</dt>
+                <dd class="col-sm-8">{{ entreprise.telephone or '-' }}</dd>
+              </dl>
+            </div>
+          </div>
         </div>
-        <div class="card-body">
-          <dl class="row mb-0">
-            <dt class="col-sm-4">Nom</dt>
-            <dd class="col-sm-8">{{ entreprise.nom }}</dd>
-            <dt class="col-sm-4">Statut</dt>
-            <dd class="col-sm-8">
-              {% set s = entreprise.statut|lower %}
-              {% if s in ('actif', 'active') %}
-              <span class="badge bg-success">Actif</span>
-              {% elif s in ('suspendu', 'suspended') %}
-              <span class="badge bg-danger">Suspendu</span>
-              {% elif s == 'trial' %}
-              <span class="badge bg-warning text-dark">Trial</span>
-              {% elif s == 'cancelled' %}
-              <span class="badge bg-secondary">Annulé</span>
-              {% elif s == 'archived' %}
-              <span class="badge bg-dark">Archivé</span>
-              {% else %}
-              <span class="badge bg-warning text-dark">{{ entreprise.statut }}</span>
-              {% endif %}
-            </dd>
-            <dt class="col-sm-4">Adresse</dt>
-            <dd class="col-sm-8">{{ entreprise.adresse or '-' }}</dd>
-            <dt class="col-sm-4">Pays</dt>
-            <dd class="col-sm-8">{{ entreprise.pays or '-' }}</dd>
-            <dt class="col-sm-4">Taille</dt>
-            <dd class="col-sm-8">{{ entreprise.taille or '-' }}</dd>
-            <dt class="col-sm-4">Téléphone</dt>
-            <dd class="col-sm-8">{{ entreprise.telephone or '-' }}</dd>
-            <dt class="col-sm-4">Inscription</dt>
-            <dd class="col-sm-8">{{ entreprise.date_inscription.strftime('%d/%m/%Y') if entreprise.date_inscription else '-' }}</dd>
-          </dl>
+        <div class="col-md-7">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold"><i class="fas fa-edit me-1 text-primary"></i>Modifier l'entreprise</h6>
+            </div>
+            <div class="card-body">
+              <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="active_tab" value="infos">
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label small">Nom</label>
+                    <input type="text" name="nom" class="form-control form-control-sm" value="{{ entreprise.nom }}">
+                  </div>
+                  <div class="col-3">
+                    <label class="form-label small">Taille</label>
+                    <select name="taille" class="form-select form-select-sm">
+                      <option value="TPE" {% if entreprise.taille == 'TPE' %}selected{% endif %}>TPE</option>
+                      <option value="PME" {% if entreprise.taille == 'PME' %}selected{% endif %}>PME</option>
+                      <option value="Grande" {% if entreprise.taille == 'Grande' %}selected{% endif %}>Grande</option>
+                    </select>
+                  </div>
+                  <div class="col-3">
+                    <label class="form-label small">Pays</label>
+                    <input type="text" name="pays" class="form-control form-control-sm" value="{{ entreprise.pays or 'Maroc' }}">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small">Adresse</label>
+                    <input type="text" name="adresse" class="form-control form-control-sm" value="{{ entreprise.adresse or '' }}">
+                  </div>
+                  <div class="col-3">
+                    <label class="form-label small">Téléphone</label>
+                    <input type="text" name="telephone" class="form-control form-control-sm" value="{{ entreprise.telephone or '' }}">
+                  </div>
+                  <div class="col-3">
+                    <label class="form-label small">Statut cycle de vie</label>
+                    <select name="statut" class="form-select form-select-sm">
+                      <option value="">— Conserver —</option>
+                      <option value="trial" {% if s == 'trial' %}selected{% endif %}>Trial</option>
+                      <option value="active" {% if s in ('actif', 'active') %}selected{% endif %}>Actif</option>
+                      <option value="suspended" {% if s in ('suspendu', 'suspended') %}selected{% endif %}>Suspendu</option>
+                      <option value="cancelled" {% if s == 'cancelled' %}selected{% endif %}>Annulé</option>
+                      <option value="archived" {% if s == 'archived' %}selected{% endif %}>Archivé</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small">Motif suspension</label>
+                  <input type="text" name="motif_suspension" class="form-control form-control-sm"
+                         value="{{ entreprise.motif_suspension or '' }}">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>Enregistrer</button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white py-3">
-          <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Abonnement</h5>
-        </div>
-        <div class="card-body">
-          {% if plan %}
-          <dl class="row mb-0">
-            <dt class="col-sm-5">Plan</dt>
-            <dd class="col-sm-7"><span class="badge bg-info">{{ plan.label }}</span></dd>
-            <dt class="col-sm-5">Montant</dt>
-            <dd class="col-sm-7">{{ plan.price_mad }} MAD / an</dd>
-            <dt class="col-sm-5">Max utilisateurs</dt>
-            <dd class="col-sm-7">{{ plan.max_users }}</dd>
-            <dt class="col-sm-5">Documents</dt>
-            <dd class="col-sm-7">{{ plan.max_documents }}</dd>
-            <dt class="col-sm-5">Stockage</dt>
-            <dd class="col-sm-7">{{ plan.max_storage_mb }} Mo</dd>
-          </dl>
-          {% else %}
-          <p class="text-muted mb-0">Aucun plan défini.</p>
-          {% endif %}
-          <hr>
-          <dl class="row mb-0">
-            <dt class="col-sm-5">Échéance</dt>
-            <dd class="col-sm-7">{{ entreprise.abonnement_prochaine_echeance.strftime('%d/%m/%Y') if entreprise.abonnement_prochaine_echeance else '-' }}</dd>
-            <dt class="col-sm-5">Paiement</dt>
-            <dd class="col-sm-7">
-              {% if entreprise.abonnement_paye %}
-              <span class="badge bg-success">À jour</span>
+    {# Onglet 2: Abonnement & Paiements #}
+    <div class="tab-pane fade" id="abo" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold">Plan actuel</h6>
+            </div>
+            <div class="card-body text-center">
+              {% if plan %}
+              <div class="h3 fw-bold text-primary mb-0">{{ plan.label }}</div>
+              <div class="text-muted small">{{ plan.price_mad }} MAD / an</div>
+              <hr>
+              <div class="d-flex justify-content-around small">
+                <div><span class="fw-bold">{{ plan.max_users }}</span><br><span class="text-muted">Utilisateurs</span></div>
+                <div><span class="fw-bold">{{ plan.max_documents }}</span><br><span class="text-muted">Documents</span></div>
+                <div><span class="fw-bold">{{ plan.max_storage_mb }} Mo</span><br><span class="text-muted">Stockage</span></div>
+              </div>
               {% else %}
-              <span class="badge bg-danger">En retard</span>
+              <p class="text-muted mb-0">Aucun plan défini.</p>
               {% endif %}
-            </dd>
-          </dl>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold">Statut paiement</h6>
+            </div>
+            <div class="card-body text-center">
+              <div class="h3 mb-0">
+                {% if entreprise.abonnement_paye %}
+                <span class="badge bg-success fs-5">À jour</span>
+                {% else %}
+                <span class="badge bg-danger fs-5">En retard</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 small text-muted">
+                Échéance : {{ entreprise.abonnement_prochaine_echeance.strftime('%d/%m/%Y') if entreprise.abonnement_prochaine_echeance else '-' }}
+              </div>
+              <div class="mt-2 small text-muted">
+                Contact : {{ entreprise.contact_facturation_email or '-' }}
+              </div>
+              <hr>
+              <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="active_tab" value="abo">
+                <input type="hidden" name="abonnement_type" value="{{ entreprise.abonnement_type }}">
+                <input type="hidden" name="statut" value="{{ entreprise.statut or 'active' }}">
+                {% if entreprise.abonnement_paye %}
+                <input type="hidden" name="marquer_non_paye" value="1">
+                <button type="submit" class="btn btn-outline-warning btn-sm">
+                  <i class="fas fa-times me-1"></i>Marquer impayé
+                </button>
+                {% else %}
+                <input type="hidden" name="abonnement_paye" value="1">
+                <button type="submit" class="btn btn-outline-success btn-sm">
+                  <i class="fas fa-check me-1"></i>Marquer payé
+                </button>
+                {% endif %}
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold">Changer de plan</h6>
+            </div>
+            <div class="card-body text-center">
+              <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="active_tab" value="abo">
+                <select name="abonnement_type" class="form-select form-select-sm mb-2">
+                  {% for p in plans %}
+                  <option value="{{ p.plan_key }}" {% if entreprise.abonnement_type == p.plan_key %}selected{% endif %}>
+                    {{ p.label }} — {{ p.price_mad }} MAD
+                  </option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                  <i class="fas fa-exchange-alt me-1"></i>Appliquer le plan
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+              <h6 class="mb-0 fw-semibold"><i class="fas fa-history me-1 text-danger"></i>Historique des paiements</h6>
+              <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                <i class="fas fa-plus me-1"></i>Enregistrer un paiement
+              </button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0 small">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Montant (MAD)</th>
+                      <th>Méthode</th>
+                      <th>Référence</th>
+                      <th>Statut</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="paiementsTable">
+                    <tr><td colspan="6" class="text-center text-muted py-3">Chargement...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Onglet 3: Utilisateurs #}
+    <div class="tab-pane fade" id="users" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-semibold"><i class="fas fa-users me-1 text-danger"></i>Utilisateurs de l'entreprise</h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 small">
+              <thead class="table-light">
+                <tr>
+                  <th>Nom</th>
+                  <th>Email</th>
+                  <th>Rôle</th>
+                  <th>Actif</th>
+                  <th>Dernier accès</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in utilisateurs %}
+                <tr>
+                  <td class="fw-medium">{{ u.prenom }} {{ u.nom }}</td>
+                  <td><a href="mailto:{{ u.email }}" class="text-decoration-none">{{ u.email }}</a></td>
+                  <td>{{ u.role.nom if u.role else '-' }}</td>
+                  <td>
+                    {% if u.actif %}
+                    <span class="badge bg-success">Oui</span>
+                    {% else %}
+                    <span class="badge bg-danger">Non</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">{{ u.dernier_acces.strftime('%d/%m/%Y %H:%M') if u.dernier_acces else 'Jamais' }}</td>
+                  <td class="text-end text-nowrap">
+                    <form method="POST" action="{{ url_for('admin.admin_reset_user_password', user_id=u.id) }}" class="d-inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="redirect_url" value="{{ url_for('admin.entreprise_detail', eid=entreprise.id) }}#users">
+                      <button class="btn btn-sm btn-outline-info py-0 px-1" type="submit"
+                              onclick="return confirm('Réinitialiser le mot de passe de {{ u.prenom }} {{ u.nom }} ?')"
+                              title="Réinitialiser mot de passe">
+                        <i class="fas fa-key"></i>
+                      </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.admin_toggle_user', user_id=u.id) }}" class="d-inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="redirect_url" value="{{ url_for('admin.entreprise_detail', eid=entreprise.id) }}#users">
+                      <button class="btn btn-sm btn-outline-{{ 'danger' if u.actif else 'success' }} py-0 px-1" type="submit"
+                              onclick="return confirm('{{ 'Désactiver' if u.actif else 'Activer' }} {{ u.prenom }} {{ u.nom }} ?')"
+                              title="{{ 'Désactiver' if u.actif else 'Activer' }}">
+                        <i class="fas fa-{{ 'ban' if u.actif else 'check' }}"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Aucun utilisateur dans cette entreprise.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Onglet 4: Modules & Quotas #}
+    <div class="tab-pane fade" id="modules" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-md-7">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold"><i class="fas fa-puzzle-piece me-1 text-primary"></i>Modules actifs</h6>
+            </div>
+            <div class="card-body">
+              <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="active_tab" value="modules">
+                <input type="hidden" name="modules_submitted" value="1">
+                <div class="row g-2">
+                  {% set all_modules = ['hse', 'qualite', 'environnement', 'haccp', 'pilotage', 'ged', 'veille', 'processus',
+                                        'audits', 'formations', 'rh_qhse', 'maintenance', 'laboratoire', 'fournisseurs',
+                                        'performance', 'planification', 'reunions', 'support', 'connaissances', 'urgences',
+                                        'nc_capa'] %}
+                  {% for m in all_modules %}
+                  <div class="col-4">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="modules_actifs" value="{{ m }}"
+                             id="mod_{{ m }}"
+                             {% if m in (entreprise.modules_actifs or []) %}checked{% endif %}>
+                      <label class="form-check-label small" for="mod_{{ m }}">{{ m|replace('_', ' ')|title }}</label>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm mt-3"><i class="fas fa-save me-1"></i>Enregistrer les modules</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold"><i class="fas fa-tachometer-alt me-1 text-success"></i>Quotas d'utilisation</h6>
+            </div>
+            <div class="card-body">
+              <div id="quotasContainer">
+                <div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm me-2"></div>Chargement...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Onglet 5: Actions #}
+    <div class="tab-pane fade" id="actions" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold"><i class="fas fa-envelope me-1 text-primary"></i>Email d'activation</h6>
+            </div>
+            <div class="card-body text-center py-4">
+              <form method="POST" action="{{ url_for('entreprises.resend_welcome_email', entreprise_id=entreprise.id) }}"
+                    onsubmit="return confirm('Renvoyer l\'email d\'activation au manager de {{ entreprise.nom }} ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="redirect_url" value="{{ url_for('admin.entreprise_detail', eid=entreprise.id) }}#actions">
+                <button type="submit" class="btn btn-outline-primary">
+                  <i class="fas fa-paper-plane me-1"></i>Renvoyer email d'activation
+                </button>
+              </form>
+              <p class="text-muted small mt-2 mb-0">Réinitialise le mot de passe et renvoie un lien d'activation au premier utilisateur (manager) de l'entreprise.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0 fw-semibold"><i class="fas fa-flag me-1 text-danger"></i>Cycle de vie</h6>
+            </div>
+            <div class="card-body text-center py-4">
+              <div class="mb-3">
+                {% if s in ('actif', 'active', 'trial') %}
+                <span class="badge bg-success fs-6">Entreprise active</span>
+                {% elif s in ('suspendu', 'suspended') %}
+                <span class="badge bg-danger fs-6">Entreprise suspendue</span>
+                {% elif s == 'cancelled' %}
+                <span class="badge bg-secondary fs-6">Abonnement annulé</span>
+                {% elif s == 'archived' %}
+                <span class="badge bg-dark fs-6">Entreprise archivée</span>
+                {% endif %}
+              </div>
+              <div class="d-flex justify-content-center gap-2">
+                <form method="POST" action="{{ url_for('admin.entreprise_suspendre', eid=entreprise.id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="redirect_url" value="{{ url_for('admin.entreprise_detail', eid=entreprise.id) }}#actions">
+                  {% set is_active = s in ('actif', 'active', 'trial') %}
+                  <button type="submit" class="btn btn-{{ 'danger' if is_active else 'success' }}"
+                          onclick="return confirm('Confirmer la {% if is_active %}suspension{% else %}réactivation{% endif %} de {{ entreprise.nom }} ?')">
+                    <i class="fas fa-{{ 'pause' if is_active else 'play' }} me-1"></i>{{ 'Suspendre' if is_active else 'Réactiver' }}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
   </div>
-
-  <div class="row g-3 mt-2">
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3">
-          <h5 class="mb-0"><i class="fas fa-users me-2"></i>Utilisateurs ({{ utilisateurs|length }})</h5>
-        </div>
-        <div class="card-body p-0">
-          <table class="table table-hover mb-0">
-            <thead class="table-light">
-              <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Actif</th></tr>
-            </thead>
-            <tbody>
-              {% for u in utilisateurs %}
-              <tr>
-                <td>{{ u.prenom }} {{ u.nom }}</td>
-                <td>{{ u.email }}</td>
-                <td>{{ u.role.nom if u.role else '-' }}</td>
-                <td>
-                  {% if u.actif %}
-                  <span class="badge bg-success">Oui</span>
-                  {% else %}
-                  <span class="badge bg-danger">Non</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="4" class="text-center text-muted py-3">Aucun utilisateur.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+</div>
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-credit-card me-1"></i>Enregistrer un paiement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3">
-          <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Mise à jour</h5>
+      <form id="paymentForm">
+        <div class="modal-body">
+          <input type="hidden" id="pay_csrf" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label small">Date de paiement</label>
+            <input type="date" id="pay_date" class="form-control form-control-sm" value="{{ today }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Montant (MAD)</label>
+            <input type="number" id="pay_montant" class="form-control form-control-sm" step="0.01" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Méthode de paiement</label>
+            <select id="pay_methode" class="form-select form-select-sm">
+              <option value="Virement">Virement bancaire</option>
+              <option value="Chèque">Chèque</option>
+              <option value="Espèces">Espèces</option>
+              <option value="Carte">Carte bancaire</option>
+              <option value="Prélèvement">Prélèvement automatique</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Référence externe</label>
+            <input type="text" id="pay_reference" class="form-control form-control-sm" placeholder="N° facture, mandat...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Notes</label>
+            <textarea id="pay_notes" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <div class="alert alert-info small mb-0">
+            <i class="fas fa-info-circle me-1"></i>Le statut passera à <strong>Actif</strong> et l'échéance sera automatiquement étendue d'<strong>1 an</strong>.
+          </div>
         </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label">Nom</label>
-                <input type="text" name="nom" class="form-control" value="{{ entreprise.nom }}">
-              </div>
-              <div class="col-3">
-                <label class="form-label">Taille</label>
-                <select name="taille" class="form-select">
-                  <option value="TPE" {% if entreprise.taille == 'TPE' %}selected{% endif %}>TPE</option>
-                  <option value="PME" {% if entreprise.taille == 'PME' %}selected{% endif %}>PME</option>
-                  <option value="Grande" {% if entreprise.taille == 'Grande' %}selected{% endif %}>Grande</option>
-                </select>
-              </div>
-              <div class="col-3">
-                <label class="form-label">Pays</label>
-                <input type="text" name="pays" class="form-control" value="{{ entreprise.pays or 'Maroc' }}">
-              </div>
-              <div class="col-6">
-                <label class="form-label">Adresse</label>
-                <input type="text" name="adresse" class="form-control" value="{{ entreprise.adresse or '' }}">
-              </div>
-              <div class="col-3">
-                <label class="form-label">Téléphone</label>
-                <input type="text" name="telephone" class="form-control" value="{{ entreprise.telephone or '' }}">
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Abonnement</label>
-              <select name="abonnement_type" class="form-select">
-                {% for p in plans %}
-                <option value="{{ p.plan_key }}" {% if entreprise.abonnement_type == p.plan_key %}selected{% endif %}>
-                  {{ p.label }}
-                </option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Modules actifs</label>
-              <div class="row g-1">
-                {% for m in ['hse', 'qualite', 'environnement', 'haccp', 'pilotage', 'ged', 'veille', 'processus',
-                              'audits', 'formations', 'rh_qhse', 'maintenance', 'laboratoire', 'fournisseurs',
-                              'performance', 'planification', 'reunions', 'support', 'connaissances', 'urgences',
-                              'nc_capa', 'admin'] %}
-                <div class="col-4">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="modules_actifs" value="{{ m }}"
-                           id="mod_edit_{{ m }}"
-                           {% if m in (entreprise.modules_actifs or []) %}checked{% endif %}>
-                    <label class="form-check-label small" for="mod_edit_{{ m }}">{{ m|capitalize }}</label>
-                  </div>
-                </div>
-                {% endfor %}
-              </div>
-            </div>
-            <div class="mb-3">
-               <label class="form-label">Statut cycle de vie</label>
-              <select name="statut" class="form-select">
-                <option value="">— Conserver —</option>
-                <option value="trial" {% if entreprise.statut|lower == 'trial' %}selected{% endif %}>Trial</option>
-                <option value="active" {% if entreprise.statut|lower in ('actif', 'active') %}selected{% endif %}>Actif</option>
-                <option value="suspended" {% if entreprise.statut|lower in ('suspendu', 'suspended') %}selected{% endif %}>Suspendu</option>
-                <option value="cancelled" {% if entreprise.statut|lower == 'cancelled' %}selected{% endif %}>Annulé</option>
-                <option value="archived" {% if entreprise.statut|lower == 'archived' %}selected{% endif %}>Archivé</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Motif suspension</label>
-              <input type="text" name="motif_suspension" class="form-control"
-                     value="{{ entreprise.motif_suspension or '' }}">
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Enregistrer</button>
-          </form>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-sm btn-success" id="paySubmitBtn">
+            <i class="fas fa-check me-1"></i>Valider le paiement
+          </button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+const EID = {{ entreprise.id }};
+
+async function loadPaiements() {
+  try {
+    const r = await fetch('{{ url_for("admin.entreprise_api_paiements", eid=0) }}'.replace('0', EID));
+    const items = await r.json();
+    const tbody = document.getElementById('paiementsTable');
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun paiement enregistré.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(p => `<tr>
+      <td>${p.date_paiement || ''}</td>
+      <td class="fw-bold">${p.montant_mad ? p.montant_mad.toLocaleString() + ' MAD' : '--'}</td>
+      <td>${p.methode_paiement || ''}</td>
+      <td>${p.reference_externe || ''}</td>
+      <td>${statutBadge(p.statut_paiement)}</td>
+      <td><small class="text-muted">${p.notes || ''}</small></td>
+    </tr>`).join('');
+  } catch(e) {
+    document.getElementById('paiementsTable').innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Erreur de chargement.</td></tr>';
+  }
+}
+function statutBadge(s) {
+  const m = {'valide': 'success', 'en_attente': 'warning', 'echoue': 'danger'};
+  return `<span class="badge bg-${m[s] || 'secondary'}">${s || ''}</span>`;
+}
+
+async function loadQuotas() {
+  try {
+    const r = await fetch('{{ url_for("admin.entreprise_api_quota", eid=0) }}'.replace('0', EID));
+    const d = await r.json();
+    let html = '';
+    html += quotaRow('Utilisateurs', d.used_users, d.max_users);
+    html += quotaRow('Actions en cours', d.used_actions, d.max_actions);
+    html += quotaRow('Documents actifs', d.used_documents, d.max_documents);
+    html += quotaRow('Stockage', d.used_storage_mb + ' Mo', d.max_storage_mb + ' Mo');
+    document.getElementById('quotasContainer').innerHTML = html || '<p class="text-muted text-center mb-0">Aucune donnée de quota disponible.</p>';
+  } catch(e) {
+    document.getElementById('quotasContainer').innerHTML = '<p class="text-danger text-center mb-0">Erreur de chargement des quotas.</p>';
+  }
+}
+function quotaRow(label, used, max) {
+  const maxNum = parseFloat(max) || 1;
+  const usedNum = parseFloat(used) || 0;
+  const pct = Math.min(100, Math.round((usedNum / maxNum) * 100));
+  const color = pct >= 100 ? 'danger' : pct >= 80 ? 'warning' : 'success';
+  return `<div class="mb-3">
+    <div class="d-flex justify-content-between small mb-1">
+      <span class="fw-medium">${label}</span>
+      <span class="text-muted">${used} / ${max}</span>
+    </div>
+    <div class="progress" style="height:8px">
+      <div class="progress-bar bg-${color}" style="width:${pct}%"></div>
+    </div>
+  </div>`;
+}
+
+function initTabs() {
+  const hash = window.location.hash || '#infos';
+  const tabBtn = document.querySelector(`[data-bs-target="${hash}"]`);
+  if (tabBtn) new bootstrap.Tab(tabBtn).show();
+  document.querySelectorAll('#entrepriseTabs .nav-link').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', e => {
+      history.replaceState(null, '', e.target.getAttribute('data-bs-target'));
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initTabs();
+  loadPaiements();
+  loadQuotas();
+
+  document.getElementById('paymentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('paySubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>En cours...';
+    try {
+      const r = await fetch('{{ url_for("admin.entreprise_api_paiements_create", eid=0) }}'.replace('0', EID), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.getElementById('pay_csrf').value},
+        body: JSON.stringify({
+          date_paiement: document.getElementById('pay_date').value,
+          montant_mad: parseFloat(document.getElementById('pay_montant').value),
+          methode_paiement: document.getElementById('pay_methode').value,
+          reference_externe: document.getElementById('pay_reference').value,
+          notes: document.getElementById('pay_notes').value,
+        }),
+      });
+      const data = await r.json();
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+        location.reload();
+      } else {
+        alert('Erreur : ' + (data.error || 'Inconnue'));
+      }
+    } catch(e) {
+      alert('Erreur réseau : ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check me-1"></i>Valider le paiement';
+    }
+  });
+});
+</script>
 {% endblock %}

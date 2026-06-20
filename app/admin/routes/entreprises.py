@@ -5,10 +5,11 @@ from app import db
 from app.models import (
     Utilisateur, Entreprise, SubscriptionPlan, Secteur,
     TexteReglementaire, EntrepriseTexte, ActionCorrective, ProofMaster,
+    HistoriquePaiement,
 )
 from app.services.subscription_service import (
     get_enterprise_lifecycle_status, get_payment_status,
-    _get_storage_size_for_proofs,
+    _get_storage_size_for_proofs, add_one_year_safe,
 )
 from app.utils.subscriptions import get_subscription_plan
 from functools import wraps
@@ -82,71 +83,11 @@ def entreprises():
     return render_template('admin/entreprises.html', data=data, today=today)
 
 
-@admin.route('/entreprises/create', methods=['GET', 'POST'])
+@admin.route('/entreprises/create')
 @login_required
 @admin_required
 def entreprise_create():
-    if request.method == 'POST':
-        modules = ['hse']
-        if request.form.get('module_qualite'):
-            modules.append('qualite')
-        selected_secteur_ids = request.form.getlist('secteurs')
-        entreprise = Entreprise(
-            nom=request.form['nom'],
-            taille=request.form.get('taille', 'PME'),
-            pays=request.form.get('pays', 'Maroc'),
-            adresse=request.form.get('adresse'),
-            modules_actifs=modules,
-            statut='Actif',
-            date_inscription=date.today(),
-        )
-        db.session.add(entreprise)
-        db.session.flush()
-        if selected_secteur_ids:
-            secteurs = Secteur.query.filter(Secteur.id.in_([int(s) for s in selected_secteur_ids if s])).all()
-            entreprise.secteurs.extend(secteurs)
-            textes_cibles = (
-                TexteReglementaire.query
-                .join(TexteReglementaire.secteurs)
-                .filter(
-                    Secteur.id.in_([int(s) for s in selected_secteur_ids if s]),
-                    TexteReglementaire.version_active_id.isnot(None),
-                )
-                .distinct()
-                .all()
-            )
-            auto_linked_count = 0
-            for texte in textes_cibles:
-                version_id = texte.version_active_id
-                if not version_id:
-                    continue
-                already_linked = EntrepriseTexte.query.filter_by(
-                    entreprise_id=entreprise.id,
-                    texte_version_id=version_id,
-                ).first()
-                if already_linked:
-                    continue
-                db.session.add(
-                    EntrepriseTexte(
-                        entreprise_id=entreprise.id,
-                        texte_version_id=version_id,
-                        statut_obligation='OBLIGATOIRE',
-                        motif_obligation='Reglementation sectorielle',
-                        mode_evaluation='PERIMETRE_GLOBAL',
-                    )
-                )
-                auto_linked_count += 1
-            db.session.commit()
-            flash(
-                f'Entreprise creee avec succes. {auto_linked_count} texte(s) lie(s) automatiquement selon les secteurs.',
-                'success',
-            )
-        else:
-            db.session.commit()
-            flash('Entreprise creee avec succes.', 'success')
-        return redirect(url_for('admin.entreprises'))
-    secteurs = Secteur.query.order_by(Secteur.nom).all()
-    return render_template('admin/entreprise_create.html', secteurs=secteurs)
+    return redirect(url_for('entreprises.create'))
 
 
 @admin.route('/entreprises/<int:eid>')
@@ -160,7 +101,8 @@ def entreprise_detail(eid):
     plan = SubscriptionPlan.query.filter_by(plan_key=entreprise.abonnement_type).first()
     plans = SubscriptionPlan.query.all()
     return render_template('admin/entreprise_detail.html', entreprise=entreprise,
-                           utilisateurs=utilisateurs, plan=plan, plans=plans)
+                           utilisateurs=utilisateurs, plan=plan, plans=plans,
+                           today=date.today().isoformat())
 
 
 @admin.route('/entreprises/<int:eid>/update', methods=['POST'])
@@ -175,13 +117,30 @@ def entreprise_update(eid):
         if val is not None:
             setattr(entreprise, f, val)
     abonnement_type = request.form.get('abonnement_type')
-    modules_actifs = request.form.getlist('modules_actifs')
+    modules_actifs = [m for m in request.form.getlist('modules_actifs') if m]
     statut = request.form.get('statut')
     motif_suspension = request.form.get('motif_suspension', '').strip()
+    abonnement_paye = request.form.get('abonnement_paye')
+    marquer_non_paye = request.form.get('marquer_non_paye')
     if abonnement_type:
         entreprise.abonnement_type = abonnement_type
-    if modules_actifs:
+    if modules_actifs is not None and request.form.get('modules_submitted'):
         entreprise.modules_actifs = modules_actifs
+    if abonnement_paye:
+        entreprise.abonnement_paye = True
+        # Étendre l'échéance d'1 an si elle est passée ou absente
+        due = entreprise.abonnement_prochaine_echeance
+        today = date.today()
+        if not due or due < today:
+            entreprise.abonnement_prochaine_echeance = add_one_year_safe(today)
+        entreprise.date_dernier_paiement = today
+        entreprise.statut = 'active'
+        entreprise.motif_suspension = None
+    if marquer_non_paye:
+        entreprise.abonnement_paye = False
+        if not statut:
+            entreprise.statut = 'suspended'
+            entreprise.motif_suspension = entreprise.motif_suspension or 'Impayé'
     if statut:
         normalize = {'actif': 'active', 'suspendu': 'suspended',
                      'en_attente': 'suspended', 'annule': 'cancelled',
@@ -193,7 +152,104 @@ def entreprise_update(eid):
         entreprise.motif_suspension = None
     db.session.commit()
     flash('Entreprise mise à jour avec succès.', 'success')
-    return redirect(url_for('admin.entreprise_detail', eid=eid))
+    tab = request.form.get('active_tab', '')
+    fragment = f'#{tab}' if tab else ''
+    return redirect(url_for('admin.entreprise_detail', eid=eid) + fragment)
+
+
+@admin.route('/entreprises/<int:eid>/api/quota')
+@login_required
+@admin_required
+def entreprise_api_quota(eid):
+    entreprise = db.session.get(Entreprise, eid)
+    if not entreprise:
+        abort(404)
+    from app.models import ActionCorrective, ProofMaster
+    plan = SubscriptionPlan.query.filter_by(plan_key=entreprise.abonnement_type).first()
+    nb_users = Utilisateur.query.filter_by(entreprise_id=eid).count()
+    nb_actions = ActionCorrective.query.filter(
+        ActionCorrective.entreprise_id == eid,
+        ActionCorrective.statut != 'Terminée',
+    ).count()
+    nb_docs = ProofMaster.query.filter_by(entreprise_id=eid, statut='ACTIF').count()
+    proofs = ProofMaster.query.filter_by(entreprise_id=eid, statut='ACTIF').all()
+    storage = _get_storage_size_for_proofs(proofs)
+    return jsonify({
+        'used_users': nb_users,
+        'max_users': plan.max_users if plan else 0,
+        'used_actions': nb_actions,
+        'max_actions': plan.max_open_actions if plan else 0,
+        'used_documents': nb_docs,
+        'max_documents': plan.max_documents if plan else 0,
+        'used_storage_mb': round(storage, 1) if storage else 0,
+        'max_storage_mb': plan.max_storage_mb if plan else 0,
+    })
+
+
+@admin.route('/entreprises/<int:eid>/api/paiements')
+@login_required
+@admin_required
+def entreprise_api_paiements(eid):
+    entreprise = db.session.get(Entreprise, eid)
+    if not entreprise:
+        abort(404)
+    items = HistoriquePaiement.query.filter_by(entreprise_id=eid)\
+        .order_by(HistoriquePaiement.date_paiement.desc()).all()
+    return jsonify([{
+        'id': r.id,
+        'date_paiement': r.date_paiement.isoformat() if r.date_paiement else None,
+        'montant_mad': float(r.montant_mad) if r.montant_mad else None,
+        'methode_paiement': r.methode_paiement,
+        'reference_externe': r.reference_externe,
+        'statut_paiement': r.statut_paiement,
+        'notes': r.notes,
+        'enregistre_par': r.enregistre_par,
+    } for r in items])
+
+
+@admin.route('/entreprises/<int:eid>/api/paiements/create', methods=['POST'])
+@login_required
+@admin_required
+def entreprise_api_paiements_create(eid):
+    entreprise = db.session.get(Entreprise, eid)
+    if not entreprise:
+        abort(404)
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Données requises.'}), 400
+    try:
+        date_paiement = datetime.strptime(data['date_paiement'], '%Y-%m-%d').date() if data.get('date_paiement') else date.today()
+        montant = float(data.get('montant_mad', 0))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Montant ou date invalide.'}), 400
+
+    paiement = HistoriquePaiement(
+        entreprise_id=eid,
+        date_paiement=date_paiement,
+        montant_mad=montant,
+        methode_paiement=data.get('methode_paiement'),
+        reference_externe=data.get('reference_externe'),
+        statut_paiement='valide',
+        notes=data.get('notes'),
+        enregistre_par=current_user.id,
+    )
+    db.session.add(paiement)
+
+    # Étendre l'échéance d'1 an à partir de la date d'échéance actuelle (ou de la date de paiement si pas d'échéance)
+    due = entreprise.abonnement_prochaine_echeance
+    if due and due >= date.today():
+        entreprise.abonnement_prochaine_echeance = add_one_year_safe(due)
+    else:
+        entreprise.abonnement_prochaine_echeance = add_one_year_safe(date_paiement)
+
+    entreprise.abonnement_paye = True
+    entreprise.date_dernier_paiement = date_paiement
+    entreprise.montant_annuel_mad = montant
+    entreprise.statut = 'active'
+    entreprise.motif_suspension = None
+
+    db.session.commit()
+    return jsonify({'success': True, 'id': paiement.id})
 
 
 @admin.route('/entreprises/<int:eid>/suspendre', methods=['POST'])
@@ -203,12 +259,14 @@ def entreprise_suspendre(eid):
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
         abort(404)
-    if entreprise.statut == 'Actif':
-        entreprise.statut = 'Suspendu'
+    s = (entreprise.statut or '').lower()
+    if s in ('actif', 'active', 'trial'):
+        entreprise.statut = 'suspended'
         entreprise.motif_suspension = request.form.get('motif', 'Suspendu par administrateur')
     else:
-        entreprise.statut = 'Actif'
+        entreprise.statut = 'active'
         entreprise.motif_suspension = None
     db.session.commit()
-    flash(f'Entreprise {entreprise.nom} {"suspendue" if entreprise.statut == "Suspendu" else "réactivée"}.', 'success')
-    return redirect(url_for('admin.entreprises'))
+    flash(f'Entreprise {entreprise.nom} {"suspendue" if entreprise.statut == "suspended" else "réactivée"}.', 'success')
+    dest = request.form.get('redirect_url') or url_for('admin.entreprises')
+    return redirect(dest)

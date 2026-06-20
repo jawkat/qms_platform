@@ -1,12 +1,10 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, abort, current_app
 from flask_login import login_required, current_user
-from app import db, mail
+from app import db
 from app.models import Entreprise, Secteur, TexteReglementaire, EntrepriseTexte, SubscriptionPlan, Utilisateur, Role
 from app.entreprises import entreprises
 from app.utils.permissions import has_permission
 from datetime import date, timedelta
-from flask_mail import Message
-from flask import render_template as render_mail
 
 
 @entreprises.route('/')
@@ -37,10 +35,9 @@ def create():
         mgr_nom = request.form.get('mgr_nom', '').strip()
         mgr_prenom = request.form.get('mgr_prenom', '').strip()
         mgr_email = request.form.get('mgr_email', '').strip()
-        mgr_password = request.form.get('mgr_password', '')
 
-        if not (mgr_nom and mgr_prenom and mgr_email and mgr_password):
-            flash('Nom, prénom, email et mot de passe du manager sont requis.', 'warning')
+        if not (mgr_nom and mgr_prenom and mgr_email):
+            flash('Nom, prénom et email du manager sont requis.', 'warning')
             secteurs = Secteur.query.order_by(Secteur.nom).all()
             plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
             return render_template('entreprises/create.html', secteurs=secteurs, plans=plans)
@@ -82,7 +79,7 @@ def create():
             adresse=adresse,
             modules_actifs=modules,
             abonnement_type=plan_key or 'trial',
-            statut='Actif',
+            statut='active',
             date_inscription=date.today(),
             contact_facturation_email=contact_facturation_email,
             periode_essai_jours=trial_days,
@@ -106,7 +103,6 @@ def create():
             role_id=role_manager.id,
             actif=True,
         )
-        admin.set_password(mgr_password)
         db.session.add(admin)
 
         # Copier les permissions globales des rôles vers cette entreprise
@@ -180,30 +176,21 @@ def create():
             return render_template('entreprises/create.html', secteurs=secteurs, plans=plans)
 
         # Envoyer un email de bienvenue au manager
-        try:
-            token = admin.get_reset_token()
-            activation_link = url_for('users.reset_password_token', token=token, _external=True)
-            login_url = current_app.config.get('APP_LOGIN_URL', 'http://localhost:5006/')
-            current_app.logger.info("Envoi email bienvenue à %s via %s:%s",
-                                    admin.email,
-                                    current_app.config.get('MAIL_SERVER'),
-                                    current_app.config.get('MAIL_PORT'))
-            html = render_mail(
-                'emails/account_created.html',
-                recipient_name=f"{admin.prenom} {admin.nom}",
-                role_name=role_manager.nom if role_manager else None,
-                activation_link=activation_link,
-                login_link=login_url,
-            )
-            msg = Message(
-                subject="Bienvenue sur QMS Veille HSE — Activation de votre compte",
-                recipients=[admin.email],
-                html=html,
-            )
-            mail.send(msg)
+        from app.utils.notifications import send_account_created_email
+        token = admin.get_reset_token()
+        activation_link = url_for('users.reset_password_token', token=token, _external=True)
+        login_url = current_app.config.get('APP_LOGIN_URL', 'http://localhost:5006/')
+        email_sent = send_account_created_email(
+            recipient_email=admin.email,
+            recipient_name=f"{admin.prenom} {admin.nom}",
+            role_name=role_manager.nom if role_manager else None,
+            login_link=login_url,
+            activation_link=activation_link,
+        )
+        if email_sent:
             current_app.logger.info("Email bienvenue envoyé avec succès à %s", admin.email)
-        except Exception as e:
-            current_app.logger.exception("Erreur envoi email bienvenue à %s: %s", admin.email, str(e))
+        else:
+            current_app.logger.error("Erreur envoi email bienvenue à %s", admin.email)
 
         flash(
             f'Entreprise créée avec succès. {auto_linked_count} texte(s) lié(s) automatiquement selon les secteurs. '
@@ -250,35 +237,26 @@ def resend_welcome_email(entreprise_id):
     admin = Utilisateur.query.filter_by(entreprise_id=entreprise.id).order_by(Utilisateur.date_creation).first()
     if not admin:
         flash('Aucun utilisateur trouvé pour cette entreprise.', 'warning')
-        return redirect(url_for('entreprises.edit', entreprise_id=entreprise_id))
+        dest = request.form.get('redirect_url') or url_for('entreprises.edit', entreprise_id=entreprise_id)
+        return redirect(dest)
 
-    try:
-        token = admin.get_reset_token()
-        activation_link = url_for('users.reset_password_token', token=token, _external=True)
-        login_url = current_app.config.get('APP_LOGIN_URL', 'http://localhost:5006/')
-        current_app.logger.info("Tentative d'envoi email à %s via %s:%s",
-                                admin.email,
-                                current_app.config.get('MAIL_SERVER'),
-                                current_app.config.get('MAIL_PORT'))
-        html = render_mail(
-            'emails/account_created.html',
-            recipient_name=f"{admin.prenom} {admin.nom}",
-            role_name=admin.role.nom if admin.role else None,
-            activation_link=activation_link,
-            login_link=login_url,
-        )
-        msg = Message(
-            subject="Bienvenue sur QMS Veille HSE — Activation de votre compte",
-            recipients=[admin.email],
-            html=html,
-        )
-        mail.send(msg)
+    from app.utils.notifications import send_account_created_email
+    token = admin.get_reset_token()
+    activation_link = url_for('users.reset_password_token', token=token, _external=True)
+    success = send_account_created_email(
+        recipient_email=admin.email,
+        recipient_name=f"{admin.prenom} {admin.nom}",
+        role_name=admin.role.nom if admin.role else None,
+        login_link=current_app.config.get('APP_LOGIN_URL', 'http://localhost:5006/'),
+        activation_link=activation_link,
+    )
+    if success:
         flash(f'Email de bienvenue renvoyé à {admin.email}.', 'success')
-    except Exception as e:
-        current_app.logger.exception("Erreur renvoi email bienvenue")
-        flash(f'Erreur lors de l\'envoi de l\'email : {str(e)}', 'danger')
+    else:
+        flash("Erreur lors de l'envoi de l'email. Vérifiez la configuration du serveur mail.", 'danger')
 
-    return redirect(url_for('entreprises.edit', entreprise_id=entreprise_id))
+    dest = request.form.get('redirect_url') or url_for('entreprises.edit', entreprise_id=entreprise_id)
+    return redirect(dest)
 
 
 @entreprises.route('/api/liste')

@@ -4,9 +4,11 @@
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0"><i class="fas fa-credit-card me-2 text-danger"></i>Facturation</h1>
+    {% if current_user.has_permission('facturation.gerer') %}
     <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#paiementModal">
       <i class="fas fa-plus me-1"></i>Nouveau paiement
     </button>
+    {% endif %}
   </div>
 
   <div class="row g-3 mb-4" id="infoCards">

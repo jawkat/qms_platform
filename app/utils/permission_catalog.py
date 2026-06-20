@@ -211,7 +211,7 @@ DEFAULT_ENTERPRISE_ROLE_PERMISSIONS = {
         'connaissances.voir', 'connaissances.gerer',
         'urgences.voir', 'urgences.gerer',
         'entreprises.voir', 'entreprises.cree', 'entreprises.modifier',
-        'facturation.voir', 'facturation.gerer',
+        'facturation.voir',
         'plans.voir', 'plans.gerer',
     ),
     'Auditeur': (

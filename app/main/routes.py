@@ -46,37 +46,51 @@ def index():
                 if v and k not in all_features:
                     all_features[k] = True
 
-    features_icons = {
-        'veille_reglementaire': {'icon': 'fas fa-satellite-dish', 'color': '#06b6d4', 'bg': 'rgba(6,182,212,.1)'},
-        'notifications_reglementaires_par_email': {'icon': 'fas fa-envelope', 'color': '#f59e0b', 'bg': 'rgba(245,158,11,.1)'},
-        'export_excel_pdf_des_rapports': {'icon': 'fas fa-file-export', 'color': '#10b981', 'bg': 'rgba(16,185,129,.1)'},
-        'evaluation_des_textes_iso_brc_ifs': {'icon': 'fas fa-clipboard-check', 'color': '#3b82f6', 'bg': 'rgba(59,130,246,.1)'},
-        'support': {'icon': 'fas fa-headset', 'color': '#8b5cf6', 'bg': 'rgba(139,92,246,.1)'},
-        'analytics_avances_tableaux_de_bord': {'icon': 'fas fa-chart-bar', 'color': '#ec4899', 'bg': 'rgba(236,72,153,.1)'},
-        'formation_onboarding_dedies': {'icon': 'fas fa-graduation-cap', 'color': '#06b6d4', 'bg': 'rgba(6,182,212,.1)'},
-    }
-    features_desc = {
-        'veille_reglementaire': 'Suivez les évolutions réglementaires et recevez des alertes personnalisées.',
-        'notifications_reglementaires_par_email': 'Notifications automatiques par email pour ne rien manquer.',
-        'export_excel_pdf_des_rapports': 'Exportez vos rapports et tableaux de bord en PDF et Excel.',
-        'evaluation_des_textes_iso_brc_ifs': 'Évaluez vos textes réglementaires (ISO, BRC, IFS…).',
-        'support': 'Assistance technique dédiée et réactive.',
-        'analytics_avances_tableaux_de_bord': 'Tableaux de bord avancés et indicateurs de performance.',
-        'formation_onboarding_dedies': 'Formation et accompagnement pour votre équipe.',
-    }
+    features = [
+        {'icon': 'fas fa-satellite-dish', 'color': '#06b6d4', 'bg': 'rgba(6,182,212,.1)',
+         'title': 'Veille réglementaire & Conformité',
+         'description': 'Textes légaux, normes ISO, évaluation de conformité avec alertes personnalisées.'},
+        {'icon': 'fas fa-exclamation-triangle', 'color': '#ef4444', 'bg': 'rgba(239,68,68,.1)',
+         'title': 'Non-Conformités & CAPA',
+         'description': 'Déclaration des écarts, analyse Ishikawa, actions correctives et préventives.'},
+        {'icon': 'fas fa-clipboard-check', 'color': '#8b5cf6', 'bg': 'rgba(139,92,246,.1)',
+         'title': 'Audits & Inspections',
+         'description': 'Programmes d\'audit, checklists, constatations et rapports de clôture.'},
+        {'icon': 'fas fa-graduation-cap', 'color': '#10b981', 'bg': 'rgba(16,185,129,.1)',
+         'title': 'Formations & Compétences',
+         'description': 'Catalogue, sessions, présences, habilitations et matrice de polyvalence.'},
+        {'icon': 'fas fa-folder-open', 'color': '#f59e0b', 'bg': 'rgba(245,158,11,.1)',
+         'title': 'GED & Documentation',
+         'description': 'Dépôt, versions, workflow d\'approbation, diffusion contrôlée et archivage.'},
+        {'icon': 'fas fa-hard-hat', 'color': '#f97316', 'bg': 'rgba(249,115,22,.1)',
+         'title': 'HSE & Environnement',
+         'description': 'Incidents, EPI, DUERP, aspects environnementaux et gestion des déchets.'},
+        {'icon': 'fas fa-utensils', 'color': '#ec4899', 'bg': 'rgba(236,72,153,.1)',
+         'title': 'HACCP & Sécurité Aliments',
+         'description': 'CCP, PRP, analyse des dangers, traçabilité, allergènes et plan de contrôle.'},
+        {'icon': 'fas fa-chart-bar', 'color': '#3b82f6', 'bg': 'rgba(59,130,246,.1)',
+         'title': 'Performance & Tableaux de bord',
+         'description': 'KPI en temps réel, rapports automatiques, export PDF/Excel et tendances.'},
+        {'icon': 'fas fa-project-diagram', 'color': '#14b8a6', 'bg': 'rgba(20,184,166,.1)',
+         'title': 'Processus & Workflow',
+         'description': 'Cartographie BPMN, fiches processus, workflows automatisés et validation.'},
+        {'icon': 'fas fa-users', 'color': '#6366f1', 'bg': 'rgba(99,102,241,.1)',
+         'title': 'RH QHSE & Compétences',
+         'description': 'Employés, organigramme, affectations, EPI et suivi RH qualité.'},
+        {'icon': 'fas fa-truck', 'color': '#a855f7', 'bg': 'rgba(168,85,247,.1)',
+         'title': 'Fournisseurs & Achats',
+         'description': 'Évaluation, homologation, suivi performance et non-conformités fournisseurs.'},
+        {'icon': 'fas fa-calendar-alt', 'color': '#e11d48', 'bg': 'rgba(225,29,72,.1)',
+         'title': 'Planification & Échéances',
+         'description': 'Calendrier global, audits, formations, inspections et rappels automatiques.'},
+    ]
 
-    features = []
-    for k in all_features:
-        meta = features_icons.get(k, {'icon': 'fas fa-check', 'color': '#6b7280', 'bg': 'rgba(107,114,128,.1)'})
-        features.append({
-            'icon': meta['icon'],
-            'color': meta['color'],
-            'bg': meta['bg'],
-            'title': k.replace('_', ' ').title(),
-            'description': features_desc.get(k, ''),
-        })
-
-    features_labels = {k: k.replace('_', ' ').title() for k in all_features}
+    features_labels = {}
+    for p in plans:
+        if p.features:
+            for k in p.features:
+                if k not in features_labels:
+                    features_labels[k] = k.replace('_', ' ').title()
 
     return render_template('landing.html', slots_json=slots_json, plans=plans, features=features, features_labels=features_labels)
 
