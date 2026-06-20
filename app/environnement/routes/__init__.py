@@ -6,7 +6,9 @@ from app.core import module_active
 from app import db
 from datetime import datetime
 
-blueprint = Blueprint('environnement', __name__, template_folder='templates')
+import os
+blueprint = Blueprint('environnement', __name__, template_folder='templates',
+                      root_path=os.path.join(os.path.dirname(os.path.dirname(__file__))))
 
 
 @blueprint.route('/')

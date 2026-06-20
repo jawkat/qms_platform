@@ -8,43 +8,78 @@
   </div>
 
   <div class="row g-3 mb-3">
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
       <h6 class="text-muted text-uppercase small">Modèles</h6><div class="h3 mb-0 fw-bold" id="stat-modeles">-</div>
     </div></div></div>
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
       <h6 class="text-muted text-uppercase small">Instances actives</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-actives">-</div>
     </div></div></div>
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
       <h6 class="text-muted text-uppercase small">Terminées</h6><div class="h3 mb-0 fw-bold text-success" id="stat-terminees">-</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">En retard</h6><div class="h3 mb-0 fw-bold text-danger" id="stat-retard">-</div>
     </div></div></div>
   </div>
 
-  <div class="row g-3">
-    <div class="col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-bottom py-3">
-          <h5 class="mb-0"><i class="fas fa-shapes me-2 text-primary"></i>Modèles de workflow</h5>
+  <ul class="nav nav-tabs mb-3" id="wfTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-instances">Instances actives</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-retard">En retard</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-modeles">Modèles</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-instances">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fas fa-play-circle me-2 text-success"></i>Instances actives</h6>
+          <div class="d-flex gap-2">
+            <select id="filterModule" class="form-select form-select-sm" style="width:auto" onchange="load()">
+              <option value="">Tous modules</option>
+              <option value="documents">Documents</option>
+              <option value="actions">Actions</option>
+              <option value="change_management">Changements</option>
+              <option value="nonconformites">Non-conformités</option>
+            </select>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
-              <thead class="table-light"><tr><th>Nom</th><th>Module</th><th>Étapes</th><th>Actions</th></tr></thead>
-              <tbody id="modelesBody"></tbody>
+              <thead class="table-light"><tr><th>Modèle</th><th>Étape</th><th>Progression</th><th>Deadline</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody id="instancesBody"></tbody>
             </table>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-bottom py-3">
-          <h5 class="mb-0"><i class="fas fa-play-circle me-2 text-success"></i>Instances actives</h5>
+
+    <div class="tab-pane fade" id="tab-retard">
+      <div class="card border-0 shadow-sm border-start border-danger border-4">
+        <div class="card-header bg-white border-bottom py-2">
+          <h6 class="mb-0 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Instances en retard</h6>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
-              <thead class="table-light"><tr><th>Modèle</th><th>Étape</th><th>Statut</th><th>Actions</th></tr></thead>
-              <tbody id="instancesBody"></tbody>
+              <thead class="table-light"><tr><th>Modèle</th><th>Étape</th><th>Deadline</th><th>Jours de retard</th><th>Actions</th></tr></thead>
+              <tbody id="retardBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-modeles">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-2">
+          <h6 class="mb-0"><i class="fas fa-shapes me-2 text-primary"></i>Modèles de workflow</h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Nom</th><th>Module</th><th>Étapes</th><th>SLA total</th><th>Actions</th></tr></thead>
+              <tbody id="modelesBody"></tbody>
             </table>
           </div>
         </div>
@@ -64,6 +99,7 @@
             <select id="f_module" class="form-select">
               <option value="documents">Documents</option><option value="actions">Actions correctives</option>
               <option value="change_management">Changements</option><option value="nonconformites">Non-conformités</option>
+              <option value="processus">Processus</option>
             </select>
           </div>
           <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
@@ -79,6 +115,15 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="detailTitle">Détail du workflow</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -86,33 +131,65 @@ var _etapeCount = 0;
 const STATS = '{{ url_for("workflow_engine.api_stats") }}';
 const MODELES = '{{ url_for("workflow_engine.api_modeles") }}';
 const INSTANCES = '{{ url_for("workflow_engine.api_instances") }}';
+const RETARD = '{{ url_for("workflow_engine.api_retard") }}';
 
 function load() {
+  var module = document.getElementById('filterModule').value;
   Promise.all([
-    fetch(STATS).then(r=>r.json()),
-    fetch(MODELES).then(r=>r.json()),
-    fetch(INSTANCES).then(r=>r.json()),
-  ]).then(([stats, modeles, instances]) => {
+    fetch(STATS).then(function(r){return r.json()}),
+    fetch(MODELES + (module ? '?module=' + module : '')).then(function(r){return r.json()}),
+    fetch(INSTANCES + (module ? '?module=' + module : '')).then(function(r){return r.json()}),
+    fetch(RETARD).then(function(r){return r.json()}),
+  ]).then(function(results) {
+    var stats = results[0], modeles = results[1], instances = results[2], retard = results[3];
+
     document.getElementById('stat-modeles').textContent = stats.modeles;
     document.getElementById('stat-actives').textContent = stats.instances_actives;
     document.getElementById('stat-terminees').textContent = stats.instances_terminees;
+    document.getElementById('stat-retard').textContent = stats.instances_en_retard || retard.length;
 
     var mb = document.getElementById('modelesBody');
-    if (!modeles.length) { mb.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Aucun modèle</td></tr>'; return; }
-    mb.innerHTML = modeles.map(m => `<tr>
-      <td><strong>${m.nom}</strong><br><small class="text-muted">${m.description||''}</small></td>
-      <td><span class="badge bg-info">${m.module_cible}</span></td>
-      <td>${m.nb_etapes}</td>
-      <td><button class="btn btn-sm btn-outline-danger" onclick="deleteModele(${m.id})"><i class="fas fa-trash"></i></button></td>
-    </tr>`).join('');
+    if (!modeles.length) { mb.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun modèle</td></tr>'; return; }
+    mb.innerHTML = modeles.map(function(m) {
+      var totalDelai = '?';
+      return '<tr><td><strong>' + m.nom + '</strong><br><small class="text-muted">' + (m.description||'') + '</small></td>' +
+        '<td><span class="badge bg-info">' + m.module_cible + '</span></td>' +
+        '<td>' + m.nb_etapes + '</td><td>' + totalDelai + '</td>' +
+        '<td><button class="btn btn-sm btn-outline-danger" onclick="deleteModele(' + m.id + ')"><i class="fas fa-trash"></i></button></td></tr>';
+    }).join('');
 
     var ib = document.getElementById('instancesBody');
-    if (!instances.length) { ib.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Aucune instance</td></tr>'; return; }
-    ib.innerHTML = instances.map(i => `<tr>
-      <td>${i.modele}</td><td>${i.etape_courante||'—'}</td>
-      <td><span class="badge bg-${i.statut==='en_cours'?'warning':i.statut==='termine'?'success':'danger'}">${i.statut}</span></td>
-      <td>${i.statut==='en_cours' ? `<button class="btn btn-sm btn-outline-success" onclick="valider(${i.id})"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-outline-danger" onclick="rejeter(${i.id})"><i class="fas fa-times"></i></button>` : ''}</td>
-    </tr>`).join('');
+    var activeInstances = instances.filter(function(i) { return i.statut === 'en_cours'; });
+    if (!activeInstances.length) { ib.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucune instance active</td></tr>'; return; }
+    ib.innerHTML = activeInstances.map(function(i) {
+      var dl = i.date_deadline ? new Date(i.date_deadline).toLocaleDateString('fr-FR') : '—';
+      var dlClass = i.en_retard ? 'text-danger fw-bold' : '';
+      var retBadge = i.en_retard ? ' <span class="badge bg-danger">Retard</span>' : '';
+      return '<tr>' +
+        '<td>' + i.modele + '<br><small class="text-muted">' + i.entity_type + ' #' + i.entity_id + '</small></td>' +
+        '<td><span class="badge bg-warning text-dark">' + i.etape_courante + '</span></td>' +
+        '<td><div class="progress" style="height:20px;width:100px"><div class="progress-bar bg-primary" style="width:' + i.progress + '%">' + i.progress + '%</div></div></td>' +
+        '<td class="' + dlClass + '">' + dl + retBadge + '</td>' +
+        '<td><span class="badge bg-warning">en_cours</span></td>' +
+        '<td><button class="btn btn-sm btn-outline-success" onclick="valider(' + i.id + ')" title="Valider"><i class="fas fa-check"></i></button> ' +
+        '<button class="btn btn-sm btn-outline-danger" onclick="rejeter(' + i.id + ')" title="Rejeter"><i class="fas fa-times"></i></button> ' +
+        '<button class="btn btn-sm btn-outline-info" onclick="showDetail(' + i.id + ')" title="Détail"><i class="fas fa-eye"></i></button></td></tr>';
+    }).join('');
+
+    var rb = document.getElementById('retardBody');
+    if (!retard.length) { rb.innerHTML = '<tr><td colspan="5" class="text-center text-success py-3">Aucune instance en retard</td></tr>'; return; }
+    rb.innerHTML = retard.map(function(i) {
+      var now = new Date();
+      var dl = new Date(i.date_deadline);
+      var jours = Math.ceil((now - dl) / (1000*60*60*24));
+      return '<tr class="table-danger">' +
+        '<td>' + i.modele + '</td>' +
+        '<td>' + i.etape_courante + '</td>' +
+        '<td class="text-danger fw-bold">' + dl.toLocaleDateString('fr-FR') + '</td>' +
+        '<td><span class="badge bg-danger">' + jours + 'j</span></td>' +
+        '<td><button class="btn btn-sm btn-outline-success" onclick="valider(' + i.id + ')"><i class="fas fa-check"></i></button> ' +
+        '<button class="btn btn-sm btn-outline-danger" onclick="rejeter(' + i.id + ')"><i class="fas fa-times"></i></button></td></tr>';
+    }).join('');
   });
 }
 
@@ -120,39 +197,99 @@ function addEtape() {
   _etapeCount++;
   var div = document.createElement('div');
   div.className = 'row g-2 mb-2 etape-row';
-  div.innerHTML = `
-    <div class="col-md-4"><input type="text" class="form-control form-control-sm etape-nom" placeholder="Nom étape"></div>
-    <div class="col-md-3"><input type="text" class="form-control form-control-sm etape-role" placeholder="Rôle requis"></div>
-    <div class="col-md-3"><select class="form-select form-select-sm etape-action">
-      <option value="approuver">Approuver</option><option value="consulter">Consulter</option><option value="signer">Signer</option>
-    </select></div>
-    <div class="col-md-2"><button class="btn btn-sm btn-outline-danger" onclick="this.closest('.etape-row').remove()"><i class="fas fa-trash"></i></button></div>
-  `;
+  div.innerHTML = '' +
+    '<div class="col-md-3"><input type="text" class="form-control form-control-sm etape-nom" placeholder="Nom étape"></div>' +
+    '<div class="col-md-2"><input type="text" class="form-control form-control-sm etape-role" placeholder="Rôle requis"></div>' +
+    '<div class="col-md-2"><select class="form-select form-select-sm etape-action">' +
+    '<option value="approuver">Approuver</option><option value="consulter">Consulter</option><option value="signer">Signer</option>' +
+    '</select></div>' +
+    '<div class="col-md-2"><input type="number" class="form-control form-control-sm etape-delai" placeholder="Jours (SLA)" min="1"></div>' +
+    '<div class="col-md-1"><button class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.etape-row\').remove()"><i class="fas fa-trash"></i></button></div>';
   document.getElementById('etapesContainer').appendChild(div);
 }
 
 function saveModele() {
+  var nom = document.getElementById('f_nom').value.trim();
+  if (!nom) { alert('Le nom du modèle est obligatoire.'); return; }
   var etapes = [];
-  document.querySelectorAll('.etape-row').forEach(row => {
-    var nom = row.querySelector('.etape-nom').value;
-    if (nom) etapes.push({
-      nom: nom, role_requis: row.querySelector('.etape-role').value,
+  document.querySelectorAll('.etape-row').forEach(function(row) {
+    var enom = row.querySelector('.etape-nom').value.trim();
+    if (enom) etapes.push({
+      nom: enom, role_requis: row.querySelector('.etape-role').value,
       action_requise: row.querySelector('.etape-action').value,
+      delai_jours: parseInt(row.querySelector('.etape-delai').value) || null,
     });
   });
+  if (!etapes.length) { alert('Ajoutez au moins une étape.'); return; }
   var data = {
-    nom: document.getElementById('f_nom').value,
+    nom: nom,
     description: document.getElementById('f_description').value,
     module_cible: document.getElementById('f_module').value,
     etapes: etapes,
   };
-  fetch('{{ url_for("workflow_engine.api_modeles_create") }}', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
-    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('modeleModal')).hide(); load(); } });
+  var btn = document.querySelector('#modeleModal .btn-danger');
+  if (btn) btn.disabled = true;
+  fetch('{{ url_for("workflow_engine.api_modeles_creer") }}', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (btn) btn.disabled = false;
+      if (r.success) {
+        bootstrap.Modal.getInstance(document.getElementById('modeleModal')).hide();
+        document.getElementById('f_nom').value = '';
+        document.getElementById('f_description').value = '';
+        document.getElementById('etapesContainer').innerHTML = '';
+        load();
+      } else {
+        alert(r.error || 'Erreur lors de la création.');
+      }
+    })
+    .catch(function(err) {
+      if (btn) btn.disabled = false;
+      alert('Erreur réseau: ' + err.message);
+    });
 }
 
-function deleteModele(id) { if(!confirm('Supprimer ?')) return; fetch(`/workflow-engine/api/modeles/${id}/delete`, {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
-function valider(id) { fetch(`/workflow-engine/api/instances/${id}/valider`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
-function rejeter(id) { var c = prompt('Commentaire de rejet:'); fetch(`/workflow-engine/api/instances/${id}/rejeter`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({commentaire:c})}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function deleteModele(id) { if(!confirm('Supprimer ?')) return; fetch('/workflow-engine/api/modeles/' + id + '/supprimer', {method:'POST'}).then(function(r){return r.json()}).then(function(r){if(r.success) load();}); }
+function valider(id) { fetch('/workflow-engine/api/instances/' + id + '/valider', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})}).then(function(r){return r.json()}).then(function(r){if(r.success) load();}); }
+function rejeter(id) { var c = prompt('Commentaire de rejet:'); if(c===null) return; fetch('/workflow-engine/api/instances/' + id + '/rejeter', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({commentaire:c})}).then(function(r){return r.json()}).then(function(r){if(r.success) load();}); }
+
+function showDetail(id) {
+  fetch('/workflow-engine/api/instances/' + id)
+    .then(function(r){return r.json()})
+    .then(function(d) {
+      document.getElementById('detailTitle').textContent = 'Workflow — ' + d.modele;
+      var html = '<div class="mb-3">';
+      html += '<div class="d-flex justify-content-between mb-2"><span class="badge bg-' + (d.statut==='en_cours'?'warning':d.statut==='termine'?'success':'danger') + '">' + d.statut + '</span>';
+      html += '<small class="text-muted">' + d.entity_type + ' #' + d.entity_id + '</small></div>';
+      html += '<div class="progress mb-3" style="height:8px"><div class="progress-bar bg-primary" style="width:' + d.progress + '%"></div></div>';
+      html += '<h6>Étapes</h6><div class="list-group list-group-flush mb-3">';
+      d.etapes.forEach(function(e) {
+        var cls = e.statut_etape==='termine'?'list-group-item-success':e.statut_etape==='en_cours'?'list-group-item-warning':'';
+        var icone = e.statut_etape==='termine'?'fa-check-circle text-success':e.statut_etape==='en_cours'?'fa-clock text-warning':'fa-circle text-muted';
+        html += '<div class="list-group-item ' + cls + ' d-flex align-items-center py-2">';
+        html += '<i class="fas ' + icone + ' me-2"></i><div><div class="fw-medium small">' + e.nom + '</div>';
+        html += '<small class="text-muted">' + (e.role_requis||'—') + ' · ' + e.action_requise;
+        if(e.delai_jours) html += ' · SLA: ' + e.delai_jours + 'j';
+        html += '</small></div></div>';
+      });
+      html += '</div>';
+      if (d.historique && d.historique.length) {
+        html += '<h6>Historique</h6><div class="list-group list-group-flush">';
+        d.historique.forEach(function(h) {
+          html += '<div class="list-group-item py-2"><div class="d-flex justify-content-between">';
+          html += '<span class="fw-medium small">' + h.action + '</span>';
+          html += '<small class="text-muted">' + new Date(h.date_action).toLocaleString('fr-FR') + '</small></div>';
+          html += '<small class="text-muted">' + h.utilisateur + '</small>';
+          if(h.commentaire) html += '<p class="mb-0 small mt-1 bg-light p-2 rounded">' + h.commentaire + '</p>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+      document.getElementById('detailBody').innerHTML = html;
+      new bootstrap.Modal(document.getElementById('detailModal')).show();
+    });
+}
 
 document.addEventListener('DOMContentLoaded', load);
 </script>

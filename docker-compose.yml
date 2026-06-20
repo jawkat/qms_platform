@@ -69,7 +69,7 @@ services:
       - minio_data:/data
     ports:
       - "9000:9000"   # API S3
-      - "9001:9001"   # Console web
+      - "9002:9001"   # Console web
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s

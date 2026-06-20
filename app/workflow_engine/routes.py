@@ -4,7 +4,13 @@ from app.utils.permissions import has_permission
 from app import db
 from app.workflow_engine import blueprint
 from app.workflow_engine.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
+from app.models.systeme import Notification
 from datetime import datetime
+
+
+def _notify_workflow(user_id, message, wf_type='workflow'):
+    notif = Notification(type=wf_type, message=message, utilisateur_id=user_id)
+    db.session.add(notif)
 
 
 @blueprint.route('/')
@@ -18,24 +24,27 @@ def index():
 @login_required
 @has_permission('workflow_engine.voir')
 def api_modeles():
-    items = WorkflowModele.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).order_by(WorkflowModele.nom).all()
-    return jsonify([{
-        'id': m.id, 'nom': m.nom, 'description': m.description,
-        'module_cible': m.module_cible, 'statut': m.statut,
-        'nb_etapes': m.etapes.count(),
-    } for m in items])
+    module = request.args.get('module')
+    q = WorkflowModele.query.filter_by(entreprise_id=current_user.entreprise_id, statut='actif')
+    if module:
+        q = q.filter_by(module_cible=module)
+    items = q.order_by(WorkflowModele.nom).all()
+    return jsonify([m.to_dict() for m in items])
 
 
-@blueprint.route('/api/modeles/create', methods=['POST'])
+@blueprint.route('/api/modeles/creer', methods=['POST'])
 @login_required
 @has_permission('workflow_engine.gerer')
-def api_modeles_create():
-    data = request.get_json()
+def api_modeles_creer():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'success': False, 'error': 'Données invalides'}), 400
+    nom = (data.get('nom') or '').strip()
+    if not nom:
+        return jsonify({'success': False, 'error': 'Le nom est obligatoire'}), 400
     modele = WorkflowModele(
         entreprise_id=current_user.entreprise_id,
-        nom=data.get('nom'), description=data.get('description'),
+        nom=nom, description=data.get('description', ''),
         module_cible=data.get('module_cible', 'documents'),
     )
     db.session.add(modele)
@@ -43,11 +52,15 @@ def api_modeles_create():
 
     etapes = data.get('etapes', [])
     for i, e in enumerate(etapes):
+        etape_nom = (e.get('nom') or '').strip()
+        if not etape_nom:
+            continue
         etape = WorkflowEtape(
             modele_id=modele.id,
-            nom=e.get('nom'), description=e.get('description'),
-            ordre=i + 1, role_requis=e.get('role_requis'),
+            nom=etape_nom, description=e.get('description', ''),
+            ordre=i + 1, role_requis=e.get('role_requis', ''),
             action_requise=e.get('action_requise', 'approuver'),
+            delai_jours=e.get('delai_jours'),
         )
         db.session.add(etape)
 
@@ -55,10 +68,22 @@ def api_modeles_create():
     return jsonify({'success': True, 'id': modele.id})
 
 
-@blueprint.route('/api/modeles/<int:item_id>/delete', methods=['POST'])
+@blueprint.route('/api/modeles/<int:item_id>', methods=['GET'])
+@login_required
+@has_permission('workflow_engine.voir')
+def api_modele_detail(item_id):
+    modele = WorkflowModele.query.filter_by(
+        id=item_id, entreprise_id=current_user.entreprise_id
+    ).first_or_404()
+    result = modele.to_dict()
+    result['etapes'] = [e.to_dict() for e in modele.etapes.order_by(WorkflowEtape.ordre).all()]
+    return jsonify(result)
+
+
+@blueprint.route('/api/modeles/<int:item_id>/supprimer', methods=['POST'])
 @login_required
 @has_permission('workflow_engine.gerer')
-def api_modeles_delete(item_id):
+def api_modeles_supprimer(item_id):
     item = WorkflowModele.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
@@ -67,20 +92,87 @@ def api_modeles_delete(item_id):
     return jsonify({'success': True})
 
 
-@blueprint.route('/api/instances')
+@blueprint.route('/api/instances', methods=['GET'])
 @login_required
 @has_permission('workflow_engine.voir')
 def api_instances():
-    items = WorkflowInstance.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).order_by(WorkflowInstance.date_creation.desc()).all()
-    return jsonify([{
-        'id': i.id, 'modele': i.modele.nom if i.modele else '',
-        'entity_type': i.entity_type, 'entity_id': i.entity_id,
-        'etape_courante': i.etape_courante.nom if i.etape_courante else '',
-        'statut': i.statut,
-        'date_debut': i.date_debut.isoformat() if i.date_debut else None,
-    } for i in items])
+    statut = request.args.get('statut')
+    module = request.args.get('module')
+    q = WorkflowInstance.query.filter_by(entreprise_id=current_user.entreprise_id)
+    if statut:
+        q = q.filter_by(statut=statut)
+    if module:
+        q = q.join(WorkflowModele).filter(WorkflowModele.module_cible == module)
+    items = q.order_by(WorkflowInstance.date_creation.desc()).limit(200).all()
+    return jsonify([i.to_dict() for i in items])
+
+
+@blueprint.route('/api/instances/creer', methods=['POST'])
+@login_required
+@has_permission('workflow_engine.gerer')
+def api_instances_creer():
+    data = request.get_json()
+    modele_id = data.get('modele_id')
+    modele = WorkflowModele.query.filter_by(
+        id=modele_id, entreprise_id=current_user.entreprise_id
+    ).first_or_404()
+
+    etapes = list(modele.etapes.order_by(WorkflowEtape.ordre).all())
+    if not etapes:
+        return jsonify({'success': False, 'error': 'Le modèle n\'a pas d\'étapes'}), 400
+
+    premiere_etape = etapes[0]
+    deadline = None
+    if premiere_etape.delai_jours:
+        deadline = datetime.utcnow() + __import__('datetime').timedelta(days=premiere_etape.delai_jours)
+
+    instance = WorkflowInstance(
+        entreprise_id=current_user.entreprise_id,
+        modele_id=modele.id,
+        entity_type=data.get('entity_type', modele.module_cible),
+        entity_id=data.get('entity_id', 0),
+        etape_courante_id=premiere_etape.id,
+        demandeur_id=current_user.id,
+        statut='en_cours',
+        date_deadline=deadline,
+        commentaire=data.get('commentaire'),
+    )
+    db.session.add(instance)
+    db.session.flush()
+
+    historique = WorkflowHistorique(
+        instance_id=instance.id,
+        etape_id=premiere_etape.id,
+        utilisateur_id=current_user.id,
+        action='creer',
+        commentaire='Workflow démarré',
+    )
+    db.session.add(historique)
+    db.session.commit()
+    return jsonify({'success': True, 'id': instance.id})
+
+
+@blueprint.route('/api/instances/<int:item_id>', methods=['GET'])
+@login_required
+@has_permission('workflow_engine.voir')
+def api_instance_detail(item_id):
+    instance = WorkflowInstance.query.filter_by(
+        id=item_id, entreprise_id=current_user.entreprise_id
+    ).first_or_404()
+    result = instance.to_dict()
+    result['historique'] = [h.to_dict() for h in instance.historique.order_by(WorkflowHistorique.date_action.desc()).all()]
+    etapes = list(instance.modele.etapes.order_by(WorkflowEtape.ordre).all())
+    result['etapes'] = []
+    for e in etapes:
+        ed = e.to_dict()
+        if instance.etape_courante_id and e.ordre < instance.etape_courante.ordre:
+            ed['statut_etape'] = 'termine'
+        elif e.id == instance.etape_courante_id:
+            ed['statut_etape'] = 'en_cours'
+        else:
+            ed['statut_etape'] = 'en_attente'
+        result['etapes'].append(ed)
+    return jsonify(result)
 
 
 @blueprint.route('/api/instances/<int:item_id>/valider', methods=['POST'])
@@ -91,7 +183,7 @@ def api_instances_valider(item_id):
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     if instance.statut != 'en_cours':
-        return jsonify({'success': False, 'error': 'Instance non active'})
+        return jsonify({'success': False, 'error': 'Instance non active'}), 400
 
     data = request.get_json()
     historique = WorkflowHistorique(
@@ -107,11 +199,22 @@ def api_instances_valider(item_id):
     current_idx = next((i for i, e in enumerate(etapes) if e.id == instance.etape_courante_id), -1)
 
     if current_idx < len(etapes) - 1:
-        instance.etape_courante_id = etapes[current_idx + 1].id
+        next_etape = etapes[current_idx + 1]
+        instance.etape_courante_id = next_etape.id
+        if next_etape.delai_jours:
+            instance.date_deadline = datetime.utcnow() + __import__('datetime').timedelta(days=next_etape.delai_jours)
+        if instance.demandeur_id:
+            _notify_workflow(instance.demandeur_id,
+                f'Workflow "{instance.modele.nom}" : étape "{next_etape.nom}" en attente de validation.')
     else:
         instance.statut = 'termine'
         instance.date_fin = datetime.utcnow()
+        instance.date_deadline = None
+        if instance.demandeur_id:
+            _notify_workflow(instance.demandeur_id,
+                f'Workflow "{instance.modele.nom}" terminé avec succès.')
 
+    _notify_workflow_workflow_audit(instance, 'approuver', data.get('commentaire'))
     db.session.commit()
     return jsonify({'success': True, 'statut': instance.statut})
 
@@ -124,7 +227,7 @@ def api_instances_rejeter(item_id):
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     if instance.statut != 'en_cours':
-        return jsonify({'success': False, 'error': 'Instance non active'})
+        return jsonify({'success': False, 'error': 'Instance non active'}), 400
 
     data = request.get_json()
     historique = WorkflowHistorique(
@@ -137,6 +240,39 @@ def api_instances_rejeter(item_id):
     db.session.add(historique)
     instance.statut = 'rejete'
     instance.date_fin = datetime.utcnow()
+    instance.date_deadline = None
+
+    if instance.demandeur_id:
+        _notify_workflow(instance.demandeur_id,
+            f'Workflow "{instance.modele.nom}" rejeté à l\'étape "{instance.etape_courante.nom}". Motif : {data.get("commentaire", "")}')
+
+    _notify_workflow_workflow_audit(instance, 'rejeter', data.get('commentaire'))
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@blueprint.route('/api/instances/<int:item_id>/annuler', methods=['POST'])
+@login_required
+@has_permission('workflow_engine.gerer')
+def api_instances_annuler(item_id):
+    instance = WorkflowInstance.query.filter_by(
+        id=item_id, entreprise_id=current_user.entreprise_id
+    ).first_or_404()
+    if instance.statut != 'en_cours':
+        return jsonify({'success': False, 'error': 'Instance non active'}), 400
+
+    data = request.get_json()
+    historique = WorkflowHistorique(
+        instance_id=instance.id,
+        etape_id=instance.etape_courante_id,
+        utilisateur_id=current_user.id,
+        action='annuler',
+        commentaire=data.get('commentaire', 'Workflow annulé'),
+    )
+    db.session.add(historique)
+    instance.statut = 'annule'
+    instance.date_fin = datetime.utcnow()
+    instance.date_deadline = None
     db.session.commit()
     return jsonify({'success': True})
 
@@ -146,8 +282,39 @@ def api_instances_rejeter(item_id):
 @has_permission('workflow_engine.voir')
 def api_stats():
     eid = current_user.entreprise_id
+    instances_actives = WorkflowInstance.query.filter_by(entreprise_id=eid, statut='en_cours')
+    now = datetime.utcnow()
+    en_retard = sum(1 for i in instances_actives if i.date_deadline and i.date_deadline < now)
     return jsonify({
-        'modeles': WorkflowModele.query.filter_by(entreprise_id=eid).count(),
-        'instances_actives': WorkflowInstance.query.filter_by(entreprise_id=eid, statut='en_cours').count(),
+        'modeles': WorkflowModele.query.filter_by(entreprise_id=eid, statut='actif').count(),
+        'instances_actives': instances_actives.count(),
         'instances_terminees': WorkflowInstance.query.filter_by(entreprise_id=eid, statut='termine').count(),
+        'instances_en_retard': en_retard,
     })
+
+
+@blueprint.route('/api/retard')
+@login_required
+@has_permission('workflow_engine.voir')
+def api_retard():
+    eid = current_user.entreprise_id
+    now = datetime.utcnow()
+    items = WorkflowInstance.query.filter_by(entreprise_id=eid, statut='en_cours').all()
+    retard = [i.to_dict() for i in items if i.date_deadline and i.date_deadline < now]
+    return jsonify(retard)
+
+
+def _notify_workflow_workflow_audit(instance, action, commentaire):
+    from app.models.ged import WorkflowLog as DocWorkflowLog
+    from app.models.proofs import ProofMaster
+    if instance.entity_type == 'documents':
+        proof = ProofMaster.query.get(instance.entity_id)
+        if proof:
+            log = DocWorkflowLog(
+                proof_master_id=proof.id,
+                action=f'workflow_{action}',
+                commentaire=commentaire,
+                utilisateur_id=current_user.id,
+                metadata_avant={'workflow_instance_id': instance.id},
+            )
+            db.session.add(log)

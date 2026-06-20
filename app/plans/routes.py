@@ -109,6 +109,7 @@ def api_detail(item_id):
 
 @plans.route('/api/current')
 @login_required
+@has_permission('plans.voir')
 def api_current():
     e = db.session.get(Entreprise, current_user.entreprise_id)
     if not e:

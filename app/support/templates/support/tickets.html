@@ -9,6 +9,17 @@
     </a>
   </div>
 
+  {% set stats = {'OUVERT': 0, 'EN_COURS': 0, 'ATTENTE': 0, 'FERME': 0} %}
+  {% for t in tickets %}{% if stats.update({t.statut: stats[t.statut] + 1}) %}{% endif %}{% endfor %}
+
+  <div class="row g-2 mb-3">
+    <div class="col"><div class="card border-0 shadow-sm text-center py-2"><div class="fs-5 fw-bold text-success">{{ stats['OUVERT'] }}</div><div class="small text-muted">Ouverts</div></div></div>
+    <div class="col"><div class="card border-0 shadow-sm text-center py-2"><div class="fs-5 fw-bold text-primary">{{ stats['EN_COURS'] }}</div><div class="small text-muted">En cours</div></div></div>
+    <div class="col"><div class="card border-0 shadow-sm text-center py-2"><div class="fs-5 fw-bold text-warning">{{ stats['ATTENTE'] }}</div><div class="small text-muted">Attente</div></div></div>
+    <div class="col"><div class="card border-0 shadow-sm text-center py-2"><div class="fs-5 fw-bold text-secondary">{{ stats['FERME'] }}</div><div class="small text-muted">Fermés</div></div></div>
+    <div class="col"><div class="card border-0 shadow-sm text-center py-2"><div class="fs-5 fw-bold">{{ tickets|length }}</div><div class="small text-muted">Total</div></div></div>
+  </div>
+
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
       <form method="GET" class="row g-2 align-items-end">
@@ -51,27 +62,29 @@
               <th>Sujet</th>
               <th>Type</th>
               <th>Statut</th>
-              <th>Date création</th>
               <th>Dernier message</th>
               <th style="width:100px">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for ticket in tickets %}
+            {% set last_msg = last_messages.get(ticket.id) %}
             <tr class="{% if ticket.statut == 'FERME' %}text-muted{% endif %}">
               <td><code>{{ ticket.reference }}</code></td>
               <td>
                 <a href="{{ url_for('support.detail_ticket', ticket_id=ticket.id) }}" class="text-decoration-none fw-medium">
                   {{ ticket.sujet[:80] }}{% if ticket.sujet|length > 80 %}...{% endif %}
                 </a>
+                {% if last_msg and not last_msg.est_interne %}
+                <div class="text-muted small text-truncate" style="max-width:300px;">{{ last_msg.contenu[:80] }}{% if last_msg.contenu|length > 80 %}...{% endif %}</div>
+                {% endif %}
               </td>
               <td><span class="badge bg-secondary">{{ ticket.type }}</span></td>
               <td>
                 {% set statut_colors = {'OUVERT': 'success', 'EN_COURS': 'primary', 'ATTENTE': 'warning', 'FERME': 'secondary'} %}
                 <span class="badge bg-{{ statut_colors.get(ticket.statut, 'secondary') }}">{{ ticket.statut }}</span>
               </td>
-              <td>{{ ticket.date_creation.strftime('%d/%m/%Y %H:%M') if ticket.date_creation else '-' }}</td>
-              <td>{{ ticket.date_dernier_message.strftime('%d/%m/%Y %H:%M') if ticket.date_dernier_message else '-' }}</td>
+              <td class="small text-muted">{{ ticket.date_dernier_message.strftime('%d/%m/%Y %H:%M') if ticket.date_dernier_message else '-' }}</td>
               <td>
                 <div class="btn-group btn-group-sm">
                   <a href="{{ url_for('support.detail_ticket', ticket_id=ticket.id) }}" class="btn btn-outline-primary" title="Détail"><i class="fas fa-eye"></i></a>
@@ -79,7 +92,7 @@
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="7" class="text-center text-muted py-5">
+            <tr><td colspan="6" class="text-center text-muted py-5">
               <i class="fas fa-ticket-alt fa-2x mb-2 d-block"></i>
               Aucun ticket trouvé.
             </td></tr>

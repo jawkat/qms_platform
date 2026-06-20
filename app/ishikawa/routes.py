@@ -1,38 +1,32 @@
-from flask import render_template, request, jsonify, abort
+from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
+from app.utils.permissions import has_permission
 from app import db
-from app.models.entreprise import Entreprise
-from app.models.ishikawa import AnalyseIshikawa, CauseIshikawa
 from app.ishikawa import blueprint
+from app.models.ishikawa import AnalyseIshikawa, CauseIshikawa
 from datetime import date, datetime
-
-
-def _check_access():
-    entreprise = db.session.get(Entreprise, current_user.entreprise_id)
-    if not entreprise:
-        abort(403)
 
 
 @blueprint.route('/')
 @login_required
+@has_permission('ishikawa.voir')
 def index():
-    _check_access()
     return render_template('ishikawa/index.html')
 
 
 @blueprint.route('/api/liste')
 @login_required
+@has_permission('ishikawa.voir')
 def api_liste():
-    _check_access()
     items = AnalyseIshikawa.query.filter_by(entreprise_id=current_user.entreprise_id)\
         .order_by(AnalyseIshikawa.date_creation.desc()).all()
     return jsonify([_serialize(r) for r in items])
 
 
-@blueprint.route('/api/create', methods=['POST'])
+@blueprint.route('/api/creer', methods=['POST'])
 @login_required
-def api_create():
-    _check_access()
+@has_permission('ishikawa.gerer')
+def api_creer():
     data = request.get_json()
     item = AnalyseIshikawa(
         entreprise_id=current_user.entreprise_id,
@@ -54,10 +48,10 @@ def api_create():
     return jsonify({'success': True, 'id': item.id})
 
 
-@blueprint.route('/api/<int:item_id>/update', methods=['POST'])
+@blueprint.route('/api/<int:item_id>/modifier', methods=['POST'])
 @login_required
-def api_update(item_id):
-    _check_access()
+@has_permission('ishikawa.gerer')
+def api_modifier(item_id):
     item = AnalyseIshikawa.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
     if data.get('description_effet'):
@@ -76,10 +70,10 @@ def api_update(item_id):
     return jsonify({'success': True})
 
 
-@blueprint.route('/api/<int:item_id>/delete', methods=['POST'])
+@blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])
 @login_required
-def api_delete(item_id):
-    _check_access()
+@has_permission('ishikawa.gerer')
+def api_supprimer(item_id):
     item = AnalyseIshikawa.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()

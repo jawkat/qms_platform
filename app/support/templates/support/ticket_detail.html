@@ -25,12 +25,12 @@
           <h6 class="mb-0"><i class="fas fa-comments me-2 text-danger"></i>Messages</h6>
         </div>
         <div class="card-body" style="max-height:500px;overflow-y:auto" id="messageThread">
-          {% for msg in messages %}
-          <div class="d-flex mb-3 {% if msg.est_interne %}bg-warning bg-opacity-10 rounded p-2{% endif %}">
+          {% for msg in messages %}{% if not msg.est_interne %}
+          <div class="d-flex mb-3">
             <div class="flex-shrink-0 me-2">
-              <div class="rounded-circle bg-{% if msg.est_interne %}warning{% else %}danger{% endif %} text-white d-flex align-items-center justify-content-center"
+              <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center"
                    style="width:36px;height:36px;font-size:.8rem">
-                <i class="fas fa-{% if msg.est_interne %}lock{% else %}user{% endif %}"></i>
+                <i class="fas fa-user"></i>
               </div>
             </div>
             <div class="flex-grow-1">
@@ -38,14 +38,11 @@
                 <strong class="small">{{ msg.auteur_nom }}</strong>
                 <small class="text-muted">{{ msg.date_envoi.strftime('%d/%m/%Y %H:%M') if msg.date_envoi else '' }}</small>
               </div>
-              {% if msg.est_interne %}
-              <span class="badge bg-warning text-dark mt-1">Interne</span>
-              {% endif %}
               <p class="mb-0 mt-1" style="white-space:pre-wrap">{{ msg.contenu }}</p>
             </div>
           </div>
           {% if not loop.last %}<hr class="my-2">{% endif %}
-          {% else %}
+          {% endif %}{% else %}
           <p class="text-muted text-center py-3">Aucun message.</p>
           {% endfor %}
         </div>

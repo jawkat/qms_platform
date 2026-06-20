@@ -1,0 +1,343 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - DUER{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="h3 mb-1"><i class="fas fa-file-alt me-2 text-danger"></i>Document Unique d'Évaluation des Risques</h1>
+        <p class="text-muted mb-0">DUER — Évaluation des risques professionnels (ISO 45001)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">Unités de travail</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-unites"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">Dangers identifiés</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-dangers"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">Risques critiques</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-critique"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">À traiter</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-a-traiter"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3" id="duerTabs" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" id="unites-tab" data-bs-toggle="tab" data-bs-target="#unites" type="button">Unités de travail</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="dangers-tab" data-bs-toggle="tab" data-bs-target="#dangers" type="button">Dangers</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="evaluations-tab" data-bs-toggle="tab" data-bs-target="#evaluations" type="button">Évaluations</button></li>
+  </ul>
+
+  <div class="tab-content" id="duerTabsContent">
+    <!-- Unités de travail -->
+    <div class="tab-pane fade show active" id="unites" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+          <span>Liste des unités</span>
+          <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#uniteModal"><i class="fas fa-plus me-1"></i>Nouvelle unité</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Nom</th><th>Service</th><th>Effectif</th><th>Dangers</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody id="unitesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Dangers -->
+    <div class="tab-pane fade" id="dangers" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+          <div><span>Dangers identifiés</span> <select id="filter-unite" class="form-select form-select-sm d-inline-block ms-2" style="width:auto;"><option value="">Toutes unités</option></select></div>
+          <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#dangerModal"><i class="fas fa-plus me-1"></i>Nouveau danger</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Danger</th><th>Unité</th><th>Famille</th><th>Source</th><th>Conséquence</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody id="dangersBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Évaluations -->
+    <div class="tab-pane fade" id="evaluations" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+          <span>Évaluations des risques</span>
+          <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#evalModal"><i class="fas fa-plus me-1"></i>Nouvelle évaluation</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Danger</th><th>Grav.</th><th>Prob.</th><th>Fréq.</th><th>Criticité</th><th>Niveau</th><th>Plan d'action</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody id="evaluationsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Unité -->
+<div class="modal fade" id="uniteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="uniteModalTitle">Nouvelle unité</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="uniteId">
+        <div class="mb-3"><label class="form-label">Nom <span class="text-danger">*</span></label><input type="text" id="f_unite_nom" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">Description</label><textarea id="f_unite_desc" class="form-control" rows="2"></textarea></div>
+        <div class="row g-3"><div class="col-md-6"><label class="form-label">Service</label><input type="text" id="f_unite_service" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label">Effectif</label><input type="number" id="f_unite_effectif" class="form-control"></div></div>
+        <div class="mb-3"><label class="form-label">Horaires</label><input type="text" id="f_unite_horaires" class="form-control" placeholder="Jour/Nuit/Alternant"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveUnite()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Danger -->
+<div class="modal fade" id="dangerModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="dangerModalTitle">Nouveau danger</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="dangerId">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Unité de travail</label><select id="f_danger_unite" class="form-select"></select></div>
+          <div class="col-md-6"><label class="form-label">Famille</label><select id="f_danger_famille" class="form-select">
+            <option value="physique">Physique</option><option value="chimique">Chimique</option>
+            <option value="biologique">Biologique</option><option value="ergonomique">Ergonomique</option>
+            <option value="psychosocial">Psychosocial</option><option value="accident">Accident / circulation</option>
+          </select></div>
+          <div class="col-12"><label class="form-label">Danger <span class="text-danger">*</span></label><input type="text" id="f_danger_nom" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_danger_desc" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Source</label><input type="text" id="f_danger_source" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Conséquence</label><input type="text" id="f_danger_consequence" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Mesures existantes</label><textarea id="f_danger_mesures" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveDanger()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Évaluation -->
+<div class="modal fade" id="evalModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="evalModalTitle">Nouvelle évaluation</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="evalId">
+        <div class="mb-3"><label class="form-label">Danger</label><select id="f_eval_danger" class="form-select"></select></div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4"><label class="form-label">Gravité (1-4)</label><input type="number" id="f_eval_gravite" class="form-control" min="1" max="4" value="1"></div>
+          <div class="col-md-4"><label class="form-label">Probabilité (1-4)</label><input type="number" id="f_eval_probabilite" class="form-control" min="1" max="4" value="1"></div>
+          <div class="col-md-4"><label class="form-label">Fréquence (1-4)</label><input type="number" id="f_eval_frequence" class="form-control" min="1" max="4" value="1"></div>
+        </div>
+        <div class="mb-3"><label class="form-label">Plan d'action</label><textarea id="f_eval_plan" class="form-control" rows="2"></textarea></div>
+        <div class="mb-3"><label class="form-label">Échéance</label><input type="date" id="f_eval_echeance" class="form-control"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveEval()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const UNITES_API = '{{ url_for("hse.api_unites_travail") }}'; const UNITES_CREATE = '{{ url_for("hse.api_unites_travail_create") }}';
+const UNITES_UPDATE = '{{ url_for("hse.api_unites_travail_update", item_id=0) }}'; const UNITES_DELETE = '{{ url_for("hse.api_unites_travail_delete", item_id=0) }}';
+const DANGERS_API = '{{ url_for("hse.api_dangers_sst") }}'; const DANGERS_CREATE = '{{ url_for("hse.api_dangers_sst_create") }}';
+const DANGERS_UPDATE = '{{ url_for("hse.api_dangers_sst_update", item_id=0) }}'; const DANGERS_DELETE = '{{ url_for("hse.api_dangers_sst_delete", item_id=0) }}';
+const EVALS_API = '{{ url_for("hse.api_evaluations_risques") }}'; const EVALS_CREATE = '{{ url_for("hse.api_evaluations_risques_create") }}';
+const EVALS_UPDATE = '{{ url_for("hse.api_evaluations_risques_update", item_id=0) }}'; const EVALS_DELETE = '{{ url_for("hse.api_evaluations_risques_delete", item_id=0) }}';
+const STATS_API = '{{ url_for("hse.api_duer_stats") }}';
+
+const NIVEAUX = { critique: 'danger', eleve: 'warning', moyen: 'info', faible: 'success' };
+
+function loadStats() {
+  fetch(STATS_API).then(r=>r.json()).then(d => {
+    document.getElementById('stat-unites').textContent = d.unites;
+    document.getElementById('stat-dangers').textContent = d.dangers;
+    document.getElementById('stat-critique').textContent = d.critique;
+    document.getElementById('stat-a-traiter').textContent = d.a_traiter;
+  }).catch(() => { document.querySelectorAll('[id^="stat-"]').forEach(e => e.textContent = '0'); });
+}
+
+function loadUnites() {
+  fetch(UNITES_API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('unitesBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-4">Aucune unité</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><strong>${r.nom||''}</strong></td><td>${r.service||''}</td><td>${r.effectif||0}</td>
+      <td><span class="badge bg-secondary">${r.nb_dangers||0}</span></td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="editUnite(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteUnite(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+  fetch(UNITES_API).then(r=>r.json()).then(items => {
+    const sel = document.getElementById('f_danger_unite');
+    const filt = document.getElementById('filter-unite');
+    const opts = '<option value="">-- Choisir --</option>' + items.map(r => `<option value="${r.id}">${r.nom}</option>`).join('');
+    sel.innerHTML = opts;
+    filt.innerHTML = '<option value="">Toutes unités</option>' + items.map(r => `<option value="${r.id}">${r.nom}</option>`).join('');
+  });
+}
+
+function saveUnite() {
+  const id = document.getElementById('uniteId').value;
+  const data = { nom: document.getElementById('f_unite_nom').value, description: document.getElementById('f_unite_desc').value,
+    service: document.getElementById('f_unite_service').value, effectif: document.getElementById('f_unite_effectif').value,
+    horaires: document.getElementById('f_unite_horaires').value };
+  const url = id ? UNITES_UPDATE.replace('0', id) : UNITES_CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('uniteModal')).hide(); loadUnites(); loadStats(); resetUniteForm(); } });
+}
+
+function editUnite(id) {
+  fetch(UNITES_API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('uniteId').value = r.id; document.getElementById('f_unite_nom').value = r.nom||'';
+    document.getElementById('f_unite_desc').value = r.description||''; document.getElementById('f_unite_service').value = r.service||'';
+    document.getElementById('f_unite_effectif').value = r.effectif||0; document.getElementById('f_unite_horaires').value = r.horaires||'';
+    document.getElementById('uniteModalTitle').textContent = "Modifier l'unité";
+    new bootstrap.Modal(document.getElementById('uniteModal')).show();
+  });
+}
+
+function deleteUnite(id) { if(!confirm('Supprimer cette unité ?')) return; fetch(UNITES_DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) { loadUnites(); loadStats(); } }); }
+function resetUniteForm() { document.getElementById('uniteId').value = ''; ['f_unite_nom','f_unite_desc','f_unite_service','f_unite_horaires'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_unite_effectif').value = 0; document.getElementById('uniteModalTitle').textContent = 'Nouvelle unité'; }
+
+function loadDangers() {
+  const uniteId = document.getElementById('filter-unite').value;
+  const url = uniteId ? DANGERS_API + '?unite_travail_id=' + uniteId : DANGERS_API;
+  fetch(url).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('dangersBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">Aucun danger</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><strong>${r.danger||''}</strong></td><td>${r.unite_nom||''}</td>
+      <td><span class="badge bg-info">${r.famille_danger||''}</span></td>
+      <td>${r.source||''}</td><td>${r.consequence||''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="editDanger(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteDanger(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+
+function saveDanger() {
+  const id = document.getElementById('dangerId').value;
+  const data = { unite_travail_id: document.getElementById('f_danger_unite').value, famille_danger: document.getElementById('f_danger_famille').value,
+    danger: document.getElementById('f_danger_nom').value, description: document.getElementById('f_danger_desc').value,
+    source: document.getElementById('f_danger_source').value, consequence: document.getElementById('f_danger_consequence').value,
+    mesures_existantes: document.getElementById('f_danger_mesures').value };
+  const url = id ? DANGERS_UPDATE.replace('0', id) : DANGERS_CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('dangerModal')).hide(); loadDangers(); loadStats(); resetDangerForm(); } });
+}
+
+function editDanger(id) {
+  fetch(DANGERS_API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('dangerId').value = r.id; document.getElementById('f_danger_unite').value = r.unite_travail_id||'';
+    document.getElementById('f_danger_famille').value = r.famille_danger||'physique'; document.getElementById('f_danger_nom').value = r.danger||'';
+    document.getElementById('f_danger_desc').value = r.description||''; document.getElementById('f_danger_source').value = r.source||'';
+    document.getElementById('f_danger_consequence').value = r.consequence||''; document.getElementById('f_danger_mesures').value = r.mesures_existantes||'';
+    document.getElementById('dangerModalTitle').textContent = "Modifier le danger";
+    new bootstrap.Modal(document.getElementById('dangerModal')).show();
+  });
+}
+
+function deleteDanger(id) { if(!confirm('Supprimer ce danger ?')) return; fetch(DANGERS_DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) { loadDangers(); loadStats(); } }); }
+function resetDangerForm() { document.getElementById('dangerId').value = ''; ['f_danger_nom','f_danger_desc','f_danger_source','f_danger_consequence','f_danger_mesures'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_danger_unite').value = ''; document.getElementById('f_danger_famille').value = 'physique'; document.getElementById('dangerModalTitle').textContent = 'Nouveau danger'; }
+
+function loadEvals() {
+  fetch(EVALS_API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('evaluationsBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-muted text-center py-4">Aucune évaluation</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.danger_libelle||''}</td><td>${r.gravite||0}</td><td>${r.probabilite||0}</td><td>${r.frequence||0}</td>
+      <td><strong>${r.criticite||0}</strong></td>
+      <td><span class="badge bg-${NIVEAUX[r.niveau_risque] || 'secondary'}">${r.niveau_risque||''}</span></td>
+      <td>${r.plan_action||''}</td>
+      <td><span class="badge bg-${r.statut==='a_traiter'?'danger':'success'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="editEval(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteEval(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+  fetch(DANGERS_API).then(r=>r.json()).then(items => {
+    const sel = document.getElementById('f_eval_danger');
+    sel.innerHTML = '<option value="">-- Choisir --</option>' + items.map(r => `<option value="${r.id}">${r.danger} (${r.unite_nom||''})</option>`).join('');
+  });
+}
+
+function saveEval() {
+  const id = document.getElementById('evalId').value;
+  const data = { danger_id: document.getElementById('f_eval_danger').value, gravite: document.getElementById('f_eval_gravite').value,
+    probabilite: document.getElementById('f_eval_probabilite').value, frequence: document.getElementById('f_eval_frequence').value,
+    plan_action: document.getElementById('f_eval_plan').value, date_echeance: document.getElementById('f_eval_echeance').value };
+  const url = id ? EVALS_UPDATE.replace('0', id) : EVALS_CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('evalModal')).hide(); loadEvals(); loadStats(); resetEvalForm(); } });
+}
+
+function editEval(id) {
+  fetch(EVALS_API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('evalId').value = r.id; document.getElementById('f_eval_danger').value = r.danger_id||'';
+    document.getElementById('f_eval_gravite').value = r.gravite||1; document.getElementById('f_eval_probabilite').value = r.probabilite||1;
+    document.getElementById('f_eval_frequence').value = r.frequence||1; document.getElementById('f_eval_plan').value = r.plan_action||'';
+    document.getElementById('f_eval_echeance').value = r.date_echeance || '';
+    document.getElementById('evalModalTitle').textContent = "Modifier l'évaluation";
+    new bootstrap.Modal(document.getElementById('evalModal')).show();
+  });
+}
+
+function deleteEval(id) { if(!confirm('Supprimer cette évaluation ?')) return; fetch(EVALS_DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) { loadEvals(); loadStats(); } }); }
+function resetEvalForm() { document.getElementById('evalId').value = ''; document.getElementById('f_eval_danger').value = ''; document.getElementById('f_eval_gravite').value = 1; document.getElementById('f_eval_probabilite').value = 1; document.getElementById('f_eval_frequence').value = 1; document.getElementById('f_eval_plan').value = ''; document.getElementById('f_eval_echeance').value = ''; document.getElementById('evalModalTitle').textContent = 'Nouvelle évaluation'; }
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadStats(); loadUnites(); loadDangers(); loadEvals();
+  document.getElementById('filter-unite').addEventListener('change', loadDangers);
+});
+</script>
+{% endblock %}

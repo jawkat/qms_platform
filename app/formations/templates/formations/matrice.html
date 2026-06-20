@@ -1,0 +1,185 @@
+{% extends 'layout.html' %}
+{% block title %}Matrice compétences{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-th-list me-2" style="color:#7c3aed;"></i>Matrice compétences</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#matriceModal"><i class="fas fa-plus me-1"></i>Évaluer</button>
+  </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label small">Compétence</label>
+          <select id="filterCompetence" class="form-select form-select-sm" onchange="loadMatrice()">
+            <option value="">Toutes</option>
+            {% for c in competences %}
+            <option value="{{ c.id }}">{{ c.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Employé</label>
+          <select id="filterEmploye" class="form-select form-select-sm" onchange="loadMatrice()">
+            <option value="">Tous</option>
+            {% for u in utilisateurs %}
+            <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small">Écart</label>
+          <select id="filterEcart" class="form-select form-select-sm" onchange="loadMatrice()">
+            <option value="">Tous</option>
+            <option value="ok">Niveau atteint</option>
+            <option value="gap">Écart négatif</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Employé</th><th>Compétence</th><th>Niveau requis</th><th>Niveau actuel</th><th>Écart</th><th>Dernière évaluation</th><th>Évalué par</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="matriceBody"></tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="matriceModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="modalTitle">Évaluer une compétence</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="mId" value="">
+      <div class="row g-3">
+        <div class="col-6"><label class="form-label">Employé <span class="text-danger">*</span></label>
+          <select id="m_utilisateur_id" class="form-select">
+            <option value="">Sélectionner...</option>
+            {% for u in utilisateurs %}
+            <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6"><label class="form-label">Compétence <span class="text-danger">*</span></label>
+          <select id="m_competence_id" class="form-select">
+            <option value="">Sélectionner...</option>
+            {% for c in competences %}
+            <option value="{{ c.id }}">{{ c.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-4"><label class="form-label">Niveau requis</label>
+          <input type="number" id="m_niveau_requis" class="form-control" min="1" max="5" value="3">
+        </div>
+        <div class="col-4"><label class="form-label">Niveau actuel</label>
+          <input type="number" id="m_niveau_actuel" class="form-control" min="0" max="5" value="0">
+        </div>
+        <div class="col-4"><label class="form-label">Date évaluation</label>
+          <input type="date" id="m_date_eval" class="form-control">
+        </div>
+        <div class="col-6"><label class="form-label">Évalué par</label>
+          <select id="m_evalue_par_id" class="form-select">
+            <option value="">Sélectionner...</option>
+            {% for u in utilisateurs %}
+            <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12"><label class="form-label">Notes</label>
+          <textarea id="m_notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      <button type="button" class="btn btn-danger" onclick="saveMatrice()">Enregistrer</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const MATRICE_API = '{{ url_for("formations.api_matrice") }}';
+const CREATE_API = '{{ url_for("formations.api_matrice_create") }}';
+const UPDATE_API = '{{ url_for("formations.api_matrice_update", id=0) }}';
+const DELETE_API = '{{ url_for("formations.api_matrice_delete", id=0) }}';
+
+function loadMatrice() {
+  fetch(MATRICE_API).then(r=>r.json()).then(items=>{
+    var fc = document.getElementById('filterCompetence').value;
+    var fe = document.getElementById('filterEmploye').value;
+    var fg = document.getElementById('filterEcart').value;
+    if (fc) items = items.filter(e => e.competence_id == fc);
+    if (fe) items = items.filter(e => e.utilisateur_id == fe);
+    if (fg === 'ok') items = items.filter(e => e.niveau_actuel >= e.niveau_requis);
+    if (fg === 'gap') items = items.filter(e => e.niveau_actuel < e.niveau_requis);
+    var tb = document.getElementById('matriceBody');
+    if (!items.length) { tb.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucune évaluation</td></tr>'; return; }
+    tb.innerHTML = items.map(e => `<tr>
+      <td>${e.utilisateur||''}</td>
+      <td>${e.competence||''}</td>
+      <td class="text-center"><span class="badge bg-secondary">${e.niveau_requis}</span></td>
+      <td class="text-center"><span class="badge bg-${e.niveau_actuel>=e.niveau_requis?'success':'warning'}">${e.niveau_actuel}</span></td>
+      <td class="text-center">${e.niveau_actuel>=e.niveau_requis?'<i class="fas fa-check-circle text-success"></i>':'<i class="fas fa-exclamation-triangle text-warning"></i> '+(e.niveau_requis-e.niveau_actuel)}</td>
+      <td>${e.date_evaluation?new Date(e.date_evaluation).toLocaleDateString('fr-FR'):'—'}</td>
+      <td>${e.evalue_par||'—'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="editMatrice(${e.id})"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteMatrice(${e.id})"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+  });
+}
+
+var _matriceItems = [];
+function editMatrice(id) {
+  fetch(MATRICE_API).then(r=>r.json()).then(items=>{
+    var e = items.find(x => x.id === id);
+    if (!e) return;
+    document.getElementById('mId').value = e.id;
+    document.getElementById('m_utilisateur_id').value = e.utilisateur_id;
+    document.getElementById('m_competence_id').value = e.competence_id;
+    document.getElementById('m_niveau_requis').value = e.niveau_requis;
+    document.getElementById('m_niveau_actuel').value = e.niveau_actuel;
+    document.getElementById('m_date_eval').value = e.date_evaluation||'';
+    document.getElementById('m_evalue_par_id').value = e.evalue_par_id||'';
+    document.getElementById('m_notes').value = e.notes||'';
+    document.getElementById('modalTitle').textContent = 'Modifier l\'évaluation';
+    new bootstrap.Modal(document.getElementById('matriceModal')).show();
+  });
+}
+function deleteMatrice(id) {
+  if (!confirm('Supprimer cette évaluation ?')) return;
+  fetch(DELETE_API.replace('0', id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) loadMatrice()});
+}
+function saveMatrice() {
+  var id = document.getElementById('mId').value;
+  var data = {
+    utilisateur_id: document.getElementById('m_utilisateur_id').value,
+    competence_id: document.getElementById('m_competence_id').value,
+    niveau_requis: document.getElementById('m_niveau_requis').value,
+    niveau_actuel: document.getElementById('m_niveau_actuel').value,
+    date_evaluation: document.getElementById('m_date_eval').value,
+    evalue_par_id: document.getElementById('m_evalue_par_id').value || null,
+    notes: document.getElementById('m_notes').value,
+  };
+  var url = id ? UPDATE_API.replace('0', id) : CREATE_API;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{
+      if (r.success) { bootstrap.Modal.getInstance(document.getElementById('matriceModal')).hide(); loadMatrice(); resetForm(); }
+      else { alert(r.error || 'Erreur'); }
+    });
+}
+function resetForm() {
+  document.getElementById('mId').value = '';
+  ['m_utilisateur_id','m_competence_id','m_date_eval','m_evalue_par_id','m_notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('m_niveau_requis').value = '3';
+  document.getElementById('m_niveau_actuel').value = '0';
+  document.getElementById('modalTitle').textContent = 'Évaluer une compétence';
+}
+document.addEventListener('DOMContentLoaded', loadMatrice);
+</script>
+{% endblock %}

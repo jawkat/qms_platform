@@ -24,6 +24,7 @@
 
       {% if proof.workflow_statut == 'brouillon' %}
       <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#submitModal"><i class="fas fa-paper-plane me-1"></i>Soumettre</button>
+      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#workflowModal"><i class="fas fa-cogs me-1"></i>Lancer workflow</button>
       {% endif %}
 
       {% if proof.workflow_statut == 'soumis' and (proof.workflow_approbateur_id == current_user.id or (current_user.role and current_user.role.est_systeme)) %}
@@ -389,4 +390,103 @@
     </form>
   </div></div>
 </div>
+
+<!-- Workflow Launch Modal -->
+<div class="modal fade" id="workflowModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="{{ url_for('documents.soumettre', proof_id=proof.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header"><h5><i class="fas fa-cogs me-2"></i>Lancer un workflow d'approbation</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="text-muted small">Sélectionnez un modèle de workflow pour guider le processus d'approbation de ce document.</p>
+        <div class="mb-3">
+          <label class="form-label">Modèle de workflow <span class="text-danger">*</span></label>
+          <select name="workflow_modele_id" id="wf_modele_select" class="form-select" required onchange="loadWfEtapes(this.value)">
+            <option value="">— Sélectionnez —</option>
+          </select>
+        </div>
+        <div id="wf_etapes_preview" class="mb-3" style="display:none">
+          <label class="form-label fw-bold small text-muted text-uppercase">Étapes du workflow</label>
+          <div id="wf_etapes_list" class="list-group list-group-flush"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Approbateur initial <span class="text-danger">*</span></label>
+          <select name="approbateur_id" class="form-select" required>
+            <option value="">— Sélectionnez —</option>
+            {% for u in approbateurs %}
+            <option value="{{ u.id }}" {% if proof.workflow_approbateur_id == u.id %}selected{% endif %}>{{ u.prenom }} {{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Commentaire</label>
+          <textarea name="commentaire" class="form-control" rows="2" placeholder="Optionnel..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-play me-1"></i>Lancer le workflow</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Workflow Progress (if active) -->
+{% set wf_instances = [] %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/workflow-engine/api/instances?module=documents')
+    .then(function(r) { return r.json(); })
+    .then(function(instances) {
+      var active = instances.filter(function(i) { return i.entity_type === 'documents' && i.entity_id === {{ proof.id }} && i.statut === 'en_cours'; });
+      if (active.length > 0) {
+        var wf = active[0];
+        var html = '<div class="card border-0 shadow-sm mb-3 border-start border-primary border-4">';
+        html += '<div class="card-body py-2">';
+        html += '<div class="d-flex justify-content-between align-items-center">';
+        html += '<div><small class="text-muted text-uppercase fw-bold">Workflow actif</small>';
+        html += '<div class="fw-medium">' + wf.modele + '</div></div>';
+        html += '<div class="text-end"><span class="badge bg-primary">' + wf.etape_courante + '</span>';
+        if (wf.en_retard) html += ' <span class="badge bg-danger ms-1">En retard</span>';
+        html += '</div></div>';
+        html += '<div class="progress mt-2" style="height:6px"><div class="progress-bar bg-primary" style="width:' + wf.progress + '%"></div></div>';
+        if (wf.date_deadline) {
+          var dl = new Date(wf.date_deadline);
+          html += '<small class="text-muted">Échéance : ' + dl.toLocaleDateString('fr-FR') + '</small>';
+        }
+        html += '</div></div>';
+        var header = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-3');
+        if (header) header.insertAdjacentHTML('afterend', html);
+      }
+    });
+  fetch('/workflow-engine/api/modeles?module=documents')
+    .then(function(r) { return r.json(); })
+    .then(function(modeles) {
+      var sel = document.getElementById('wf_modele_select');
+      modeles.forEach(function(m) {
+        var opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.nom + ' (' + m.nb_etapes + ' étapes)';
+        sel.appendChild(opt);
+      });
+    });
+});
+function loadWfEtapes(id) {
+  var container = document.getElementById('wf_etapes_preview');
+  var list = document.getElementById('wf_etapes_list');
+  if (!id) { container.style.display = 'none'; return; }
+  fetch('/workflow-engine/api/modeles/' + id)
+    .then(function(r) { return r.json(); })
+    .then(function(m) {
+      container.style.display = 'block';
+      list.innerHTML = m.etapes.map(function(e, i) {
+        return '<div class="list-group-item d-flex align-items-center py-2">' +
+          '<span class="badge bg-' + (i === 0 ? 'primary' : 'secondary') + ' me-2">' + (i+1) + '</span>' +
+          '<div><div class="fw-medium small">' + e.nom + '</div>' +
+          '<small class="text-muted">' + (e.role_requis || '—') + ' · ' + e.action_requise +
+          (e.delai_jours ? ' · ' + e.delai_jours + 'j' : '') + '</small></div></div>';
+      }).join('');
+    });
+}
+</script>
 {% endblock %}

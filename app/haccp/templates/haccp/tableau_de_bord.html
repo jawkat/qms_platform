@@ -54,11 +54,26 @@
       </a>
     </div>
     <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.oprp') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">OPRP</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-oprp"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fff3cd;">
+              <i class="fas fa-shield-alt text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
       <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.enregistrements') }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <h6 class="text-muted text-uppercase small mb-2">Enregistrements</h6>
+              <h6 class="text-muted text-uppercase small mb-2">Enregistrements CCP</h6>
               <div class="h3 mb-0 fw-bold" id="stat-enregistrements"><span class="skeleton skeleton-text d-inline-block"></span></div>
             </div>
             <div class="rounded-3 p-2" style="background:#e8f5e9;">
@@ -71,6 +86,21 @@
   </div>
 
   <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('haccp.enregistrements_oprp') }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Enreg. OPRP</h6>
+              <div class="h3 mb-0 fw-bold" id="stat-enregistrements_oprp"><span class="skeleton skeleton-text d-inline-block"></span></div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fff8e1;">
+              <i class="fas fa-clipboard-list text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
     <div class="col-md-3">
       <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('nonconformites.index', domaine='haccp') }}">
         <div class="card-body">
@@ -142,7 +172,9 @@
             <a href="{{ url_for('haccp.dangers') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-biohazard me-1"></i>Analyse dangers</a>
             <a href="{{ url_for('haccp.ccp') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-exclamation-triangle me-1"></i>CCP</a>
             <a href="{{ url_for('haccp.prp') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-hand-sparkles me-1"></i>PRP</a>
-            <a href="{{ url_for('haccp.enregistrements') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-clipboard-check me-1"></i>Enregistrements</a>
+            <a href="{{ url_for('haccp.oprp') }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-shield-alt me-1"></i>OPRP</a>
+            <a href="{{ url_for('haccp.enregistrements') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-clipboard-check me-1"></i>Enreg. CCP</a>
+            <a href="{{ url_for('haccp.enregistrements_oprp') }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-clipboard-list me-1"></i>Enreg. OPRP</a>
             <a href="{{ url_for('nonconformites.index', domaine='haccp') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-times-circle me-1"></i>Non-conformités</a>
             <a href="{{ url_for('haccp.tracabilite') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sitemap me-1"></i>Traçabilité</a>
             <a href="{{ url_for('haccp.rappels') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-exclamation-circle me-1"></i>Rappels</a>
@@ -166,7 +198,9 @@ fetch('{{ url_for("haccp.api_stats") }}').then(function(r) { return r.json(); })
   setStat('stat-processus', d.processus);
   setStat('stat-produits', d.produits);
   setStat('stat-ccp', d.ccp);
+  setStat('stat-oprp', d.oprp);
   setStat('stat-enregistrements', d.enregistrements);
+  setStat('stat-enregistrements_oprp', d.enregistrements_oprp);
   setStat('stat-nonconformites', d.nonconformites);
   setStat('stat-rappels', d.rappels);
 }).catch(function() {

@@ -5,7 +5,9 @@ from app.utils.permissions import has_permission
 from app.core import module_active
 from app import db
 
-blueprint = Blueprint('maintenance', __name__, template_folder='templates')
+import os
+blueprint = Blueprint('maintenance', __name__, template_folder='templates',
+                      root_path=os.path.join(os.path.dirname(os.path.dirname(__file__))))
 
 
 @blueprint.route('/')

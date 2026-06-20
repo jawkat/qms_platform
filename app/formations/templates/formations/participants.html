@@ -1,0 +1,190 @@
+{% extends 'layout.html' %}
+{% block title %}Participants aux formations{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-users me-2" style="color:#7c3aed;"></i>Participants</h1>
+    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#participantModal"><i class="fas fa-plus me-1"></i>Ajouter</button>
+  </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label small">Formation</label>
+          <select id="filterFormation" class="form-select form-select-sm" onchange="loadParticipants()">
+            <option value="">Toutes</option>
+            {% for f in formations %}
+            <option value="{{ f.id }}">{{ f.titre }} — {{ f.date_formation.strftime('%d/%m/%Y') if f.date_formation else '' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Statut</label>
+          <select id="filterStatut" class="form-select form-select-sm" onchange="loadParticipants()">
+            <option value="">Tous</option>
+            <option value="inscrit">Inscrit</option>
+            <option value="present">Présent</option>
+            <option value="absent">Absent</option>
+            <option value="certifie">Certifié</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Certifié</label>
+          <select id="filterCertifie" class="form-select form-select-sm" onchange="loadParticipants()">
+            <option value="">Tous</option>
+            <option value="true">Oui</option>
+            <option value="false">Non</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Employé</th><th>Formation</th><th>Statut</th><th>Score</th><th>Certifié</th><th>Expiration</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="participantBody"></tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+<div class="modal fade" id="participantModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="modalTitle">Ajouter un participant</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="pId" value="">
+      <input type="hidden" id="pFormationId" value="">
+      <div class="row g-3">
+        <div class="col-12"><label class="form-label">Formation <span class="text-danger">*</span></label>
+          <select id="p_formation_id" class="form-select">
+            <option value="">Sélectionner...</option>
+            {% for f in formations %}
+            <option value="{{ f.id }}">{{ f.titre }} — {{ f.date_formation.strftime('%d/%m/%Y') if f.date_formation else '' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12"><label class="form-label">Employé <span class="text-danger">*</span></label>
+          <select id="p_utilisateur_id" class="form-select">
+            <option value="">Sélectionner...</option>
+            {% for u in utilisateurs %}
+            <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6"><label class="form-label">Statut</label>
+          <select id="p_statut" class="form-select">
+            <option value="inscrit">Inscrit</option>
+            <option value="present">Présent</option>
+            <option value="absent">Absent</option>
+            <option value="certifie">Certifié</option>
+          </select>
+        </div>
+        <div class="col-6"><label class="form-label">Score évaluation</label>
+          <input type="number" id="p_score" class="form-control" step="0.1" min="0" max="20">
+        </div>
+        <div class="col-6"><label class="form-label">Date certification</label>
+          <input type="date" id="p_date_certif" class="form-control">
+        </div>
+        <div class="col-6"><label class="form-label">Date expiration</label>
+          <input type="date" id="p_date_exp" class="form-control">
+        </div>
+        <div class="col-12"><label class="form-label">Commentaire</label>
+          <textarea id="p_commentaire" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      <button type="button" class="btn btn-danger" onclick="saveParticipant()">Enregistrer</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const LIST_API = '{{ url_for("formations.api_participants_list", formation_id=0) }}';
+const CREATE_API = '{{ url_for("formations.api_participants_create") }}';
+const UPDATE_API = '{{ url_for("formations.api_participants_update", id=0) }}';
+const DELETE_API = '{{ url_for("formations.api_participants_delete", id=0) }}';
+
+function loadParticipants() {
+  var fid = document.getElementById('filterFormation').value;
+  var url = fid ? LIST_API.replace('0', fid) : null;
+  if (!url) { document.getElementById('participantBody').innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Sélectionnez une formation</td></tr>'; return; }
+  fetch(url).then(r=>r.json()).then(items=>{
+    var tb = document.getElementById('participantBody');
+    if (!items.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucun participant</td></tr>'; return; }
+    var fs = document.getElementById('filterStatut').value;
+    var fc = document.getElementById('filterCertifie').value;
+    if (fs) items = items.filter(p => p.statut === fs);
+    if (fc) items = items.filter(p => String(p.certifie) === fc);
+    tb.innerHTML = items.map(p => `<tr>
+      <td>${p.utilisateur||''}</td>
+      <td></td>
+      <td><span class="badge bg-${p.statut==='present'?'success':p.statut==='absent'?'danger':'secondary'}">${p.statut||'inscrit'}</span></td>
+      <td>${p.evaluation_score||'—'}</td>
+      <td>${p.certifie?'<i class="fas fa-check-circle text-success"></i> Oui':'<i class="fas fa-times-circle text-muted"></i> Non'}</td>
+      <td>${p.date_expiration?new Date(p.date_expiration).toLocaleDateString('fr-FR'):'—'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="editParticipant(${p.id})"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteParticipant(${p.id})"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+  });
+}
+
+var _participants = [];
+function editParticipant(id) {
+  var fid = document.getElementById('filterFormation').value;
+  fetch(LIST_API.replace('0', fid)).then(r=>r.json()).then(items=>{
+    var p = items.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('pId').value = p.id;
+    document.getElementById('p_formation_id').value = fid;
+    document.getElementById('p_utilisateur_id').value = p.utilisateur_id;
+    document.getElementById('p_statut').value = p.statut;
+    document.getElementById('p_score').value = p.evaluation_score;
+    document.getElementById('p_date_certif').value = p.date_certification||'';
+    document.getElementById('p_date_exp').value = p.date_expiration||'';
+    document.getElementById('p_commentaire').value = p.evaluation_commentaire||'';
+    document.getElementById('modalTitle').textContent = 'Modifier le participant';
+    new bootstrap.Modal(document.getElementById('participantModal')).show();
+  });
+}
+function deleteParticipant(id) {
+  if (!confirm('Supprimer ce participant ?')) return;
+  fetch(DELETE_API.replace('0', id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) loadParticipants()});
+}
+function saveParticipant() {
+  var id = document.getElementById('pId').value;
+  var data = {
+    formation_id: document.getElementById('p_formation_id').value,
+    utilisateur_id: document.getElementById('p_utilisateur_id').value,
+    statut: document.getElementById('p_statut').value,
+    evaluation_score: document.getElementById('p_score').value,
+    evaluation_commentaire: document.getElementById('p_commentaire').value,
+    certifie: document.getElementById('p_statut').value === 'certifie',
+    date_certification: document.getElementById('p_date_certif').value,
+    date_expiration: document.getElementById('p_date_exp').value,
+  };
+  var url = id ? UPDATE_API.replace('0', id) : CREATE_API;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{
+      if (r.success) { bootstrap.Modal.getInstance(document.getElementById('participantModal')).hide(); loadParticipants(); resetForm(); }
+      else { alert(r.error || 'Erreur'); }
+    });
+}
+function resetForm() {
+  document.getElementById('pId').value = '';
+  ['p_formation_id','p_utilisateur_id','p_score','p_date_certif','p_date_exp','p_commentaire'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('p_statut').selectedIndex = 0;
+  document.getElementById('modalTitle').textContent = 'Ajouter un participant';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('filterFormation').value) loadParticipants();
+  document.getElementById('filterFormation').addEventListener('change', loadParticipants);
+});
+</script>
+{% endblock %}

@@ -5,7 +5,9 @@ from app.utils.permissions import has_permission
 from app.core import module_active
 from app import db
 
-blueprint = Blueprint('planification', __name__, template_folder='templates')
+import os
+blueprint = Blueprint('planification', __name__, template_folder='templates',
+                      root_path=os.path.join(os.path.dirname(os.path.dirname(__file__))))
 
 
 @blueprint.route('/')
@@ -90,6 +92,34 @@ def api_modifier(item_id):
             setattr(item, f, data[f])
     db.session.commit()
     return jsonify({'success': True})
+
+
+@blueprint.route('/api/calendrier')
+@login_required
+@module_active('planification')
+@has_permission('planification.voir')
+def api_calendrier():
+    from app.planification.models import EvenementPlanification
+    items = EvenementPlanification.query.filter_by(
+        entreprise_id=current_user.entreprise_id
+    ).all()
+    couleurs = {
+        'audit': '#3b82f6', 'formation': '#10b981', 'inspection': '#f59e0b',
+        'maintenance': '#8b5cf6', 'reunion': '#06b6d4', 'echeance': '#ef4444',
+    }
+    return jsonify([{
+        'id': i.id,
+        'title': i.titre,
+        'start': i.date_debut.isoformat() if i.date_debut else None,
+        'end': i.date_fin.isoformat() if i.date_fin else None,
+        'color': couleurs.get(i.type_evenement, '#6b7280'),
+        'extendedProps': {
+            'type': i.type_evenement,
+            'lieu': i.lieu,
+            'responsable': i.responsable,
+            'statut': i.statut,
+        },
+    } for i in items])
 
 
 @blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])

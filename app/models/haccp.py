@@ -1,6 +1,6 @@
 from app.haccp.models import (
     ProcessusHaccp, ProduitHaccp, MatierePremiere, AnalyseDanger, Ccp,
-    EnregistrementCcp, Prp,
+    EnregistrementCcp, Prp, EnregistrementOprp,
     TracabiliteLot, RappelProduit,
     produit_processus, TypeDanger, StatutHaccp
 )

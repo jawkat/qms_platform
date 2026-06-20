@@ -8,26 +8,49 @@
   </div>
 
   <div class="row g-3 mb-3">
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
       <h6 class="text-muted text-uppercase small">Total</h6><div class="h3 mb-0 fw-bold" id="stat-total">-</div>
     </div></div></div>
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
       <h6 class="text-muted text-uppercase small">Actifs</h6><div class="h3 mb-0 fw-bold text-success" id="stat-actifs">-</div>
     </div></div></div>
-    <div class="col-md-4"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
       <h6 class="text-muted text-uppercase small">À revoir</h6><div class="h3 mb-0 fw-bold text-warning" id="stat-a_revoir">-</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+      <h6 class="text-muted text-uppercase small">Sous-processus</h6><div class="h3 mb-0 fw-bold text-info" id="stat-sous">-</div>
     </div></div></div>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr><th>Nom</th><th>Type</th><th>Propriétaire</th><th>Entrée</th><th>Sortie</th><th>Statut</th><th>Actions</th></tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+  <ul class="nav nav-tabs mb-3" id="procTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-tableau"><i class="fas fa-list me-1"></i>Tableau</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-arbre"><i class="fas fa-sitemap me-1"></i>Arbre</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-tableau">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr><th>Nom</th><th>Type</th><th>Propriétaire</th><th>Entrée</th><th>Sortie</th><th>Statut</th><th>Revues</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-arbre">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-2">
+          <h6 class="mb-0"><i class="fas fa-sitemap me-2 text-primary"></i>Hiérarchie des processus</h6>
+        </div>
+        <div class="card-body" id="arbreContainer" style="min-height:200px">
+          <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-1"></i>Chargement...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -51,6 +74,11 @@
             <select id="f_proprietaire" class="form-select">
               <option value="">—</option>
               {% for u in utilisateurs %}<option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Processus parent</label>
+            <select id="f_parent" class="form-select">
+              <option value="">— Racine —</option>
             </select>
           </div>
           <div class="col-md-6"><label class="form-label">Statut</label>
@@ -89,35 +117,93 @@ function openBpmn(id) {
 
 var _items = [];
 function load() {
-  Promise.all([fetch(API).then(r=>r.json()), fetch(STATS).then(r=>r.json())])
-  .then(([items, stats]) => {
+  Promise.all([fetch(API).then(function(r){return r.json()}), fetch(STATS).then(function(r){return r.json()})])
+  .then(function(results) {
+    var items = results[0], stats = results[1];
     _items = items;
     document.getElementById('stat-total').textContent = stats.total;
     document.getElementById('stat-actifs').textContent = stats.actifs;
     document.getElementById('stat-a_revoir').textContent = stats.a_revoir;
+    document.getElementById('stat-sous').textContent = items.filter(function(x){return x.processus_parent_id}).length;
+
+    var parentSelect = document.getElementById('f_parent');
+    var currentParent = parentSelect.value;
+    parentSelect.innerHTML = '<option value="">— Racine —</option>';
+    items.forEach(function(item) {
+      var opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.nom;
+      parentSelect.appendChild(opt);
+    });
+    if (currentParent) parentSelect.value = currentParent;
+
     var tbody = document.getElementById('tableBody');
-    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucun processus</td></tr>'; return; }
-    tbody.innerHTML = items.map(r => `<tr>
-      <td><strong>${r.nom||''}</strong></td>
-      <td><span class="badge bg-info">${r.type_processus||''}</span></td>
-      <td>${r.proprietaire||''}</td>
-      <td class="text-truncate" style="max-width:150px">${r.entree||''}</td>
-      <td class="text-truncate" style="max-width:150px">${r.sortie||''}</td>
-      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
-      <td><button class="btn btn-sm btn-outline-info" onclick="openBpmn(${r.id})" title="Éditeur BPMN"><i class="fas fa-project-diagram"></i></button>
-          <button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
-          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
-    </tr>`).join('');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucun processus</td></tr>'; return; }
+    tbody.innerHTML = items.map(function(r) {
+      var prefix = r.processus_parent_id ? '<span class="text-muted ms-3">└</span> ' : '';
+      var revueOk = r.date_prochaine_revu && r.date_prochaine_revu >= new Date().toISOString().slice(0,10);
+      var revueClass = revueOk ? 'text-success' : (r.date_prochaine_revu ? 'text-danger fw-bold' : 'text-muted');
+      return '<tr>' +
+        '<td><strong>' + prefix + (r.nom||'') + '</strong></td>' +
+        '<td><span class="badge bg-info">' + (r.type_processus||'') + '</span></td>' +
+        '<td>' + (r.proprietaire||'') + '</td>' +
+        '<td class="text-truncate" style="max-width:120px">' + (r.entree||'') + '</td>' +
+        '<td class="text-truncate" style="max-width:120px">' + (r.sortie||'') + '</td>' +
+        '<td><span class="badge bg-' + (r.statut==='actif'?'success':'secondary') + '">' + (r.statut||'') + '</span></td>' +
+        '<td class="' + revueClass + ' small">' + (r.date_prochaine_revu || '—') + '</td>' +
+        '<td><button class="btn btn-sm btn-outline-info" onclick="openBpmn(' + r.id + ')" title="Éditeur BPMN"><i class="fas fa-project-diagram"></i></button> ' +
+        '<button class="btn btn-sm btn-outline-primary" onclick="edit(' + r.id + ')"><i class="fas fa-edit"></i></button> ' +
+        '<button class="btn btn-sm btn-outline-danger" onclick="del(' + r.id + ')"><i class="fas fa-trash"></i></button></td></tr>';
+    }).join('');
+
+    renderArbre(items);
   });
 }
 
+function renderArbre(items) {
+  var container = document.getElementById('arbreContainer');
+  var roots = items.filter(function(x){return !x.processus_parent_id});
+  if (!roots.length) { container.innerHTML = '<div class="text-center text-muted py-4">Aucun processus racine</div>'; return; }
+
+  function buildChildren(parentId) {
+    return items.filter(function(x){return x.processus_parent_id === parentId});
+  }
+
+  function renderNode(item, depth) {
+    var children = buildChildren(item.id);
+    var hasChildren = children.length > 0;
+    var statutColor = item.statut === 'actif' ? 'success' : 'secondary';
+    var typeIcon = {'operationnel':'fa-cog','support':'fa-life-ring','management':'fa-users','strategique':'fa-bullseye'}[item.type_processus] || 'fa-circle';
+    var html = '<div class="d-flex align-items-start py-1" style="padding-left:' + (depth * 24) + 'px">';
+    if (depth > 0) html += '<span class="text-muted me-2 mt-1" style="font-size:10px">└─</span>';
+    html += '<div class="flex-grow-1"><div class="d-flex align-items-center gap-2">';
+    html += '<i class="fas ' + typeIcon + ' text-' + statutColor + '"></i>';
+    html += '<strong class="small">' + item.nom + '</strong>';
+    html += '<span class="badge bg-' + statutColor + '" style="font-size:.65rem">' + item.statut + '</span>';
+    if (item.proprietaire) html += '<small class="text-muted">· ' + item.proprietaire + '</small>';
+    html += '</div>';
+    if (item.description) html += '<small class="text-muted d-block">' + item.description.substring(0, 80) + '</small>';
+    html += '<div class="mt-1">';
+    html += '<button class="btn btn-sm btn-outline-info py-0 px-1" onclick="openBpmn(' + item.id + ')" title="BPMN"><i class="fas fa-project-diagram" style="font-size:.7rem"></i></button> ';
+    html += '<button class="btn btn-sm btn-outline-primary py-0 px-1" onclick="edit(' + item.id + ')" title="Modifier"><i class="fas fa-edit" style="font-size:.7rem"></i></button>';
+    html += '</div></div></div>';
+    children.forEach(function(c) { html += renderNode(c, depth + 1); });
+    return html;
+  }
+
+  var html = '';
+  roots.forEach(function(r) { html += renderNode(r, 0); });
+  container.innerHTML = html;
+}
+
 function saveItem() {
-  const id = document.getElementById('itemId').value;
-  const data = {
+  var id = document.getElementById('itemId').value;
+  var data = {
     nom: document.getElementById('f_nom').value,
     description: document.getElementById('f_description').value,
     type_processus: document.getElementById('f_type').value,
     proprietaire_id: document.getElementById('f_proprietaire').value || null,
+    processus_parent_id: document.getElementById('f_parent').value || null,
     statut: document.getElementById('f_statut').value,
     entree: document.getElementById('f_entree').value,
     sortie: document.getElementById('f_sortie').value,
@@ -125,32 +211,35 @@ function saveItem() {
     date_derniere_revu: document.getElementById('f_derniere_revu').value,
     date_prochaine_revu: document.getElementById('f_prochaine_revu').value,
   };
-  const url = id ? UPDATE.replace('0', id) : CREATE;
+  var url = id ? UPDATE.replace('0', id) : CREATE;
   fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
-    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+    .then(function(r){return r.json()}).then(function(r){ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
 }
 
 function edit(id) {
-  const r = _items.find(x=>x.id===id); if(!r) return;
+  var r = _items.find(function(x){return x.id===id}); if(!r) return;
   document.getElementById('itemId').value = r.id;
   document.getElementById('f_nom').value = r.nom||'';
   document.getElementById('f_description').value = r.description||'';
   document.getElementById('f_type').value = r.type_processus||'operationnel';
   document.getElementById('f_proprietaire').value = r.proprietaire_id||'';
+  document.getElementById('f_parent').value = r.processus_parent_id||'';
   document.getElementById('f_statut').value = r.statut||'actif';
   document.getElementById('f_entree').value = r.entree||'';
   document.getElementById('f_sortie').value = r.sortie||'';
   document.getElementById('f_objectifs').value = r.objectifs||'';
+  document.getElementById('f_derniere_revu').value = r.date_derniere_revu||'';
+  document.getElementById('f_prochaine_revu').value = r.date_prochaine_revu||'';
   document.getElementById('modalTitle').textContent = 'Modifier le processus';
   new bootstrap.Modal(document.getElementById('itemModal')).show();
 }
 
-function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(function(r){return r.json()}).then(function(r){if(r.success) load();}); }
 
 function resetForm() {
   document.getElementById('itemId').value = '';
-  ['f_nom','f_description','f_entree','f_sortie','f_objectifs','f_derniere_revu','f_prochaine_revu'].forEach(id => document.getElementById(id).value = '');
-  ['f_type','f_proprietaire','f_statut'].forEach(id => document.getElementById(id).selectedIndex = 0);
+  ['f_nom','f_description','f_entree','f_sortie','f_objectifs','f_derniere_revu','f_prochaine_revu'].forEach(function(id) { document.getElementById(id).value = ''; });
+  ['f_type','f_proprietaire','f_statut','f_parent'].forEach(function(id) { document.getElementById(id).selectedIndex = 0; });
   document.getElementById('modalTitle').textContent = 'Nouveau processus';
 }
 

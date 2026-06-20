@@ -1,9 +1,12 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, abort, current_app
 from flask_login import login_required, current_user
-from app import db
+from app import db, mail
 from app.models import Entreprise, Secteur, TexteReglementaire, EntrepriseTexte, SubscriptionPlan, Utilisateur, Role
 from app.entreprises import entreprises
+from app.utils.permissions import has_permission
 from datetime import date, timedelta
+from flask_mail import Message
+from flask import render_template as render_mail
 
 
 @entreprises.route('/')
@@ -16,6 +19,7 @@ def index():
 
 @entreprises.route('/create', methods=['GET', 'POST'])
 @login_required
+@has_permission('entreprises.cree')
 def create():
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
@@ -105,6 +109,27 @@ def create():
         admin.set_password(mgr_password)
         db.session.add(admin)
 
+        # Copier les permissions globales des rôles vers cette entreprise
+        from app.models import Permission, RolePermission
+        from app.utils.permission_catalog import get_default_enterprise_role_permissions
+        default_perms = get_default_enterprise_role_permissions()
+        for role_nom in ['Manager', 'Auditeur', 'Responsable operationnel', 'Consultant']:
+            role = Role.query.filter_by(nom=role_nom).first()
+            if not role:
+                continue
+            perms_to_add = default_perms.get(role_nom, ())
+            for code in perms_to_add:
+                perm = Permission.query.filter_by(code=code).first()
+                if not perm:
+                    continue
+                if not RolePermission.query.filter_by(
+                    role_id=role.id, permission_id=perm.id, entreprise_id=entreprise.id
+                ).first():
+                    db.session.add(RolePermission(
+                        role_id=role.id, permission_id=perm.id,
+                        entreprise_id=entreprise.id, autorise=True
+                    ))
+
         secteur_ids_int = [int(s) for s in selected_secteur_ids if s.isdigit()]
         auto_linked_count = 0
         if secteur_ids_int:
@@ -154,8 +179,35 @@ def create():
             plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
             return render_template('entreprises/create.html', secteurs=secteurs, plans=plans)
 
+        # Envoyer un email de bienvenue au manager
+        try:
+            token = admin.get_reset_token()
+            activation_link = url_for('users.reset_password_token', token=token, _external=True)
+            login_url = current_app.config.get('APP_LOGIN_URL', 'http://localhost:5006/')
+            current_app.logger.info("Envoi email bienvenue à %s via %s:%s",
+                                    admin.email,
+                                    current_app.config.get('MAIL_SERVER'),
+                                    current_app.config.get('MAIL_PORT'))
+            html = render_mail(
+                'emails/account_created.html',
+                recipient_name=f"{admin.prenom} {admin.nom}",
+                role_name=role_manager.nom if role_manager else None,
+                activation_link=activation_link,
+                login_link=login_url,
+            )
+            msg = Message(
+                subject="Bienvenue sur QMS Veille HSE — Activation de votre compte",
+                recipients=[admin.email],
+                html=html,
+            )
+            mail.send(msg)
+            current_app.logger.info("Email bienvenue envoyé avec succès à %s", admin.email)
+        except Exception as e:
+            current_app.logger.exception("Erreur envoi email bienvenue à %s: %s", admin.email, str(e))
+
         flash(
-            f'Entreprise créée avec succès. {auto_linked_count} texte(s) lié(s) automatiquement selon les secteurs.',
+            f'Entreprise créée avec succès. {auto_linked_count} texte(s) lié(s) automatiquement selon les secteurs. '
+            f'Un email de bienvenue a été envoyé à {admin.email}.',
             'success',
         )
         return redirect(url_for('entreprises.index'))
@@ -178,30 +230,55 @@ def edit(entreprise_id):
         entreprise.adresse = request.form.get('adresse', entreprise.adresse)
         entreprise.telephone = request.form.get('telephone', entreprise.telephone)
         entreprise.pays = request.form.get('pays', entreprise.pays)
-
-        # 23 modules activables
-        ALL_MODULES = [
-            'pilotage', 'ged', 'veille', 'processus', 'audits', 'qualite',
-            'nc_capa', 'formations', 'rh_qhse', 'haccp', 'hse', 'environnement',
-            'maintenance', 'laboratoire', 'fournisseurs', 'performance',
-            'planification', 'reunions', 'support', 'notifications',
-            'admin', 'connaissances', 'urgences',
-        ]
-        modules = []
-        for mod in ALL_MODULES:
-            if request.form.get(f'module_{mod}'):
-                modules.append(mod)
-        entreprise.modules_actifs = modules
-
-        if request.form.get('abonnement_type'):
-            entreprise.abonnement_type = request.form.get('abonnement_type')
         db.session.commit()
         flash('Entreprise mise à jour.', 'success')
         return redirect(url_for('entreprises.index'))
 
-    secteurs = Secteur.query.order_by(Secteur.nom).all()
-    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
-    return render_template('entreprises/edit.html', entreprise=entreprise, secteurs=secteurs, plans=plans)
+    manager = Utilisateur.query.filter_by(entreprise_id=entreprise_id).order_by(Utilisateur.date_creation).first()
+    return render_template('entreprises/edit.html', entreprise=entreprise, manager=manager)
+
+
+@entreprises.route('/<int:entreprise_id>/resend-welcome-email', methods=['POST'])
+@login_required
+@has_permission('entreprises.modifier')
+def resend_welcome_email(entreprise_id):
+    entreprise = db.session.get(Entreprise, entreprise_id)
+    if not entreprise:
+        flash('Entreprise introuvable.', 'danger')
+        return redirect(url_for('entreprises.index'))
+
+    admin = Utilisateur.query.filter_by(entreprise_id=entreprise.id).order_by(Utilisateur.date_creation).first()
+    if not admin:
+        flash('Aucun utilisateur trouvé pour cette entreprise.', 'warning')
+        return redirect(url_for('entreprises.edit', entreprise_id=entreprise_id))
+
+    try:
+        token = admin.get_reset_token()
+        activation_link = url_for('users.reset_password_token', token=token, _external=True)
+        login_url = current_app.config.get('APP_LOGIN_URL', 'http://localhost:5006/')
+        current_app.logger.info("Tentative d'envoi email à %s via %s:%s",
+                                admin.email,
+                                current_app.config.get('MAIL_SERVER'),
+                                current_app.config.get('MAIL_PORT'))
+        html = render_mail(
+            'emails/account_created.html',
+            recipient_name=f"{admin.prenom} {admin.nom}",
+            role_name=admin.role.nom if admin.role else None,
+            activation_link=activation_link,
+            login_link=login_url,
+        )
+        msg = Message(
+            subject="Bienvenue sur QMS Veille HSE — Activation de votre compte",
+            recipients=[admin.email],
+            html=html,
+        )
+        mail.send(msg)
+        flash(f'Email de bienvenue renvoyé à {admin.email}.', 'success')
+    except Exception as e:
+        current_app.logger.exception("Erreur renvoi email bienvenue")
+        flash(f'Erreur lors de l\'envoi de l\'email : {str(e)}', 'danger')
+
+    return redirect(url_for('entreprises.edit', entreprise_id=entreprise_id))
 
 
 @entreprises.route('/api/liste')
@@ -249,27 +326,22 @@ def api_detail(item_id):
 
 @entreprises.route('/api/<int:item_id>/update', methods=['POST'])
 @login_required
+@has_permission('entreprises.modifier')
 def api_update(item_id):
     r = db.session.get(Entreprise, item_id)
     if not r:
         abort(404)
     data = request.get_json()
-    for f in ('nom', 'taille', 'pays', 'adresse', 'telephone', 'statut',
-              'abonnement_type', 'motif_suspension'):
+    for f in ('nom', 'taille', 'pays', 'adresse', 'telephone'):
         if f in data and data[f] is not None:
             setattr(r, f, data[f])
-    if 'abonnement_prochaine_echeance' in data and data['abonnement_prochaine_echeance']:
-        r.abonnement_prochaine_echeance = date.fromisoformat(data['abonnement_prochaine_echeance'])
-    if 'abonnement_paye' in data:
-        r.abonnement_paye = bool(data['abonnement_paye'])
-    if 'modules_actifs' in data:
-        r.modules_actifs = data['modules_actifs']
     db.session.commit()
     return jsonify({'success': True})
 
 
 @entreprises.route('/api/<int:item_id>/delete', methods=['POST'])
 @login_required
+@has_permission('entreprises.supprimer')
 def api_delete(item_id):
     r = db.session.get(Entreprise, item_id)
     if not r:

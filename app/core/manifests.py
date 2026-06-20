@@ -164,7 +164,7 @@ RISQUES_MANIFEST = ModuleManifest(
     icon='fa-certificate',
     category='qualite',
     requires=[],
-    permissions=['qualite.voir', 'qualite.gerer_risques'],
+    permissions=['qualite.voir', 'qualite.gerer_risques', 'indicateurs.voir', 'indicateurs.gerer'],
     events_emit=['risk.identified', 'risk.treated'],
     events_consume=[],
     menu_position=60,
@@ -244,7 +244,8 @@ HACCP_MANIFEST = ModuleManifest(
     requires=[],
     permissions=[
         'haccp.voir', 'haccp.gerer_processus', 'haccp.gerer_produits',
-        'haccp.gerer_ccp', 'haccp.gerer_prp', 'haccp.gerer_tracabilite',
+        'haccp.gerer_ccp', 'haccp.gerer_prp', 'haccp.gerer_oprp',
+        'haccp.gerer_enregistrements', 'haccp.gerer_tracabilite',
     ],
     events_emit=['haccp.ccp_non_conforme', 'haccp.rappel_produit', 'haccp.danger_identifie'],
     events_consume=[],
@@ -267,6 +268,7 @@ HSE_MANIFEST = ModuleManifest(
     permissions=[
         'hse.voir', 'hse.gerer_incidents', 'hse.gerer_epi',
         'hse.gerer_inspections', 'hse.gerer_permis',
+        'hse.voir_duer', 'hse.gerer_duer',
     ],
     events_emit=['hse.incident_declared', 'hse.inspection_completed', 'hse.epi_expiring'],
     events_consume=[],

@@ -13,6 +13,23 @@ class Competence(db.Model):
     entreprise = db.relationship('Entreprise')
 
 
+class EmployeCompetence(db.Model):
+    __tablename__ = 'employe_competence'
+    id = db.Column(db.Integer, primary_key=True)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
+    utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
+    competence_id = db.Column(db.Integer, db.ForeignKey('competence.id'), nullable=False)
+    niveau_requis = db.Column(db.Integer, default=1)
+    niveau_actuel = db.Column(db.Integer, default=0)
+    date_evaluation = db.Column(db.Date)
+    evalue_par_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    utilisateur = db.relationship('Utilisateur', foreign_keys=[utilisateur_id])
+    competence = db.relationship('Competence')
+    evalue_par = db.relationship('Utilisateur', foreign_keys=[evalue_par_id])
+
+
 class FormationParticipant(db.Model):
     __tablename__ = 'formation_participant'
     id = db.Column(db.Integer, primary_key=True)

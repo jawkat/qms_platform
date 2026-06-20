@@ -319,20 +319,6 @@ class PluginManager:
         ]
 
     def get_sidebar_sections(self, entreprise_id: int, is_systeme: bool = False) -> List[Dict]:
-        """
-        Génère les sections du sidebar organisées par module métier.
-
-        Chaque module (HSE, HACCP, Qualité, etc.) a sa propre section qui
-        n'apparaît que si le module est activé pour l'entreprise.
-        Le "Général" contient les fonctionnalités transverses toujours visibles.
-
-        Args:
-            entreprise_id: ID de l'entreprise
-            is_systeme: Si True, inclut la section Administration
-
-        Returns:
-            Liste de sections pour le template sidebar
-        """
         sections = []
 
         active = self.get_active_modules(entreprise_id)
@@ -345,81 +331,235 @@ class PluginManager:
                     {'endpoint': 'admin.dashboard', 'icon': 'fa-chart-pie', 'label': 'Dashboard'},
                     {'endpoint': 'admin.utilisateurs', 'icon': 'fa-users-cog', 'label': 'Utilisateurs'},
                     {'endpoint': 'admin.admin_tickets', 'icon': 'fa-headset', 'label': 'Tickets'},
-                    {'endpoint': 'entreprises.index', 'icon': 'fa-building', 'label': 'Entreprises'},
+                    {'endpoint': 'admin.entreprises', 'icon': 'fa-building', 'label': 'Entreprises',
+                     'active_endpoints': ['admin.entreprises', 'admin.entreprise_detail', 'admin.entreprise_create']},
                     {'endpoint': 'admin.plans', 'icon': 'fa-crown', 'label': 'Plans',
                      'active_endpoints': ['admin.plans', 'plans.index']},
-                    {'endpoint': 'textes.index', 'icon': 'fa-scroll', 'label': 'Textes & Normes',
+                ]
+            })
+            sections.append({
+                'id': 'veille_admin', 'title': 'Veille', 'icon': 'fa-satellite-dish', 'items': [
+                    {'endpoint': 'textes.index', 'icon': 'fa-scroll', 'label': 'Textes',
                      'active_prefix': 'textes.', 'exclude_prefix': 'textes.library'},
                     {'endpoint': 'textes.import_json', 'icon': 'fa-file-import', 'label': 'Import JSON',
                      'active_prefix': 'textes.import'},
                     {'endpoint': 'veille.index', 'icon': 'fa-satellite-dish', 'label': 'Veille',
                      'active_prefix': 'veille.'},
+                    {'endpoint': 'secteur.liste_secteurs', 'icon': 'fa-layer-group', 'label': 'Secteur',
+                     'active_prefix': 'secteur.'},
                 ]
             })
 
-        # --- GÉNÉRAL (toujours visible — socle commun) ---
+        # --- GÉNÉRAL (toujours visible) ---
         general_items = [
             {'endpoint': 'main.tableau_de_bord', 'icon': 'fa-chart-line', 'label': 'Tableau de bord'},
             {'endpoint': 'main.search', 'icon': 'fa-search', 'label': 'Recherche'},
-            {'endpoint': 'actions.liste_actions', 'icon': 'fa-tasks', 'label': 'Actions / CAPA',
-             'active_prefix': 'actions.'},
-            {'endpoint': 'nonconformites.index', 'icon': 'fa-exclamation-triangle', 'label': 'Non-conformités',
-             'active_prefix': 'nonconformites.'},
         ]
         if 'ged' in active_names:
             general_items.append({
                 'endpoint': 'documents.gestion', 'icon': 'fa-folder-open', 'label': 'Documents',
                 'active_prefix': 'documents.',
             })
-        general_items.extend([
-            {'endpoint': 'audit.index', 'icon': 'fa-clipboard-check', 'label': 'Audits',
-             'active_prefix': 'audit.'},
-            {'endpoint': 'secteur.liste_secteurs', 'icon': 'fa-layer-group', 'label': 'Secteurs',
-             'active_prefix': 'secteur.'},
-        ])
         sections.append({
             'id': 'general', 'title': 'Général', 'icon': 'fa-th-large',
             'items': general_items,
         })
 
-        # --- QUALITÉ / ISO 9001 (si qualite, hse ou haccp actif) ---
-        if 'qualite' in active_names or 'hse' in active_names or 'haccp' in active_names:
-            qualite_items = [
-                {'endpoint': 'qualite.risques', 'icon': 'fa-exclamation-triangle', 'label': 'Risques',
-                 'active_prefix': 'qualite.risques'},
-                {'endpoint': 'qualite.equipements', 'icon': 'fa-tools', 'label': 'Équipements',
-                 'active_prefix': 'qualite.equipements'},
-                {'endpoint': 'qualite.controle', 'icon': 'fa-flask', 'label': 'Contrôle qualité',
-                 'active_prefix': 'qualite.controle'},
-                {'endpoint': 'qualite.revue', 'icon': 'fa-chart-pie', 'label': 'Revue de direction',
-                 'active_prefix': 'qualite.revue'},
-            ]
-            qualite_items.append({
-                'endpoint': 'indicateurs.index', 'icon': 'fa-chart-bar', 'label': 'Indicateurs',
-                'active_prefix': 'indicateurs.',
-            })
-            qualite_items.append({
-                'endpoint': 'processus.index', 'icon': 'fa-project-diagram', 'label': 'Processus & BPMN',
-                'active_prefix': 'processus.',
-            })
-            qualite_items.append({
-                'endpoint': 'workflow_engine.index', 'icon': 'fa-cogs', 'label': 'Workflows',
-                'active_prefix': 'workflow_engine.',
-            })
-            qualite_items.append({
-                'endpoint': 'change_management.index', 'icon': 'fa-exchange-alt', 'label': 'Changements',
-                'active_prefix': 'change_management.',
-            })
-            qualite_items.append({
-                'endpoint': 'ishikawa.index', 'icon': 'fa-fish', 'label': 'Ishikawa',
-                'active_prefix': 'ishikawa.',
-            })
+        # --- QUALITÉ / ISO 9001 ---
+        if 'qualite' in active_names:
             sections.append({
-                'id': 'qualite', 'title': 'Qualité / ISO 9001', 'icon': 'fa-certificate',
-                'items': qualite_items,
+                'id': 'qualite', 'title': 'Qualité / ISO 9001', 'icon': 'fa-certificate', 'items': [
+                    {'endpoint': 'qualite.risques', 'icon': 'fa-exclamation-triangle', 'label': 'Risques',
+                     'active_prefix': 'qualite.risques'},
+                    {'endpoint': 'qualite.equipements', 'icon': 'fa-tools', 'label': 'Équipements',
+                     'active_prefix': 'qualite.equipements'},
+                    {'endpoint': 'qualite.controle', 'icon': 'fa-flask', 'label': 'Contrôle qualité',
+                     'active_prefix': 'qualite.controle'},
+                    {'endpoint': 'qualite.revue', 'icon': 'fa-chart-pie', 'label': 'Revue de direction',
+                     'active_prefix': 'qualite.revue'},
+                    {'endpoint': 'ishikawa.index', 'icon': 'fa-fish', 'label': 'Ishikawa',
+                     'active_prefix': 'ishikawa.'},
+                ]
             })
 
-        # --- HACCP / ISO 22000 (si activé) ---
+        # --- PILOTAGE & TRANSVERSAL ---
+        if 'pilotage' in active_names:
+            sections.append({
+                'id': 'pilotage', 'title': 'Pilotage & Transversal', 'icon': 'fa-tachometer-alt', 'items': [
+                    {'endpoint': 'objectifs.index', 'icon': 'fa-bullseye', 'label': 'Objectifs qualité',
+                     'active_prefix': 'objectifs.'},
+                ]
+            })
+
+        # --- PERFORMANCE & KPI ---
+        if 'performance' in active_names:
+            sections.append({
+                'id': 'performance', 'title': 'Performance & KPI', 'icon': 'fa-chart-bar', 'items': [
+                    {'endpoint': 'indicateurs.index', 'icon': 'fa-chart-bar', 'label': 'Indicateurs',
+                     'active_prefix': 'indicateurs.'},
+                ]
+            })
+
+        # --- NC & CAPA ---
+        if 'nc_capa' in active_names:
+            sections.append({
+                'id': 'nc_capa', 'title': 'NC & CAPA', 'icon': 'fa-exclamation-triangle', 'items': [
+                    {'endpoint': 'nonconformites.index', 'icon': 'fa-exclamation-triangle', 'label': 'Non-conformités',
+                     'active_prefix': 'nonconformites.'},
+                    {'endpoint': 'actions.liste_actions', 'icon': 'fa-tasks', 'label': 'Actions / CAPA',
+                     'active_prefix': 'actions.'},
+                ]
+            })
+
+        # --- AUDITS ---
+        if 'audits' in active_names:
+            sections.append({
+                'id': 'audits', 'title': 'Audits', 'icon': 'fa-clipboard-check', 'items': [
+                    {'endpoint': 'audit.index', 'icon': 'fa-clipboard-check', 'label': 'Audits',
+                     'active_prefix': 'audit.'},
+                ]
+            })
+
+        # --- PROCESSUS & WORKFLOWS ---
+        if 'processus' in active_names:
+            sections.append({
+                'id': 'processus', 'title': 'Processus & Workflows', 'icon': 'fa-project-diagram', 'items': [
+                    {'endpoint': 'processus.index', 'icon': 'fa-project-diagram', 'label': 'Processus & BPMN',
+                     'active_prefix': 'processus.'},
+                    {'endpoint': 'workflow_engine.index', 'icon': 'fa-cogs', 'label': 'Workflows',
+                     'active_prefix': 'workflow_engine.'},
+                    {'endpoint': 'change_management.index', 'icon': 'fa-exchange-alt', 'label': 'Changements',
+                     'active_prefix': 'change_management.'},
+                ]
+            })
+
+        # --- VEILLE RÉGLEMENTAIRE ---
+        if 'veille' in active_names:
+            sections.append({
+                'id': 'veille', 'title': 'Veille réglementaire', 'icon': 'fa-satellite-dish', 'items': [
+                    {'endpoint': 'textes.library_all', 'icon': 'fa-book', 'label': 'Bibliothèque',
+                     'active_prefix': 'textes.library'},
+                    {'endpoint': 'conformite.index', 'icon': 'fa-clipboard-list', 'label': 'Conformité',
+                     'active_prefix': 'conformite.'},
+                ]
+            })
+
+        # --- FORMATIONS & COMPÉTENCES ---
+        if 'formations' in active_names:
+            sections.append({
+                'id': 'formations', 'title': 'Formations & Compétences', 'icon': 'fa-graduation-cap', 'items': [
+                    {'endpoint': 'formations.index', 'icon': 'fa-graduation-cap', 'label': 'Formations',
+                     'active_prefix': 'formations.index'},
+                    {'endpoint': 'formations.participants', 'icon': 'fa-users', 'label': 'Participants',
+                     'active_prefix': 'formations.participants'},
+                    {'endpoint': 'formations.matrice', 'icon': 'fa-th-list', 'label': 'Matrice compétences',
+                     'active_prefix': 'formations.matrice'},
+                    {'endpoint': 'formations.certifications', 'icon': 'fa-certificate', 'label': 'Certifications',
+                     'active_prefix': 'formations.certifications'},
+                ]
+            })
+
+        # --- RH QHSE ---
+        if 'rh_qhse' in active_names:
+            sections.append({
+                'id': 'rh_qhse', 'title': 'RH QHSE', 'icon': 'fa-users', 'items': [
+                    {'endpoint': 'rh_qhse.index', 'icon': 'fa-users', 'label': 'Employés & suivi RH',
+                     'active_prefix': 'rh_qhse.'},
+                ]
+            })
+
+        # --- CONNAISSANCES ---
+        if 'connaissances' in active_names:
+            sections.append({
+                'id': 'connaissances', 'title': 'Connaissances', 'icon': 'fa-brain', 'items': [
+                    {'endpoint': 'connaissances.index', 'icon': 'fa-brain', 'label': 'REX & FAQ',
+                     'active_prefix': 'connaissances.'},
+                ]
+            })
+
+        # --- FOURNISSEURS & ACHATS ---
+        if 'fournisseurs' in active_names:
+            sections.append({
+                'id': 'fournisseurs', 'title': 'Fournisseurs & Achats', 'icon': 'fa-truck', 'items': [
+                    {'endpoint': 'fournisseurs.index', 'icon': 'fa-truck', 'label': 'Fournisseurs',
+                     'active_prefix': 'fournisseurs.'},
+                ]
+            })
+
+        # --- RÉCLAMATIONS CLIENTS ---
+        if 'reclamations' in active_names:
+            sections.append({
+                'id': 'reclamations', 'title': 'Réclamations clients', 'icon': 'fa-headset', 'items': [
+                    {'endpoint': 'reclamations.index', 'icon': 'fa-headset', 'label': 'Réclamations',
+                     'active_prefix': 'reclamations.'},
+                ]
+            })
+
+        # --- PLANIFICATION ---
+        if 'planification' in active_names:
+            sections.append({
+                'id': 'planification', 'title': 'Planification', 'icon': 'fa-calendar-alt', 'items': [
+                    {'endpoint': 'planification.index', 'icon': 'fa-calendar-alt', 'label': 'Événements & calendrier',
+                     'active_prefix': 'planification.'},
+                ]
+            })
+
+        # --- RÉUNIONS & REVUES ---
+        if 'reunions' in active_names:
+            sections.append({
+                'id': 'reunions', 'title': 'Réunions & Revues', 'icon': 'fa-handshake', 'items': [
+                    {'endpoint': 'reunions.index', 'icon': 'fa-handshake', 'label': 'Réunions',
+                     'active_prefix': 'reunions.'},
+                ]
+            })
+
+        # --- MAINTENANCE ---
+        if 'maintenance' in active_names:
+            sections.append({
+                'id': 'maintenance', 'title': 'Maintenance', 'icon': 'fa-tools', 'items': [
+                    {'endpoint': 'maintenance.index', 'icon': 'fa-tools', 'label': 'Équipements & interventions',
+                     'active_prefix': 'maintenance.'},
+                ]
+            })
+
+        # --- LABORATOIRE ---
+        if 'laboratoire' in active_names:
+            sections.append({
+                'id': 'laboratoire', 'title': 'Laboratoire', 'icon': 'fa-flask', 'items': [
+                    {'endpoint': 'laboratoire.index', 'icon': 'fa-flask', 'label': "Plans d'analyse",
+                     'active_prefix': 'laboratoire.'},
+                ]
+            })
+
+        # --- HSE / ISO 45001 ---
+        if 'hse' in active_names:
+            sections.append({
+                'id': 'hse', 'title': 'HSE / ISO 45001', 'icon': 'fa-hard-hat', 'items': [
+                    {'endpoint': 'hse.tableau_de_bord', 'icon': 'fa-chart-pie', 'label': 'Tableau de bord',
+                     'active_prefix': 'hse.tableau_de_bord'},
+                    {'endpoint': 'hse.incidents', 'icon': 'fa-bug', 'label': 'Incidents',
+                     'active_prefix': 'hse.incidents'},
+                    {'endpoint': 'hse.duer', 'icon': 'fa-file-alt', 'label': 'DUER',
+                     'active_prefix': 'hse.duer'},
+                    {'endpoint': 'hse.epi_liste', 'icon': 'fa-hard-hat', 'label': 'EPI',
+                     'active_prefix': 'hse.epi'},
+                    {'endpoint': 'hse.inspections', 'icon': 'fa-clipboard-check', 'label': 'Inspections',
+                     'active_prefix': 'hse.inspections'},
+                    {'endpoint': 'hse.permis_travail', 'icon': 'fa-file-signature', 'label': 'Permis de travail',
+                     'active_prefix': 'hse.permis'},
+                ]
+            })
+
+        # --- ENVIRONNEMENT / ISO 14001 ---
+        if 'environnement' in active_names:
+            sections.append({
+                'id': 'environnement', 'title': 'Environnement / ISO 14001', 'icon': 'fa-leaf', 'items': [
+                    {'endpoint': 'environnement.index', 'icon': 'fa-leaf', 'label': 'Aspects environnementaux',
+                     'active_prefix': 'environnement.'},
+                ]
+            })
+
+        # --- HACCP / ISO 22000 ---
         if 'haccp' in active_names:
             sections.append({
                 'id': 'haccp', 'title': 'HACCP / ISO 22000', 'icon': 'fa-utensils', 'items': [
@@ -430,132 +570,14 @@ class PluginManager:
                     {'endpoint': 'haccp.ccp', 'icon': 'fa-exclamation-triangle', 'label': 'CCP'},
                     {'endpoint': 'haccp.enregistrements', 'icon': 'fa-clipboard-check', 'label': 'Enregistrements'},
                     {'endpoint': 'haccp.prp', 'icon': 'fa-hand-sparkles', 'label': 'PRP'},
+                    {'endpoint': 'haccp.oprp', 'icon': 'fa-shield-alt', 'label': 'OPRP'},
+                    {'endpoint': 'haccp.enregistrements_oprp', 'icon': 'fa-clipboard-list', 'label': 'Enreg. OPRP'},
                     {'endpoint': 'haccp.tracabilite', 'icon': 'fa-sitemap', 'label': 'Traçabilité'},
                     {'endpoint': 'haccp.rappels', 'icon': 'fa-exclamation-circle', 'label': 'Rappels produits'},
                 ]
             })
 
-        # --- HSE / ISO 45001 (si activé) ---
-        if 'hse' in active_names:
-            hse_items = [
-                {'endpoint': 'hse.tableau_de_bord', 'icon': 'fa-chart-pie', 'label': 'Tableau de bord',
-                 'active_prefix': 'hse.tableau_de_bord'},
-                {'endpoint': 'hse.incidents', 'icon': 'fa-bug', 'label': 'Incidents',
-                 'active_prefix': 'hse.incidents'},
-                {'endpoint': 'hse.epi_liste', 'icon': 'fa-hard-hat', 'label': 'EPI',
-                 'active_prefix': 'hse.epi'},
-                {'endpoint': 'hse.inspections', 'icon': 'fa-clipboard-check', 'label': 'Inspections',
-                 'active_prefix': 'hse.inspections'},
-                {'endpoint': 'hse.permis_travail', 'icon': 'fa-file-signature', 'label': 'Permis de travail',
-                 'active_prefix': 'hse.permis'},
-            ]
-            sections.append({
-                'id': 'hse', 'title': 'HSE / ISO 45001', 'icon': 'fa-hard-hat',
-                'items': hse_items,
-            })
-
-        # --- ENVIRONNEMENT / ISO 14001 (si activé) ---
-        if 'environnement' in active_names:
-            sections.append({
-                'id': 'environnement', 'title': 'Environnement / ISO 14001', 'icon': 'fa-leaf', 'items': [
-                    {'endpoint': 'environnement.index', 'icon': 'fa-leaf', 'label': 'Aspects environnementaux',
-                     'active_prefix': 'environnement.'},
-                ]
-            })
-
-        # --- VEILLE RÉGLEMENTAIRE (si hse ou qualite activé) ---
-        if 'hse' in active_names or 'qualite' in active_names:
-            sections.append({
-                'id': 'veille', 'title': 'Veille réglementaire', 'icon': 'fa-satellite-dish', 'items': [
-                    {'endpoint': 'textes.library_all', 'icon': 'fa-book', 'label': 'Bibliothèque',
-                     'active_prefix': 'textes.library'},
-                    {'endpoint': 'conformite.index', 'icon': 'fa-clipboard-list', 'label': 'Conformité',
-                     'active_prefix': 'conformite.'},
-                ]
-            })
-
-        # --- FORMATIONS & COMPÉTENCES (si activé) ---
-        if 'formations' in active_names:
-            sections.append({
-                'id': 'formations', 'title': 'Formations & Compétences', 'icon': 'fa-graduation-cap', 'items': [
-                    {'endpoint': 'formations.index', 'icon': 'fa-graduation-cap', 'label': 'Formations',
-                     'active_prefix': 'formations.'},
-                ]
-            })
-
-        # --- FOURNISSEURS (si activé) ---
-        if 'fournisseurs' in active_names:
-            sections.append({
-                'id': 'fournisseurs', 'title': 'Fournisseurs & Achats', 'icon': 'fa-truck', 'items': [
-                    {'endpoint': 'fournisseurs.index', 'icon': 'fa-truck', 'label': 'Fournisseurs',
-                     'active_prefix': 'fournisseurs.'},
-                ]
-            })
-
-        # --- RÉCLAMATIONS (si activé) ---
-        if 'reclamations' in active_names:
-            sections.append({
-                'id': 'reclamations', 'title': 'Réclamations clients', 'icon': 'fa-headset', 'items': [
-                    {'endpoint': 'reclamations.index', 'icon': 'fa-headset', 'label': 'Réclamations',
-                     'active_prefix': 'reclamations.'},
-                ]
-            })
-
-        # --- MAINTENANCE (si activé) ---
-        if 'maintenance' in active_names:
-            sections.append({
-                'id': 'maintenance', 'title': 'Maintenance', 'icon': 'fa-tools', 'items': [
-                    {'endpoint': 'maintenance.index', 'icon': 'fa-tools', 'label': 'Équipements & interventions',
-                     'active_prefix': 'maintenance.'},
-                ]
-            })
-
-        # --- LABORATOIRE (si activé) ---
-        if 'laboratoire' in active_names:
-            sections.append({
-                'id': 'laboratoire', 'title': 'Laboratoire', 'icon': 'fa-flask', 'items': [
-                    {'endpoint': 'laboratoire.index', 'icon': 'fa-flask', 'label': 'Plans d\'analyse',
-                     'active_prefix': 'laboratoire.'},
-                ]
-            })
-
-        # --- PLANIFICATION (si activé) ---
-        if 'planification' in active_names:
-            sections.append({
-                'id': 'planification', 'title': 'Planification', 'icon': 'fa-calendar-alt', 'items': [
-                    {'endpoint': 'planification.index', 'icon': 'fa-calendar-alt', 'label': 'Événements & calendrier',
-                     'active_prefix': 'planification.'},
-                ]
-            })
-
-        # --- RÉUNIONS & REVUES (si activé) ---
-        if 'reunions' in active_names:
-            sections.append({
-                'id': 'reunions', 'title': 'Réunions & Revues', 'icon': 'fa-handshake', 'items': [
-                    {'endpoint': 'reunions.index', 'icon': 'fa-handshake', 'label': 'Réunions',
-                     'active_prefix': 'reunions.'},
-                ]
-            })
-
-        # --- RH QHSE (si activé) ---
-        if 'rh_qhse' in active_names:
-            sections.append({
-                'id': 'rh_qhse', 'title': 'RH QHSE', 'icon': 'fa-users', 'items': [
-                    {'endpoint': 'rh_qhse.index', 'icon': 'fa-users', 'label': 'Employés & suivi RH',
-                     'active_prefix': 'rh_qhse.'},
-                ]
-            })
-
-        # --- CONNAISSANCES (si activé) ---
-        if 'connaissances' in active_names:
-            sections.append({
-                'id': 'connaissances', 'title': 'Connaissances', 'icon': 'fa-brain', 'items': [
-                    {'endpoint': 'connaissances.index', 'icon': 'fa-brain', 'label': 'REX & FAQ',
-                     'active_prefix': 'connaissances.'},
-                ]
-            })
-
-        # --- URGENCES (si activé) ---
+        # --- GESTION DES URGENCES ---
         if 'urgences' in active_names:
             sections.append({
                 'id': 'urgences', 'title': 'Gestion des urgences', 'icon': 'fa-ambulance', 'items': [

@@ -1,16 +1,18 @@
-from flask import render_template, request, redirect, url_for, flash, abort
+from flask import render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from app.admin import admin
 from app import db, mail
 from app.models import (
     Utilisateur, JournalSecurite, Notification,
-    SubscriptionPlan
+    SubscriptionPlan, Entreprise,
 )
 from app.services.backup_service import BackupService
+from app.services.subscription_service import apply_subscription_update
 from app.utils.permission_catalog import iter_permission_rows, PERMISSION_CATALOG
 from app.utils.subscriptions import _seed_default_plans
 from functools import wraps
 from flask_mail import Message
+from datetime import date, timedelta, datetime
 
 
 def admin_required(f):
@@ -36,6 +38,24 @@ def securite():
     types = [t[0] for t in db.session.query(JournalSecurite.type_action).distinct().all()]
     utilisateurs = {u.id: u for u in Utilisateur.query.all()}
     return render_template('admin/securite.html', logs=logs, types=types, utilisateurs=utilisateurs)
+
+
+@admin.route('/securite/<int:incident_id>/resolve', methods=['POST'])
+@login_required
+@admin_required
+def resolve_incident(incident_id):
+    try:
+        incident = db.session.get(JournalSecurite, incident_id)
+        if not incident:
+            return jsonify({'success': False, 'error': 'Introuvable'}), 404
+        incident.resolu = True
+        incident.resolved_at = datetime.utcnow()
+        incident.resolved_by = current_user.id
+        db.session.commit()
+        return jsonify({'success': True, 'resolved_at': incident.resolved_at.isoformat()})
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Erreur serveur'}), 500
 
 
 @admin.route('/notifications')
@@ -94,6 +114,29 @@ def plans_seed():
     _seed_default_plans()
     flash('Plans d\'abonnement par défaut créés.', 'success')
     return redirect(url_for('admin.plans'))
+
+
+@admin.route('/plans/entreprises')
+@login_required
+@admin_required
+def plans_entreprises():
+    return redirect(url_for('admin.entreprises'))
+
+
+@admin.route('/plans/entreprises/<int:eid>/update', methods=['POST'])
+@login_required
+@admin_required
+def plans_entreprises_update(eid):
+    entreprise = db.session.get(Entreprise, eid)
+    if not entreprise:
+        abort(404)
+    payload = request.get_json() or {}
+    try:
+        apply_subscription_update(entreprise, payload)
+        db.session.commit()
+        return jsonify({'success': True})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 
 @admin.route('/backups')

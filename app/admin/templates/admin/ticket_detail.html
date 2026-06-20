@@ -1,0 +1,196 @@
+{% extends 'layout.html' %}
+{% block title %}Admin - {{ ticket.reference }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <a href="{{ url_for('admin.admin_tickets') }}" class="btn btn-sm btn-outline-secondary rounded-circle p-1" style="width:32px;height:32px;">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <span class="text-muted small fw-medium">{{ ticket.reference }}</span>
+    {% set statut_badges = {'OUVERT': 'success', 'EN_COURS': 'primary', 'ATTENTE': 'warning', 'FERME': 'secondary'} %}
+    <span class="badge bg-{{ statut_badges.get(ticket.statut, 'secondary') }}">{{ ticket.statut }}</span>
+    <span class="badge bg-secondary">{{ ticket.type }}</span>
+    <h1 class="h4 mb-0 ms-2">{{ ticket.sujet }}</h1>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7 col-xl-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+          <span class="fw-semibold"><i class="fas fa-comments me-2 text-primary"></i>Discussion</span>
+          <small class="text-muted">{{ messages|length }} message(s)</small>
+        </div>
+        <div class="card-body px-4 py-3" style="max-height:60vh;overflow-y:auto;">
+          {% if messages %}
+          <div class="d-flex flex-column gap-3">
+            {% for msg in messages %}
+            {% if msg.est_interne %}
+            <div class="d-flex justify-content-center">
+              <div class="bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-3 px-4 py-2" style="max-width:90%;">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span class="badge bg-warning text-dark fw-normal" style="font-size:0.7rem;">
+                    <i class="fas fa-lock me-1"></i>Note interne
+                  </span>
+                  <small class="text-muted">{{ msg.auteur_nom }} · {{ msg.date_envoi.strftime('%d/%m/%Y %H:%M') if msg.date_envoi else '' }}</small>
+                </div>
+                <div style="white-space:pre-wrap;" class="small">{{ msg.contenu }}</div>
+              </div>
+            </div>
+            {% else %}
+            <div class="d-flex {% if msg.auteur_type == 'admin' %}justify-content-end{% endif %} gap-2">
+              {% if msg.auteur_type != 'admin' %}
+              <div class="flex-shrink-0">
+                <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;font-size:0.8rem;font-weight:600;">
+                  {{ msg.auteur_nom[:2]|upper }}
+                </div>
+              </div>
+              {% endif %}
+              <div class="{% if msg.auteur_type == 'admin' %}bg-primary text-white{% else %}bg-light{% endif %} rounded-3 px-3 py-2" style="max-width:75%;">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span class="small fw-semibold">{{ msg.auteur_nom }}</span>
+                  <small class="{% if msg.auteur_type == 'admin' %}text-white-50{% else %}text-muted{% endif %}" style="font-size:0.7rem;">{{ msg.date_envoi.strftime('%d/%m/%Y %H:%M') if msg.date_envoi else '' }}</small>
+                </div>
+                <div class="small" style="white-space:pre-wrap;line-height:1.5;">{{ msg.contenu }}</div>
+              </div>
+              {% if msg.auteur_type == 'admin' %}
+              <div class="flex-shrink-0">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;font-size:0.8rem;font-weight:600;">
+                  {{ msg.auteur_nom[:2]|upper }}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-inbox text-muted fa-2x mb-2"></i>
+            <p class="text-muted small mb-0">Aucun message.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if ticket.statut != 'FERME' %}
+      <div class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-white border-bottom py-3">
+          <span class="fw-semibold"><i class="fas fa-reply me-2 text-primary"></i>Répondre</span>
+        </div>
+        <div class="card-body">
+          <form id="repondre" method="POST" action="{{ url_for('admin.admin_ticket_repondre', ticket_id=ticket.id) }}">
+            <div class="mb-3">
+              <textarea name="contenu" class="form-control border-0 bg-light" rows="3" placeholder="Écrivez votre réponse..." required style="resize:none;"></textarea>
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" name="est_interne" value="1" id="estInterne">
+                <label class="form-check-label small text-muted" for="estInterne">
+                  <i class="fas fa-lock me-1 text-warning"></i> Note interne
+                </label>
+              </div>
+              <button type="submit" class="btn btn-primary px-4">
+                <i class="fas fa-paper-plane me-1"></i> Envoyer
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-5 col-xl-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-bottom py-3">
+          <span class="fw-semibold"><i class="fas fa-info-circle me-2 text-primary"></i>Détails</span>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0 small">
+            <dt class="col-5 text-muted">Référence</dt>
+            <dd class="col-7 fw-medium"><code>{{ ticket.reference }}</code></dd>
+            <dt class="col-5 text-muted">Type</dt>
+            <dd class="col-7">{{ ticket.type }}</dd>
+            <dt class="col-5 text-muted">Statut</dt>
+            <dd class="col-7"><span class="badge bg-{{ statut_badges.get(ticket.statut, 'secondary') }}">{{ ticket.statut }}</span></dd>
+            {% if ticket.nom_contact %}
+            <dt class="col-5 text-muted">Contact</dt>
+            <dd class="col-7">{{ ticket.nom_contact }}</dd>
+            {% endif %}
+            {% if ticket.email_contact %}
+            <dt class="col-5 text-muted">Email</dt>
+            <dd class="col-7"><a href="mailto:{{ ticket.email_contact }}">{{ ticket.email_contact }}</a></dd>
+            {% endif %}
+            {% if ticket.telephone %}
+            <dt class="col-5 text-muted">Téléphone</dt>
+            <dd class="col-7">{{ ticket.telephone }}</dd>
+            {% endif %}
+            {% if ticket.cree_par %}
+            <dt class="col-5 text-muted">Créé par</dt>
+            <dd class="col-7">{{ ticket.cree_par.prenom }} {{ ticket.cree_par.nom }}</dd>
+            {% endif %}
+            <dt class="col-5 text-muted">Créé le</dt>
+            <dd class="col-7">{{ ticket.date_creation.strftime('%d/%m/%Y %H:%M') if ticket.date_creation else '' }}</dd>
+            {% if ticket.date_fermeture %}
+            <dt class="col-5 text-muted">Fermé le</dt>
+            <dd class="col-7">{{ ticket.date_fermeture.strftime('%d/%m/%Y %H:%M') }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-bottom py-3">
+          <span class="fw-semibold"><i class="fas fa-tag me-2 text-primary"></i>Changer le statut</span>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('admin.admin_ticket_changer_statut', ticket_id=ticket.id) }}">
+            <div class="d-flex gap-2">
+              <select name="statut" class="form-select form-select-sm">
+                <option value="OUVERT" {% if ticket.statut == 'OUVERT' %}selected{% endif %}>Ouvert</option>
+                <option value="EN_COURS" {% if ticket.statut == 'EN_COURS' %}selected{% endif %}>En cours</option>
+                <option value="ATTENTE" {% if ticket.statut == 'ATTENTE' %}selected{% endif %}>Attente</option>
+                <option value="FERME" {% if ticket.statut == 'FERME' %}selected{% endif %}>Fermé</option>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-primary">Appliquer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+          <span class="fw-semibold"><i class="fas fa-history me-2 text-primary"></i>Actions rapides</span>
+        </div>
+        <div class="card-body d-grid gap-2">
+          {% if ticket.email_contact %}
+          <a href="mailto:{{ ticket.email_contact }}?subject=Re:{{ ticket.reference }}%20-%20{{ ticket.sujet }}" class="btn btn-outline-secondary btn-sm text-start">
+            <i class="fas fa-envelope me-2"></i>Envoyer un email
+          </a>
+          {% endif %}
+          {% if ticket.statut != 'FERME' %}
+          <form method="POST" action="{{ url_for('admin.admin_ticket_changer_statut', ticket_id=ticket.id) }}">
+            <input type="hidden" name="statut" value="FERME">
+            <button type="submit" class="btn btn-outline-danger btn-sm w-100 text-start" onclick="return confirm('Fermer ce ticket ?')">
+              <i class="fas fa-check-circle me-2"></i>Fermer le ticket
+            </button>
+          </form>
+          {% else %}
+          <form method="POST" action="{{ url_for('admin.admin_ticket_changer_statut', ticket_id=ticket.id) }}">
+            <input type="hidden" name="statut" value="EN_COURS">
+            <button type="submit" class="btn btn-outline-success btn-sm w-100 text-start">
+              <i class="fas fa-redo me-2"></i>Réouvrir
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  var thread = document.querySelector('.card-body[style*="max-height"]');
+  if (thread) thread.scrollTop = thread.scrollHeight;
+</script>
+{% endblock %}

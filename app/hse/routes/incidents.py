@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from app.utils.permissions import module_access_required
 from app import db
 from app.models.hse import Incident
+from app.models.auth import Utilisateur
+from app.utils.notifications import create_notification
 from app.hse import blueprint
 from datetime import date, datetime
 
@@ -58,6 +60,20 @@ def api_incidents_create():
     )
     db.session.add(item)
     db.session.commit()
+
+    # Notifier les admins système
+    from app.models.auth import Role
+    role_admin = Role.query.filter_by(nom='Administrateur').first()
+    if role_admin:
+        admins = Utilisateur.query.filter_by(
+            role_id=role_admin.id, actif=True
+        ).all()
+        type_label = {'accident': 'Accident', 'presqu_accident': 'Presqu\'accident', 'incident': 'Incident'}
+        gravite_label = {'critique': 'Critique', 'majeur': 'Majeur', 'mineur': 'Mineur'}
+        msg = f"{type_label.get(data.get('type_incident','incident'), 'Incident')} ({gravite_label.get(data.get('gravite',''), '')}) : {data.get('description','')[:80]} [INCIDENT:{item.id}]"
+        for admin in admins:
+            create_notification(admin.id, msg, type='incident')
+
     return jsonify({'success': True, 'id': item.id})
 
 
@@ -79,6 +95,18 @@ def api_incidents_update(item_id):
     if data.get('action_corrective_id'):
         item.action_corrective_id = data['action_corrective_id']
     db.session.commit()
+
+    # Notifier les admins si changement de statut
+    if 'statut' in data:
+        from app.models.auth import Role
+        role_admin = Role.query.filter_by(nom='Administrateur').first()
+        if role_admin:
+            admins = Utilisateur.query.filter_by(role_id=role_admin.id, actif=True).all()
+            type_label = {'accident': 'Accident', 'presqu_accident': 'Presqu\'accident', 'incident': 'Incident'}
+            msg = f"{type_label.get(item.type_incident, 'Incident')} → {data['statut']} : {item.description[:80]} [INCIDENT:{item.id}]"
+            for admin in admins:
+                create_notification(admin.id, msg, type='incident')
+
     return jsonify({'success': True})
 
 

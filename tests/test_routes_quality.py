@@ -168,7 +168,7 @@ class TestNonConformitesRoutes:
         assert resp.content_type == 'application/json'
 
     def test_api_create(self, login_client):
-        resp = login_client.post('/nonconformites/api/create',
+        resp = login_client.post('/nonconformites/api/creer',
                                 data=json.dumps({
                                     'description': 'Test NC',
                                     'source': 'interne',
@@ -178,13 +178,13 @@ class TestNonConformitesRoutes:
         assert resp.status_code in (200, 403)
 
     def test_api_update(self, login_client, nonconformite):
-        resp = login_client.post(f'/nonconformites/api/{nonconformite.id}/update',
+        resp = login_client.post(f'/nonconformites/api/{nonconformite.id}/modifier',
                                 data=json.dumps({'description': 'Updated'}),
                                 content_type='application/json')
         assert resp.status_code in (200, 403)
 
     def test_api_delete(self, login_client, nonconformite):
-        resp = login_client.post(f'/nonconformites/api/{nonconformite.id}/delete',
+        resp = login_client.post(f'/nonconformites/api/{nonconformite.id}/supprimer',
                                 data=json.dumps({}),
                                 content_type='application/json')
         assert resp.status_code in (200, 403)
@@ -211,7 +211,7 @@ class TestIshikawaRoutes:
         assert resp.content_type == 'application/json'
 
     def test_api_create(self, login_client):
-        resp = login_client.post('/ishikawa/api/create',
+        resp = login_client.post('/ishikawa/api/creer',
                                 data=json.dumps({
                                     'titre': 'Test analyse',
                                     'probleme': 'Probleme test',
@@ -220,13 +220,13 @@ class TestIshikawaRoutes:
         assert resp.status_code in (200, 403)
 
     def test_api_update(self, login_client, ishikawa_analysis):
-        resp = login_client.post(f'/ishikawa/api/{ishikawa_analysis.id}/update',
+        resp = login_client.post(f'/ishikawa/api/{ishikawa_analysis.id}/modifier',
                                 data=json.dumps({'titre': 'Updated'}),
                                 content_type='application/json')
         assert resp.status_code in (200, 403)
 
     def test_api_delete(self, login_client, ishikawa_analysis):
-        resp = login_client.post(f'/ishikawa/api/{ishikawa_analysis.id}/delete',
+        resp = login_client.post(f'/ishikawa/api/{ishikawa_analysis.id}/supprimer',
                                 data=json.dumps({}),
                                 content_type='application/json')
         assert resp.status_code in (200, 403)

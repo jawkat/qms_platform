@@ -192,9 +192,11 @@
 {% block scripts %}
 <script>
 const API_BASE = '{{ url_for("nonconformites.api_liste") }}';
-const CREATE_URL = '{{ url_for("nonconformites.api_create") }}';
-const UPDATE_URL = '{{ url_for("nonconformites.api_update", item_id=0) }}';
-const DELETE_URL = '{{ url_for("nonconformites.api_delete", item_id=0) }}';
+const CREATE_URL = '{{ url_for("nonconformites.api_creer") }}';
+
+const UPDATE_URL = '{{ url_for("nonconformites.api_modifier", item_id=0) }}';
+
+const DELETE_URL = '{{ url_for("nonconformites.api_supprimer", item_id=0) }}';
 const VALIDER_URL = '{{ url_for("nonconformites.api_valider_cloture", item_id=0) }}';
 const STATS_URL = '{{ url_for("nonconformites.api_stats") }}';
 

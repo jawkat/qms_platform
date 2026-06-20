@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, flash
+from flask import render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import Utilisateur, Role, Permission
@@ -136,6 +136,17 @@ def create():
         user.set_password(temp_password)
         db.session.add(user)
         db.session.commit()
+
+        from app.utils.notifications import send_account_created_email
+        role_name = user.role.nom if user.role else None
+        login_link = current_app.config.get('APP_LOGIN_URL', 'http://localhost:5005/')
+        send_account_created_email(
+            recipient_email=user.email,
+            recipient_name=f"{user.prenom} {user.nom}",
+            role_name=role_name,
+            login_link=login_link,
+        )
+
         flash(f'Utilisateur cree. Mot de passe temporaire: {temp_password}', 'success')
         return redirect(url_for('users.list_users'))
     roles = Role.query.filter_by(est_systeme=False).all()
@@ -211,11 +222,9 @@ def forgot_password():
         email = request.form.get('email', '').strip()
         user = Utilisateur.query.filter_by(email=email).first()
         if user:
-            token = user.get_reset_token()
-            reset_url = url_for('users.reset_password_token', token=token, _external=True)
-            flash(f'Lien de réinitialisation (dev) : {reset_url}', 'success')
-        else:
-            flash('Si cet email existe, un lien de réinitialisation a été envoyé.', 'info')
+            from app.utils.notifications import send_password_reset_email
+            send_password_reset_email(user)
+        flash('Si cet email existe, un lien de reinitialisation a ete envoye.', 'info')
         return redirect(url_for('users.forgot_password'))
     return render_template('users/forgot_password.html')
 

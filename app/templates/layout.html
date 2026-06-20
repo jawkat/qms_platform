@@ -61,13 +61,6 @@
       padding: 1.5rem;
       min-height: 100vh;
     }
-    .domaine-switch .btn {
-      border-radius: 0;
-      font-size: .8rem;
-      padding: .25rem .75rem;
-    }
-    .domaine-switch .btn:first-child { border-radius: .25rem 0 0 .25rem; }
-    .domaine-switch .btn:last-child { border-radius: 0 .25rem .25rem 0; }
     .navbar-top {
       background: #fff;
       border-bottom: 1px solid #e9ecef;
@@ -78,6 +71,7 @@
     .notif-dropdown .notif-item { padding: .75rem 1rem; border-bottom: 1px solid #f0f0f0; }
     .notif-dropdown .notif-item:last-child { border-bottom: none; }
     .notif-dropdown .notif-item.unread { background: #fff5f5; }
+    .notif-dropdown .notif-item .small { font-size: .8rem; }
     .notif-badge { position: absolute; top: -4px; right: -6px; font-size: .6rem; padding: .15em .45em; }
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); }
@@ -119,25 +113,7 @@
           </button>
         </div>
 
-        {% if has_switch %}
-        <div class="domaine-switch btn-group btn-group-sm w-100 mb-3">
-          <a href="{{ url_for('main.switch_domaine', domaine='hse') }}"
-             class="btn {% if domaine_actif == 'hse' %}btn-danger{% else %}btn-outline-light{% endif %}">
-            <i class="fas fa-hard-hat"></i> HSE
-          </a>
-          <a href="{{ url_for('main.switch_domaine', domaine='qualite') }}"
-             class="btn {% if domaine_actif == 'qualite' %}btn-danger{% else %}btn-outline-light{% endif %}">
-            <i class="fas fa-certificate"></i> Qualité
-          </a>
-        </div>
-        {% else %}
-        <div class="domaine-switch btn-group btn-group-sm w-100 mb-3">
-          <button class="btn btn-secondary disabled">
-            <i class="fas fa-{% if 'hse' in modules_actifs %}hard-hat{% else %}certificate{% endif %}"></i>
-            {{ 'HSE' if 'hse' in modules_actifs else 'Qualité' }}
-          </button>
-        </div>
-        {% endif %}
+
 
         <ul class="nav flex-column" id="sidebarAccordion">
           {% for section in sidebar_sections %}
@@ -216,6 +192,38 @@
       </div>
       {% endif %}
       {% endwith %}
+
+      {% if subscription_lifecycle is defined and subscription_pay_status is defined %}
+      {% if subscription_lifecycle == 'trial' %}
+      <div class="alert alert-info alert-dismissible fade show py-2 mb-0 rounded-0 border-0 text-center fw-semibold" role="alert">
+        <i class="fas fa-flask me-2"></i>
+        Période d'essai —
+        {% if subscription_days_remaining is not none and subscription_days_remaining > 0 %}
+        <strong>{{ subscription_days_remaining }} jour{{ 's' if subscription_days_remaining > 1 }}</strong> restant{{ 's' if subscription_days_remaining > 1 }}
+        (échéance le {{ subscription_due_date.strftime('%d/%m/%Y') }}).
+        {% else %}
+        terminée le {{ subscription_due_date.strftime('%d/%m/%Y') if subscription_due_date else '-' }}.
+        {% endif %}
+        <a href="{{ url_for('facturation.index') }}" class="alert-link ms-2"><i class="fas fa-credit-card me-1"></i>Souscrire</a>
+        <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+      </div>
+      {% elif subscription_days_remaining is not none and subscription_days_remaining <= 7 and subscription_pay_status != 'paid' %}
+      <div class="alert alert-{{ 'danger' if subscription_days_remaining <= 0 else 'warning' }} alert-dismissible fade show py-2 mb-0 rounded-0 border-0 text-center fw-semibold" role="alert">
+        <i class="fas fa-{{ 'exclamation-triangle' if subscription_days_remaining > 0 else 'ban' }} me-2"></i>
+        {% if subscription_days_remaining <= 0 %}
+        Votre abonnement a expiré le {{ subscription_due_date.strftime('%d/%m/%Y') }}. Veuillez régulariser votre paiement pour retrouver l'accès complet.
+        {% elif subscription_days_remaining == 0 %}
+        Votre abonnement expire aujourd'hui ({{ subscription_due_date.strftime('%d/%m/%Y') }}). Merci de procéder au paiement.
+        {% elif subscription_days_remaining == 1 %}
+        Votre abonnement expire demain ({{ subscription_due_date.strftime('%d/%m/%Y') }}). Merci de procéder au paiement.
+        {% else %}
+        Votre abonnement expire dans <strong>{{ subscription_days_remaining }} jours</strong> ({{ subscription_due_date.strftime('%d/%m/%Y') }}). Merci de régulariser votre situation.
+        {% endif %}
+        <a href="{{ url_for('facturation.index') }}" class="alert-link ms-2"><i class="fas fa-credit-card me-1"></i>Payer maintenant</a>
+        <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+      </div>
+      {% endif %}
+      {% endif %}
 
       {% block content %}{% endblock %}
     </main>
@@ -364,25 +372,30 @@
         var section = active.closest('.sidebar-section');
         if (section) {
           var id = section.getAttribute('data-section');
-          if (id) toggleSection(id);
+          if (id) {
+            var collapse = document.getElementById('section-' + id);
+            if (collapse && !collapse.classList.contains('open')) {
+              toggleSection(id);
+            }
+          }
         }
       }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(function() {
-        document.querySelectorAll('.flash-messages .alert').forEach(function(el) {
-          var bsAlert = new bootstrap.Alert(el);
-          setTimeout(function() { bsAlert.close(); }, 5000);
-        });
-      }, 100);
-      setupPasswordToggles();
-      setupCsrfProtection();
-      setupPasswordStrengths();
-      setupFormLoading();
       openActiveSection();
-
       loadNotifications();
+      setInterval(function() {
+        fetch('/api/notifications/unread-count', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+          .then(function(r){ return r.json(); })
+          .then(function(data) {
+            var count = document.getElementById('notifCount');
+            if (count) {
+              count.textContent = data.unread;
+              count.style.display = data.unread ? '' : 'none';
+            }
+          });
+      }, 30000);
       if (document.getElementById('notifDropdown')) {
         document.getElementById('notifDropdown').addEventListener('shown.bs.dropdown', loadNotifications);
       }
@@ -417,30 +430,44 @@
           }
           var html = '';
           var show = notifs.slice(0, 5);
+          var ICONS = {
+            'incident': 'fa-bug',
+            'accident': 'fa-bug',
+            'presqu_accident': 'fa-exclamation-triangle',
+            'overdue': 'fa-clock',
+            'echeance': 'fa-calendar-exclamation',
+            'alerte': 'fa-exclamation-circle',
+            'texte': 'fa-scroll',
+            'info': 'fa-info-circle',
+          };
+          var COLORS = {
+            'incident': '#e63946',
+            'accident': '#b91c1c',
+            'presqu_accident': '#f59e0b',
+            'overdue': '#dc2626',
+            'echeance': '#f59e0b',
+            'alerte': '#ef4444',
+            'texte': '#3b82f6',
+            'info': '#6b7280',
+          };
           show.forEach(function(n) {
             var cls = n.lu ? '' : 'unread';
-            html += '<div class="notif-item ' + cls + '">';
-            html += '<small class="text-muted d-block mb-1">' + (n.type || 'info') + '</small>';
+            var icon = ICONS[n.type] || 'fa-bell';
+            var color = COLORS[n.type] || '#6b7280';
+            html += '<a href="/notifications/' + n.id + '/open" class="notif-item ' + cls + '" style="text-decoration:none;color:inherit;display:block;">';
+            html += '<div class="d-flex align-items-start gap-2">';
+            html += '<i class="fas ' + icon + '" style="color:' + color + ';font-size:.85rem;margin-top:2px;"></i>';
+            html += '<div class="flex-grow-1">';
+            html += '<small class="text-muted d-block mb-1" style="font-size:.7rem;">' + (n.type || 'info') + '</small>';
             html += '<div class="small mb-1">' + n.message + '</div>';
             html += '<div class="d-flex justify-content-between align-items-center">';
             html += '<small class="text-muted">' + (n.date_envoi ? new Date(n.date_envoi).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '') + '</small>';
-            if (!n.lu) {
-              html += '<button class="btn btn-sm btn-link text-danger p-0 notif-read-btn" data-id="' + n.id + '" style="text-decoration:none;font-size:.75rem">Lu</button>';
-            }
-            html += '</div></div>';
+            html += '</div></div></div></a>';
           });
           if (notifs.length > 5) {
-            html += '<div class="text-center py-2"><a href="#" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
+            html += '<div class="text-center py-2"><a href="/admin/notifications" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
           }
           list.innerHTML = html;
-          list.querySelectorAll('.notif-read-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              var id = this.getAttribute('data-id');
-              fetch('/api/notifications/' + id + '/read', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
-                .then(function(r){ return r.json(); })
-                .then(function(){ loadNotifications(); });
-            });
-          });
         })
         .catch(function() {
           list.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';

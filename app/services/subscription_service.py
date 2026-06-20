@@ -49,10 +49,22 @@ def get_enterprise_lifecycle_status(entreprise):
     if raw_status in {'trial', 'active', 'suspended', 'cancelled', 'archived'}:
         return raw_status
 
-    if getattr(entreprise, 'abonnement_paye', False):
+    paye = getattr(entreprise, 'abonnement_paye', False)
+    due = getattr(entreprise, 'abonnement_prochaine_echeance', None)
+
+    if paye:
         return 'active'
 
-    # Legacy-safe default: tenants without explicit lifecycle remain active.
+    # Past due + unpaid → block
+    if due and due < date.today():
+        return 'suspended'
+
+    # Detect trial from plan type
+    abo_type = (getattr(entreprise, 'abonnement_type', None) or '').strip().lower()
+    if abo_type in ('trial', '', None):
+        return 'trial'
+
+    # Legacy fallback
     return 'active'
 
 
@@ -223,10 +235,13 @@ def apply_subscription_update(entreprise, payload):
         raise ValueError("Type d'abonnement invalide.")
 
     entreprise.abonnement_type = abonnement_type or None
-    entreprise.date_inscription = parse_optional_date(payload.get('date_inscription'), 'date 1ère inscription')
-    typed_due_date = parse_optional_date(payload.get('abonnement_prochaine_echeance'), 'prochaine échéance')
-    entreprise.abonnement_prochaine_echeance = typed_due_date
+    if 'date_inscription' in payload:
+        entreprise.date_inscription = parse_optional_date(payload.get('date_inscription'), 'date 1ère inscription')
+    typed_due_date = None
     force_due_date = payload.get('force_due_date') == '1'
+    if 'abonnement_prochaine_echeance' in payload:
+        typed_due_date = parse_optional_date(payload.get('abonnement_prochaine_echeance'), 'prochaine échéance')
+        entreprise.abonnement_prochaine_echeance = typed_due_date
     entreprise.abonnement_paye = payload.get('abonnement_paye') == '1'
     statut = (payload.get('statut') or '').strip().lower()
     if statut:

@@ -1,9 +1,9 @@
 import secrets
 from datetime import datetime
-from flask import render_template, request, jsonify, redirect, url_for, flash
+from flask import render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models import Ticket, MessageTicket
+from app.models import Ticket, MessageTicket, Notification, Utilisateur, Role
 from app.support import support
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
@@ -11,6 +11,35 @@ from app.utils.permissions import has_permission
 
 STATUTS = ['OUVERT', 'EN_COURS', 'ATTENTE', 'FERME']
 TYPES = ['technique', 'facturation', 'commercial', 'autre']
+
+
+def _get_admins():
+    return Utilisateur.query.join(Role, Utilisateur.role_id == Role.id) \
+                            .filter(Role.est_systeme == True).all()
+
+
+def _notifier_admins(ticket, message=None):
+    admins = _get_admins()
+    for admin in admins:
+        msg = f"Nouveau ticket {ticket.reference}: {ticket.sujet}"
+        if message:
+            msg = f"Nouveau message sur {ticket.reference}: {message.contenu[:100]}"
+        notif = Notification(
+            type='ticket',
+            message=f"{msg} [TICKET:{ticket.id}]",
+            utilisateur_id=admin.id,
+        )
+        db.session.add(notif)
+
+
+def _notifier_client(ticket, message):
+    if ticket.cree_par_id:
+        notif = Notification(
+            type='ticket',
+            message=f"Nouvelle réponse sur {ticket.reference}: {message.contenu[:100]} [TICKET:{ticket.id}]",
+            utilisateur_id=ticket.cree_par_id,
+        )
+        db.session.add(notif)
 
 
 @support.route('/')
@@ -36,8 +65,16 @@ def mes_tickets():
         )
     tickets = q.order_by(Ticket.date_dernier_message.desc().nullslast(),
                          Ticket.date_creation.desc()).all()
+
+    last_messages = {}
+    for t in tickets:
+        last_msg = MessageTicket.query.filter_by(ticket_id=t.id) \
+            .order_by(MessageTicket.date_envoi.desc()).first()
+        last_messages[t.id] = last_msg
+
     return render_template('support/tickets.html', tickets=tickets,
-                           statuts=STATUTS, types=TYPES, filters=request.args)
+                           statuts=STATUTS, types=TYPES, filters=request.args,
+                           last_messages=last_messages)
 
 
 @support.route('/creer', methods=['GET', 'POST'])
@@ -45,7 +82,7 @@ def mes_tickets():
 @has_permission('support.cree')
 def creer_ticket():
     if request.method == 'POST':
-        reference = 'TKT-' + secrets.token_hex(3).upper()
+        reference = Ticket.generer_reference()
         ticket = Ticket(
             reference=reference,
             type=request.form['type'],
@@ -70,6 +107,7 @@ def creer_ticket():
             date_envoi=datetime.utcnow(),
         )
         db.session.add(msg)
+        _notifier_admins(ticket)
         db.session.commit()
         flash('Ticket créé avec succès.', 'success')
         return redirect(url_for('support.detail_ticket', ticket_id=ticket.id))
@@ -81,7 +119,8 @@ def creer_ticket():
 @has_permission('support.voir')
 def detail_ticket(ticket_id):
     ticket = tenant_get_or_404(Ticket, ticket_id)
-    messages = MessageTicket.query.filter_by(ticket_id=ticket.id)\
+    messages = MessageTicket.query.filter_by(ticket_id=ticket.id) \
+        .filter(MessageTicket.est_interne == False) \
         .order_by(MessageTicket.date_envoi.asc()).all()
     return render_template('support/ticket_detail.html', ticket=ticket,
                            messages=messages, statuts=STATUTS)
@@ -99,19 +138,19 @@ def ajouter_message(ticket_id):
     if not contenu:
         flash('Le message ne peut pas être vide.', 'danger')
         return redirect(url_for('support.detail_ticket', ticket_id=ticket.id))
-    est_interne = bool(request.form.get('est_interne'))
     msg = MessageTicket(
         ticket_id=ticket.id,
         auteur_type='utilisateur',
         auteur_nom=current_user.prenom + ' ' + current_user.nom,
         contenu=contenu,
-        est_interne=est_interne,
+        est_interne=False,
         date_envoi=datetime.utcnow(),
     )
     db.session.add(msg)
     ticket.date_dernier_message = datetime.utcnow()
     if ticket.statut == 'OUVERT':
         ticket.statut = 'EN_COURS'
+    _notifier_admins(ticket, msg)
     db.session.commit()
     flash('Message ajouté.', 'success')
     return redirect(url_for('support.detail_ticket', ticket_id=ticket.id))
@@ -136,7 +175,7 @@ def fermer_ticket(ticket_id):
 @login_required
 @has_permission('support.voir')
 def api_liste():
-    tickets = Ticket.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    tickets = Ticket.query.filter_by(entreprise_id=current_user.entreprise_id) \
         .order_by(Ticket.date_creation.desc()).all()
     return jsonify([{
         'id': t.id,

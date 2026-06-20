@@ -2,70 +2,152 @@
 {% block title %}Administration - Tickets{% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h3 mb-1"><i class="fas fa-headset me-2"></i>Tickets support</h1>
-      <p class="text-muted small mb-0">Vue d'ensemble de tous les tickets de support</p>
+      <p class="text-muted small mb-0">Gestion des demandes clients</p>
+    </div>
+  </div>
+
+  {% set stats = {'OUVERT': 0, 'EN_COURS': 0, 'ATTENTE': 0, 'FERME': 0} %}
+  {% for t in tickets %}{% if stats.update({t.statut: stats[t.statut] + 1}) %}{% endif %}{% endfor %}
+
+  <div class="row g-2 mb-3">
+    <div class="col">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fs-5 fw-bold text-success">{{ stats['OUVERT'] }}</div>
+        <div class="small text-muted">Ouverts</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fs-5 fw-bold text-primary">{{ stats['EN_COURS'] }}</div>
+        <div class="small text-muted">En cours</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fs-5 fw-bold text-warning">{{ stats['ATTENTE'] }}</div>
+        <div class="small text-muted">En attente</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fs-5 fw-bold text-secondary">{{ stats['FERME'] }}</div>
+        <div class="small text-muted">Fermés</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card border-0 shadow-sm text-center py-2">
+        <div class="fs-5 fw-bold">{{ tickets|length }}</div>
+        <div class="small text-muted">Total</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-auto">
+          <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous types</option>
+            {% for t in types %}
+            <option value="{{ t }}" {% if type_filter == t %}selected{% endif %}>{{ t|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous statuts</option>
+            <option value="OUVERT" {% if statut_filter == 'OUVERT' %}selected{% endif %}>Ouvert</option>
+            <option value="EN_COURS" {% if statut_filter == 'EN_COURS' %}selected{% endif %}>En cours</option>
+            <option value="ATTENTE" {% if statut_filter == 'ATTENTE' %}selected{% endif %}>Attente</option>
+            <option value="FERME" {% if statut_filter == 'FERME' %}selected{% endif %}>Fermé</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <a href="{{ url_for('admin.admin_tickets') }}" class="btn btn-sm btn-outline-secondary">Réinitialiser</a>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="{{ url_for('admin.admin_tickets', statut='OUVERT') }}" class="btn btn-sm btn-outline-success">Non traités</a>
+        </div>
+      </form>
     </div>
   </div>
 
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
+      {% if tickets %}
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th>#</th>
+              <th>Réf</th>
+              <th>Type</th>
               <th>Sujet</th>
-              <th>Créé par</th>
+              <th>Contact</th>
               <th>Statut</th>
-              <th>Date</th>
-              <th>Actions</th>
+              <th>Dernier message</th>
+              <th style="width:160px">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for t in tickets %}
-            <tr>
-              <td class="text-muted">{{ t.id }}</td>
-              <td class="fw-medium">{{ t.sujet }}</td>
-              <td>{{ t.nom_contact or t.email_contact or '-' }}</td>
+            {% set last_msg = last_messages.get(t.id) %}
+            <tr class="{% if t.statut == 'OUVERT' %}table-success{% endif %} align-middle">
+              <td><code class="small">{{ t.reference or t.id }}</code></td>
+              <td><span class="badge bg-secondary">{{ t.type }}</span></td>
               <td>
-                {% if t.statut == 'ouvert' %}
-                <span class="badge bg-warning text-dark">Ouvert</span>
-                {% elif t.statut == 'en_cours' %}
-                <span class="badge bg-info">En cours</span>
-                {% elif t.statut == 'ferme' %}
-                <span class="badge bg-secondary">Fermé</span>
-                {% else %}
-                <span class="badge bg-secondary">{{ t.statut }}</span>
+                <a href="{{ url_for('admin.admin_ticket_detail', ticket_id=t.id) }}" class="text-decoration-none fw-medium text-dark">
+                  {{ t.sujet[:60] }}{% if t.sujet|length > 60 %}...{% endif %}
+                </a>
+                {% if last_msg %}
+                <div class="text-muted small text-truncate" style="max-width:250px;">{{ last_msg.contenu[:80] }}{% if last_msg.contenu|length > 80 %}...{% endif %}</div>
                 {% endif %}
               </td>
-              <td class="text-muted small">{{ t.date_creation.strftime('%d/%m/%Y %H:%M') if t.date_creation else '-' }}</td>
+              <td>
+                <div class="small fw-medium">{{ t.nom_contact or '—' }}</div>
+                {% if t.email_contact %}
+                <div class="small text-muted">{{ t.email_contact }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.admin_ticket_changer_statut', ticket_id=t.id) }}" class="d-flex gap-1">
+                  <select name="statut" class="form-select form-select-sm" style="width:auto;font-size:0.75rem;" onchange="this.form.submit()">
+                    <option value="OUVERT" {% if t.statut == 'OUVERT' %}selected{% endif %}>Ouvert</option>
+                    <option value="EN_COURS" {% if t.statut == 'EN_COURS' %}selected{% endif %}>En cours</option>
+                    <option value="ATTENTE" {% if t.statut == 'ATTENTE' %}selected{% endif %}>Attente</option>
+                    <option value="FERME" {% if t.statut == 'FERME' %}selected{% endif %}>Fermé</option>
+                  </select>
+                </form>
+              </td>
+              <td class="small text-muted">{{ t.date_dernier_message.strftime('%d/%m/%Y %H:%M') if t.date_dernier_message else '—' }}</td>
               <td>
                 <div class="d-flex gap-1">
-                  <a href="{{ url_for('support.detail_ticket', ticket_id=t.id) }}" class="btn btn-sm btn-outline-primary" title="Voir">
+                  <a href="{{ url_for('admin.admin_ticket_detail', ticket_id=t.id) }}" class="btn btn-sm btn-outline-primary" title="Voir">
                     <i class="fas fa-eye"></i>
                   </a>
-                  {% if t.statut != 'ferme' %}
-                  <form method="POST" action="{{ url_for('admin.admin_ticket_fermer', ticket_id=t.id) }}"
-                        onsubmit="return confirm('Fermer ce ticket ?')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Fermer">
-                      <i class="fas fa-times"></i>
-                    </button>
-                  </form>
+                  <a href="{{ url_for('admin.admin_ticket_detail', ticket_id=t.id) }}#repondre" class="btn btn-sm btn-outline-success" title="Répondre">
+                    <i class="fas fa-reply"></i>
+                  </a>
+                  {% if t.email_contact %}
+                  <a href="mailto:{{ t.email_contact }}?subject=Re:{{ t.reference }}" class="btn btn-sm btn-outline-secondary" title="Email">
+                    <i class="fas fa-envelope"></i>
+                  </a>
                   {% endif %}
                 </div>
               </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="6" class="text-center text-muted py-4">Aucun ticket.</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-inbox text-muted fa-2x mb-2"></i>
+        <p class="text-muted mb-0">Aucun ticket.</p>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

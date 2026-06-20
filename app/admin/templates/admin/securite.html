@@ -29,7 +29,8 @@
               <th>Adresse IP</th>
               <th>Navigateur</th>
               <th>Détails</th>
-              <th>Résolu?</th>
+              <th>Statut</th>
+              <th class="text-center">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -49,21 +50,33 @@
               <td class="text-truncate" style="max-width:200px">{{ log.navigateur or '-' }}</td>
               <td class="text-truncate" style="max-width:250px">
                 {% if log.details is mapping %}
-                  {{ log.details|tojson|truncate(100) }}
+                  {% if log.details.get('error_message') %}
+                    <span class="text-danger">{{ log.details.error_message[:100] }}</span>
+                  {% elif log.details.get('request_id') %}
+                    <code>{{ log.details.request_id[:8] }}</code> — {{ log.details.get('path', '') }}
+                  {% else %}
+                    {{ log.details|tojson|truncate(100) }}
+                  {% endif %}
                 {% else %}
                   {{ log.details or '-' }}
                 {% endif %}
               </td>
               <td>
                 {% if log.resolu %}
-                <span class="badge bg-success">Oui</span>
+                <span class="badge bg-success">Résolu</span>
+                <div class="small text-muted">{{ log.resolved_at.strftime('%d/%m/%Y %H:%M') if log.resolved_at else '' }}</div>
                 {% else %}
-                <span class="badge bg-warning text-dark">Non</span>
+                <span class="badge bg-warning text-dark">Non résolu</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if not log.resolu %}
+                <button class="btn btn-sm btn-outline-success js-resolve" data-incident-id="{{ log.id }}">Marquer résolu</button>
                 {% endif %}
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="7" class="text-center text-muted py-4">Aucune entrée de sécurité.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">Aucune entrée de sécurité.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -76,4 +89,36 @@
     {% endif %}
   </div>
 </div>
+<script>
+document.addEventListener('click', async function(e) {
+  if (!e.target.matches('.js-resolve')) return;
+  e.preventDefault();
+  var btn = e.target;
+  var id = btn.dataset.incidentId;
+  if (!id) return;
+  btn.disabled = true;
+  try {
+    var res = await fetch('/admin/securite/' + id + '/resolve', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' }
+    });
+    var data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+    var cell = btn.closest('td');
+    if (cell) {
+      cell.innerHTML = '<span class="badge bg-success">Résolu</span>';
+    }
+    var row = btn.closest('tr');
+    if (row) {
+      var statusCell = row.querySelector('td:nth-child(7)');
+      if (statusCell) {
+        statusCell.innerHTML = '<span class="badge bg-success">Résolu</span><div class="small text-muted">' + new Date(data.resolved_at).toLocaleString('fr-FR') + '</div>';
+      }
+    }
+  } catch(err) {
+    alert(err.message || 'Erreur');
+    btn.disabled = false;
+  }
+});
+</script>
 {% endblock %}

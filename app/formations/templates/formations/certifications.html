@@ -1,0 +1,95 @@
+{% extends 'layout.html' %}
+{% block title %}Certifications{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-certificate me-2" style="color:#7c3aed;"></i>Certifications</h1>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+      <div class="card border-0 shadow-sm stat-card">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small">Total certifiés</div>
+          <div class="h3 mb-0 fw-bold" id="kpiTotal">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card border-0 shadow-sm stat-card">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small">Expiration &lt; 30j</div>
+          <div class="h3 mb-0 fw-bold text-warning" id="kpiExpire">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card border-0 shadow-sm stat-card">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small">Expirées</div>
+          <div class="h3 mb-0 fw-bold text-danger" id="kpiExpired">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card border-0 shadow-sm stat-card">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small">Taux certification</div>
+          <div class="h3 mb-0 fw-bold text-success" id="kpiTaux">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Employé</th><th>Formation</th><th>Date certification</th><th>Expiration</th><th>Score</th><th>Statut</th></tr>
+        </thead>
+        <tbody id="certifBody"></tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("formations.api_certifications") }}';
+const STATS_API = '{{ url_for("formations.api_stats") }}';
+
+function load() {
+  fetch(API).then(r=>r.json()).then(items=>{
+    var tb = document.getElementById('certifBody');
+    if (!items.length) { tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Aucune certification</td></tr>'; return; }
+    var today = new Date(); today.setHours(0,0,0,0);
+    tb.innerHTML = items.map(r => {
+      var exp = r.date_expiration ? new Date(r.date_expiration) : null;
+      var diff = exp ? Math.ceil((exp - today) / (1000*60*60*24)) : null;
+      var badge = 'secondary';
+      if (diff === null) badge = 'secondary';
+      else if (diff < 0) badge = 'danger';
+      else if (diff <= 30) badge = 'warning';
+      else badge = 'success';
+      return `<tr>
+        <td>${r.utilisateur||''}</td>
+        <td>${r.formation||''}</td>
+        <td>${r.date_certification?new Date(r.date_certification).toLocaleDateString('fr-FR'):'—'}</td>
+        <td>${r.date_expiration?new Date(r.date_expiration).toLocaleDateString('fr-FR'):'—'}</td>
+        <td>${r.score||'—'}</td>
+        <td><span class="badge bg-${badge}">${diff===null?'N/A':diff<0?'Expirée':diff<=30?'Expire bientôt':'Valide'}</span></td>
+      </tr>`;
+    }).join('');
+  });
+  fetch(STATS_API).then(r=>r.json()).then(d=>{
+    document.getElementById('kpiTotal').textContent = d.certifies;
+    document.getElementById('kpiExpire').textContent = d.expires_bientot;
+    fetch(API).then(r=>r.json()).then(items=>{
+      var today = new Date(); today.setHours(0,0,0,0);
+      var expired = items.filter(r => r.date_expiration && new Date(r.date_expiration) < today).length;
+      document.getElementById('kpiExpired').textContent = expired;
+      document.getElementById('kpiTaux').textContent = d.total_formations > 0 ? Math.round(d.certifies / d.total_formations * 100) + '%' : '—';
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends 'layout.html' %}
+{% block title %}Objectifs qualité{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-bullseye me-2 text-primary"></i>Objectifs qualité</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel objectif</button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">Total</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-total"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">En cours</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-en_cours"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">Atteints</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-atteint"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small mb-2">En retard</h6>
+          <div class="h3 mb-0 fw-bold" id="stat-en_retard"><span class="skeleton skeleton-text d-inline-block"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Objectif</th><th>Processus</th><th>Cible</th><th>Progression</th><th>Échéance</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel objectif</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId">
+        <div class="row g-3">
+          <div class="col-md-8"><label class="form-label">Titre <span class="text-danger">*</span></label><input type="text" id="f_titre" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Statut</label><select id="f_statut" class="form-select"><option value="en_cours">En cours</option><option value="atteint">Atteint</option><option value="en_retard">En retard</option><option value="non_atteint">Non atteint</option></select></div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Indicateur lié</label><select id="f_indicateur" class="form-select"></select></div>
+          <div class="col-md-6"><label class="form-label">Processus concerné</label><input type="text" id="f_processus" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Cible</label><input type="number" id="f_cible" class="form-control" step="0.01"></div>
+          <div class="col-md-4"><label class="form-label">Seuil alerte</label><input type="number" id="f_seuil" class="form-control" step="0.01"></div>
+          <div class="col-md-4"><label class="form-label">Pilote</label><select id="f_pilote" class="form-select"></select></div>
+          <div class="col-md-6"><label class="form-label">Date début</label><input type="date" id="f_debut" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Date échéance</label><input type="date" id="f_echeance" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("objectifs.api_liste") }}'; const CREATE = '{{ url_for("objectifs.api_creer") }}';
+const UPDATE = '{{ url_for("objectifs.api_modifier", item_id=0) }}'; const DELETE = '{{ url_for("objectifs.api_supprimer", item_id=0) }}';
+const STATS = '{{ url_for("objectifs.api_stats") }}';
+
+const STATUT_COLORS = { en_cours: 'primary', atteint: 'success', en_retard: 'warning', non_atteint: 'danger' };
+
+function loadStats() {
+  fetch(STATS).then(r=>r.json()).then(d => {
+    Object.keys(d).forEach(k => { const el = document.getElementById('stat-'+k); if(el) el.textContent = d[k]; });
+  }).catch(() => { document.querySelectorAll('[id^="stat-"]').forEach(e => e.textContent = '0'); });
+}
+
+function loadItems() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Aucun objectif</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td><strong>${r.titre||''}</strong>${r.description ? '<br><small class="text-muted">'+r.description+'</small>' : ''}</td>
+      <td>${r.processus_concerne||''}</td>
+      <td>${r.cible||'-'}</td>
+      <td><div class="d-flex align-items-center"><div class="progress flex-grow-1" style="height:8px;"><div class="progress-bar bg-${r.progression >= 100 ? 'success' : 'primary'}" style="width:${Math.min(r.progression,100)}%"></div></div><small class="ms-2">${r.progression}%</small></div></td>
+      <td>${r.date_echeance ? new Date(r.date_echeance+'T00:00:00').toLocaleDateString('fr-FR') : ''}</td>
+      <td><span class="badge bg-${STATUT_COLORS[r.statut]||'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="editItem(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteItem(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+}
+
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { titre: document.getElementById('f_titre').value, description: document.getElementById('f_description').value,
+    indicateur_id: document.getElementById('f_indicateur').value, cible: document.getElementById('f_cible').value,
+    seuil_alerte: document.getElementById('f_seuil').value, pilote_id: document.getElementById('f_pilote').value,
+    date_debut: document.getElementById('f_debut').value, date_echeance: document.getElementById('f_echeance').value,
+    statut: document.getElementById('f_statut').value, processus_concerne: document.getElementById('f_processus').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); loadItems(); loadStats(); resetForm(); } });
+}
+
+function editItem(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    ['titre','description','cible','seuil','processus'].forEach(f => {
+      const el = document.getElementById('f_'+f); if(el) el.value = r[f.replace('seuil','seuil_alerte')]||'';
+    });
+    document.getElementById('itemId').value = r.id;
+    document.getElementById('f_indicateur').value = r.indicateur_id||'';
+    document.getElementById('f_pilote').value = r.pilote_id||'';
+    document.getElementById('f_statut').value = r.statut||'en_cours';
+    document.getElementById('f_debut').value = r.date_debut || '';
+    document.getElementById('f_echeance').value = r.date_echeance || '';
+    document.getElementById('modalTitle').textContent = "Modifier l'objectif";
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+
+function deleteItem(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) { loadItems(); loadStats(); } }); }
+function resetForm() { document.getElementById('itemId').value = ''; ['f_titre','f_description','f_cible','f_seuil','f_processus','f_debut','f_echeance'].forEach(id => document.getElementById(id).value = ''); document.getElementById('f_indicateur').value = ''; document.getElementById('f_pilote').value = ''; document.getElementById('f_statut').value = 'en_cours'; document.getElementById('modalTitle').textContent = 'Nouvel objectif'; }
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadStats(); loadItems();
+  fetch('{{ url_for("indicateurs.api_liste") }}').then(r=>r.json()).then(items => {
+    const sel = document.getElementById('f_indicateur');
+    sel.innerHTML = '<option value="">-- Choisir --</option>' + items.map(r => `<option value="${r.id}">${r.nom}</option>`).join('');
+  });
+
+});
+</script>
+{% endblock %}

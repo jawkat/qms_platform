@@ -162,6 +162,15 @@ def api_notifications():
     } for n in notifs])
 
 
+@main.route('/api/notifications/unread-count')
+@login_required
+def api_notifications_unread_count():
+    count = Notification.query.filter_by(
+        utilisateur_id=current_user.id, lu=False
+    ).count()
+    return jsonify({'unread': count})
+
+
 @main.route('/api/notifications/<int:id>/read', methods=['POST'])
 @login_required
 def api_notification_read(id):
@@ -177,6 +186,24 @@ def api_notification_read_all():
     Notification.query.filter_by(utilisateur_id=current_user.id, lu=False).update({'lu': True})
     db.session.commit()
     return jsonify({'success': True})
+
+
+@main.route('/notifications/<int:id>/open')
+@login_required
+def notification_open(id):
+    notif = Notification.query.filter_by(id=id, utilisateur_id=current_user.id).first_or_404()
+    notif.lu = True
+    db.session.commit()
+
+    import re
+    m = re.search(r'\[TICKET:(\d+)\]', notif.message or '')
+    if m:
+        return redirect(url_for('support.detail_ticket', ticket_id=int(m.group(1))))
+    m = re.search(r'\[INCIDENT:(\d+)\]', notif.message or '')
+    if m:
+        return redirect(url_for('hse.incidents'))
+
+    return redirect(url_for('main.index'))
 
 
 @main.route('/search')

@@ -10,39 +10,48 @@
   </nav>
 
   <div class="row g-3">
-    <div class="col-md-4">
+    <div class="col-md-6">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white py-3">
           <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
         </div>
         <div class="card-body">
           <dl class="row mb-0">
-            <dt class="col-sm-5">Nom</dt>
-            <dd class="col-sm-7">{{ entreprise.nom }}</dd>
-            <dt class="col-sm-5">Statut</dt>
-            <dd class="col-sm-7">
-              {% if entreprise.statut == 'Actif' %}
+            <dt class="col-sm-4">Nom</dt>
+            <dd class="col-sm-8">{{ entreprise.nom }}</dd>
+            <dt class="col-sm-4">Statut</dt>
+            <dd class="col-sm-8">
+              {% set s = entreprise.statut|lower %}
+              {% if s in ('actif', 'active') %}
               <span class="badge bg-success">Actif</span>
-              {% elif entreprise.statut == 'Suspendu' %}
+              {% elif s in ('suspendu', 'suspended') %}
               <span class="badge bg-danger">Suspendu</span>
+              {% elif s == 'trial' %}
+              <span class="badge bg-warning text-dark">Trial</span>
+              {% elif s == 'cancelled' %}
+              <span class="badge bg-secondary">Annulé</span>
+              {% elif s == 'archived' %}
+              <span class="badge bg-dark">Archivé</span>
               {% else %}
               <span class="badge bg-warning text-dark">{{ entreprise.statut }}</span>
               {% endif %}
             </dd>
-            <dt class="col-sm-5">Adresse</dt>
-            <dd class="col-sm-7">{{ entreprise.adresse or '-' }}</dd>
-            <dt class="col-sm-5">Pays</dt>
-            <dd class="col-sm-7">{{ entreprise.pays or '-' }}</dd>
-            <dt class="col-sm-5">Taille</dt>
-            <dd class="col-sm-7">{{ entreprise.taille or '-' }}</dd>
-            <dt class="col-sm-5">Inscription</dt>
-            <dd class="col-sm-7">{{ entreprise.date_inscription.strftime('%d/%m/%Y') if entreprise.date_inscription else '-' }}</dd>
+            <dt class="col-sm-4">Adresse</dt>
+            <dd class="col-sm-8">{{ entreprise.adresse or '-' }}</dd>
+            <dt class="col-sm-4">Pays</dt>
+            <dd class="col-sm-8">{{ entreprise.pays or '-' }}</dd>
+            <dt class="col-sm-4">Taille</dt>
+            <dd class="col-sm-8">{{ entreprise.taille or '-' }}</dd>
+            <dt class="col-sm-4">Téléphone</dt>
+            <dd class="col-sm-8">{{ entreprise.telephone or '-' }}</dd>
+            <dt class="col-sm-4">Inscription</dt>
+            <dd class="col-sm-8">{{ entreprise.date_inscription.strftime('%d/%m/%Y') if entreprise.date_inscription else '-' }}</dd>
           </dl>
         </div>
       </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-6">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white py-3">
           <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Abonnement</h5>
@@ -81,30 +90,6 @@
       </div>
     </div>
 
-    <div class="col-md-4">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white py-3">
-          <h5 class="mb-0"><i class="fas fa-cubes me-2"></i>Modules</h5>
-        </div>
-        <div class="card-body">
-          {% set modules = ['hse', 'qualite'] %}
-          {% set actifs = entreprise.modules_actifs or ['hse'] %}
-          <div class="mb-3">
-            {% for m in modules %}
-            <div class="form-check form-switch mb-2">
-              <input class="form-check-input" type="checkbox" id="mod_{{ m }}" disabled
-                     {% if m in actifs %}checked{% endif %}>
-              <label class="form-check-label" for="mod_{{ m }}">
-                {{ m|capitalize }}
-                {% if m in actifs %}<span class="badge bg-success ms-1">Actif</span>
-                {% else %}<span class="badge bg-secondary ms-1">Inactif</span>{% endif %}
-              </label>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div class="row g-3 mt-2">
@@ -149,6 +134,32 @@
         <div class="card-body">
           <form method="POST" action="{{ url_for('admin.entreprise_update', eid=entreprise.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label">Nom</label>
+                <input type="text" name="nom" class="form-control" value="{{ entreprise.nom }}">
+              </div>
+              <div class="col-3">
+                <label class="form-label">Taille</label>
+                <select name="taille" class="form-select">
+                  <option value="TPE" {% if entreprise.taille == 'TPE' %}selected{% endif %}>TPE</option>
+                  <option value="PME" {% if entreprise.taille == 'PME' %}selected{% endif %}>PME</option>
+                  <option value="Grande" {% if entreprise.taille == 'Grande' %}selected{% endif %}>Grande</option>
+                </select>
+              </div>
+              <div class="col-3">
+                <label class="form-label">Pays</label>
+                <input type="text" name="pays" class="form-control" value="{{ entreprise.pays or 'Maroc' }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Adresse</label>
+                <input type="text" name="adresse" class="form-control" value="{{ entreprise.adresse or '' }}">
+              </div>
+              <div class="col-3">
+                <label class="form-label">Téléphone</label>
+                <input type="text" name="telephone" class="form-control" value="{{ entreprise.telephone or '' }}">
+              </div>
+            </div>
             <div class="mb-3">
               <label class="form-label">Abonnement</label>
               <select name="abonnement_type" class="form-select">
@@ -161,23 +172,31 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Modules actifs</label>
-              <div>
-                {% for m in ['hse', 'qualite'] %}
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" name="modules_actifs" value="{{ m }}"
-                         id="mod_edit_{{ m }}"
-                         {% if m in (entreprise.modules_actifs or ['hse']) %}checked{% endif %}>
-                  <label class="form-check-label" for="mod_edit_{{ m }}">{{ m|capitalize }}</label>
+              <div class="row g-1">
+                {% for m in ['hse', 'qualite', 'environnement', 'haccp', 'pilotage', 'ged', 'veille', 'processus',
+                              'audits', 'formations', 'rh_qhse', 'maintenance', 'laboratoire', 'fournisseurs',
+                              'performance', 'planification', 'reunions', 'support', 'connaissances', 'urgences',
+                              'nc_capa', 'admin'] %}
+                <div class="col-4">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="modules_actifs" value="{{ m }}"
+                           id="mod_edit_{{ m }}"
+                           {% if m in (entreprise.modules_actifs or []) %}checked{% endif %}>
+                    <label class="form-check-label small" for="mod_edit_{{ m }}">{{ m|capitalize }}</label>
+                  </div>
                 </div>
                 {% endfor %}
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label">Statut</label>
+               <label class="form-label">Statut cycle de vie</label>
               <select name="statut" class="form-select">
-                <option value="Actif" {% if entreprise.statut == 'Actif' %}selected{% endif %}>Actif</option>
-                <option value="Suspendu" {% if entreprise.statut == 'Suspendu' %}selected{% endif %}>Suspendu</option>
-                <option value="En_attente" {% if entreprise.statut == 'En_attente' %}selected{% endif %}>En attente</option>
+                <option value="">— Conserver —</option>
+                <option value="trial" {% if entreprise.statut|lower == 'trial' %}selected{% endif %}>Trial</option>
+                <option value="active" {% if entreprise.statut|lower in ('actif', 'active') %}selected{% endif %}>Actif</option>
+                <option value="suspended" {% if entreprise.statut|lower in ('suspendu', 'suspended') %}selected{% endif %}>Suspendu</option>
+                <option value="cancelled" {% if entreprise.statut|lower == 'cancelled' %}selected{% endif %}>Annulé</option>
+                <option value="archived" {% if entreprise.statut|lower == 'archived' %}selected{% endif %}>Archivé</option>
               </select>
             </div>
             <div class="mb-3">

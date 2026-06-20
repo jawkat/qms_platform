@@ -15,7 +15,7 @@ from .qualite import (Risque, Equipement, ControleQualite, RevueDirection)
 from .nonconformite import NonConformite
 from .hse import Incident, EPI, Inspection, InspectionItem, PermisTravail
 from .ishikawa import AnalyseIshikawa, CauseIshikawa
-from .competence import Competence, FormationParticipant
+from .competence import Competence, FormationParticipant, EmployeCompetence
 from .historique_fournisseur import EvaluationFournisseur, HistoriqueFournisseur
 from .echeancier import ObligationReglementaire
 from .veille import SourceReglementaire, Veille

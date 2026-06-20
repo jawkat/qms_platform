@@ -1,0 +1,126 @@
+{% extends 'layout.html' %}
+{% block title %}HACCP - OPRP{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-shield-alt me-2 text-warning"></i>PRP Opérationnels (OPRP)</h1>
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#itemModal"><i class="fas fa-plus me-1"></i>Nouvel OPRP</button>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Élément</th><th>Processus</th><th>Danger</th><th>Limite critique</th><th>Surveillance</th><th>Responsable</th><th>Statut</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="itemModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Nouvel OPRP</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="itemId" value="">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Élément <span class="text-danger">*</span></label><input type="text" id="f_element" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Catégorie</label><select id="f_categorie" class="form-select">
+            <option value="hygiene">Hygiène / Nettoyage</option><option value="nuisibles">Lutte nuisibles</option>
+            <option value="dechets">Gestion déchets</option><option value="eau">Contrôle eau</option>
+            <option value="personnel">Hygiène personnel</option><option value="maintenance">Maintenance</option>
+            <option value="etalonnage">Étalonnage</option><option value="autre">Autre</option>
+          </select></div>
+          <div class="col-md-6"><label class="form-label">Processus associé</label><select id="f_processus" class="form-select"></select></div>
+          <div class="col-md-6"><label class="form-label">Danger associé</label><select id="f_danger" class="form-select"></select></div>
+          <div class="col-12"><label class="form-label">Description</label><textarea id="f_description" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-6"><label class="form-label">Limite critique</label><input type="text" id="f_limite" class="form-control" placeholder="Température, concentration..."></div>
+          <div class="col-md-6"><label class="form-label">Fréquence surveillance</label><input type="text" id="f_freq_surv" class="form-control" placeholder="Chaque heure, par lot..."></div>
+          <div class="col-12"><label class="form-label">Méthode de surveillance</label><textarea id="f_methode" class="form-control" rows="2"></textarea></div>
+          <div class="col-md-4"><label class="form-label">Fréquence (vérification)</label><input type="text" id="f_frequence" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Responsable</label><input type="text" id="f_responsable" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Procédure réf.</label><input type="text" id="f_procedure" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Dernière vérification</label><input type="date" id="f_verifie" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Prochaine vérification</label><input type="date" id="f_prochaine" class="form-control"></div>
+          <div class="col-12"><label class="form-label">Action corrective</label><textarea id="f_action" class="form-control" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-warning" onclick="saveItem()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const API = '{{ url_for("haccp.api_oprp") }}'; const CREATE = '{{ url_for("haccp.api_oprp_create") }}';
+const UPDATE = '{{ url_for("haccp.api_oprp_update", item_id=0) }}'; const DELETE = '{{ url_for("haccp.api_oprp_delete", item_id=0) }}';
+const PROC_API = '{{ url_for("haccp.api_processus") }}'; const DANGER_API = '{{ url_for("haccp.api_dangers") }}';
+function load() {
+  fetch(API).then(r=>r.json()).then(items => {
+    const tbody = document.getElementById('tableBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucun OPRP</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => `<tr>
+      <td>${r.element||''}</td><td>${r.etape||''}</td><td>${r.danger_libelle||''}</td>
+      <td>${r.limite_critique||''}</td><td>${r.methode_surveillance||''}</td><td>${r.responsable||''}</td>
+      <td><span class="badge bg-${r.statut==='actif'?'success':'secondary'}">${r.statut||''}</span></td>
+      <td><button class="btn btn-sm btn-outline-primary" onclick="edit(${r.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+  });
+  fetch(PROC_API).then(r=>r.json()).then(items => {
+    const sel = document.getElementById('f_processus');
+    sel.innerHTML = '<option value="">-- Sélectionner --</option>' + items.map(r => `<option value="${r.id}">${r.etape}</option>`).join('');
+  });
+  fetch(DANGER_API).then(r=>r.json()).then(items => {
+    const sel = document.getElementById('f_danger');
+    sel.innerHTML = '<option value="">-- Sélectionner --</option>' + items.map(r => `<option value="${r.id}">${r.danger} (IPR: ${r.ipr})</option>`).join('');
+  });
+}
+function saveItem() {
+  const id = document.getElementById('itemId').value;
+  const data = { element: document.getElementById('f_element').value, categorie: document.getElementById('f_categorie').value,
+    processus_id: document.getElementById('f_processus').value, danger_id: document.getElementById('f_danger').value,
+    description: document.getElementById('f_description').value, limite_critique: document.getElementById('f_limite').value,
+    methode_surveillance: document.getElementById('f_methode').value, frequence_surveillance: document.getElementById('f_freq_surv').value,
+    frequence: document.getElementById('f_frequence').value, responsable: document.getElementById('f_responsable').value,
+    procedure_reference: document.getElementById('f_procedure').value,
+    verifie_le: document.getElementById('f_verifie').value, prochaine_verification: document.getElementById('f_prochaine').value,
+    action_corrective: document.getElementById('f_action').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide(); load(); resetForm(); } });
+}
+function edit(id) {
+  fetch(API).then(r=>r.json()).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('itemId').value = r.id; document.getElementById('f_element').value = r.element||'';
+    document.getElementById('f_categorie').value = r.categorie||'autre';
+    document.getElementById('f_processus').value = r.processus_id||'';
+    document.getElementById('f_danger').value = r.danger_id||'';
+    document.getElementById('f_description').value = r.description||'';
+    document.getElementById('f_limite').value = r.limite_critique||'';
+    document.getElementById('f_methode').value = r.methode_surveillance||'';
+    document.getElementById('f_freq_surv').value = r.frequence_surveillance||'';
+    document.getElementById('f_frequence').value = r.frequence||'';
+    document.getElementById('f_responsable').value = r.responsable||'';
+    document.getElementById('f_procedure').value = r.procedure_reference||'';
+    document.getElementById('f_verifie').value = r.verifie_le || '';
+    document.getElementById('f_prochaine').value = r.prochaine_verification || '';
+    document.getElementById('f_action').value = r.action_corrective||'';
+    document.getElementById('modalTitle').textContent = "Modifier l'OPRP";
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+  });
+}
+function del(id) { if(!confirm('Supprimer ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) load();}); }
+function resetForm() { document.getElementById('itemId').value = '';
+  ['f_element','f_description','f_limite','f_methode','f_freq_surv','f_frequence','f_responsable','f_procedure','f_verifie','f_prochaine','f_action'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_categorie').value = 'hygiene'; document.getElementById('f_processus').value = ''; document.getElementById('f_danger').value = '';
+  document.getElementById('modalTitle').textContent = 'Nouvel OPRP'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+{% endblock %}

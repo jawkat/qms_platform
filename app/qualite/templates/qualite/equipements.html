@@ -1,74 +1,95 @@
 {% extends 'layout.html' %}
-{% block title %}Qualité - Équipements{% endblock %}
+{% block title %}Qualité - Équipements & Métrologie{% endblock %}
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Gestion des équipements</h1>
+    <h1 class="h3 mb-0">Gestion des équipements & Métrologie</h1>
     <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#equipModal">
       <i class="fas fa-plus me-1"></i>Nouvel équipement
     </button>
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body text-center">
-          <div class="h3 mb-0 text-danger" id="statTotal">--</div>
-          <small class="text-muted">Équipements</small>
-        </div>
-      </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="h3 mb-0 text-danger" id="statTotal">--</div><small class="text-muted">Total</small></div></div>
     </div>
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body text-center">
-          <div class="h3 mb-0 text-success" id="statEnService">--</div>
-          <small class="text-muted">En service</small>
-        </div>
-      </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="h3 mb-0 text-success" id="statEnService">--</div><small class="text-muted">Actifs</small></div></div>
     </div>
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body text-center">
-          <div class="h3 mb-0 text-warning" id="statMaintenance">--</div>
-          <small class="text-muted">Maintenance à prévoir</small>
-        </div>
-      </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="h3 mb-0 text-warning" id="statMaintenance">--</div><small class="text-muted">Maintenance à prévoir</small></div></div>
     </div>
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body text-center">
-          <div class="h3 mb-0 text-info" id="statHorsService">--</div>
-          <small class="text-muted">Hors service</small>
-        </div>
-      </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="h3 mb-0 text-info" id="statMesure">--</div><small class="text-muted">Mesure/Monitoring</small></div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="h3 mb-0 text-success" id="statEtalonne">--</div><small class="text-muted">Étalonné</small></div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="h3 mb-0 text-danger" id="statExpire">--</div><small class="text-muted">Étalonnage expiré</small></div></div>
     </div>
   </div>
 
   <div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Équipement</th>
-              <th>Modèle</th>
-              <th>N° série</th>
-              <th>Dernière maintenance</th>
-              <th>Prochaine maintenance</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="equipementsTableBody">
-            <tr id="emptyRow">
-              <td colspan="7" class="text-center text-muted py-4">
-                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                Aucun équipement enregistré.<br>
-                <small>Ajoutez des équipements via le bouton "Nouvel équipement".</small>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="card-header bg-white border-bottom-0">
+      <ul class="nav nav-tabs card-header-tabs" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-liste">Liste équipements</a></li>
+        <li class="nav-item" id="tab-metro-li" style="display:none"><a class="nav-link" data-bs-toggle="tab" href="#tab-metro">Métrologie</a></li>
+        <li class="nav-item" id="tab-etal-li" style="display:none"><a class="nav-link" data-bs-toggle="tab" href="#tab-etal">Historique étalonnages</a></li>
+      </ul>
+    </div>
+    <div class="card-body p-0 tab-content">
+      <div class="tab-pane fade show active p-3" id="tab-liste">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Équipement</th><th>Type</th><th>Modèle</th><th>N° série</th><th>Prochaine maintenance</th><th>Statut</th><th>Statut métro.</th><th>Prochain étal.</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="equipementsTableBody">
+              <tr id="emptyRow"><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>Aucun équipement.<br><small>Ajoutez-en via le bouton "Nouvel équipement".</small></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tab-pane fade p-3" id="tab-metro">
+        <h6 id="metro-equip-name" class="mb-3">Équipement : <strong></strong></h6>
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label">Fréquence étalonnage (jours)</label><input type="number" id="m_freq" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Précision</label><input type="text" id="m_precision" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Unité de mesure</label><input type="text" id="m_unite" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Tolérance min</label><input type="number" id="m_tol_min" class="form-control" step="0.001"></div>
+          <div class="col-md-3"><label class="form-label">Tolérance max</label><input type="number" id="m_tol_max" class="form-control" step="0.001"></div>
+          <div class="col-md-3"><label class="form-label">Organisme d'étalonnage</label><input type="text" id="m_organisme" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Statut métrologique</label>
+            <select id="m_statut_metro" class="form-select">
+              <option value="en_cours">En cours</option><option value="etalonne">Étalonné</option><option value="expire">Expiré</option><option value="hors_service">Hors service</option>
+            </select>
+          </div>
+          <div class="col-12"><button class="btn btn-primary" onclick="saveMetro()">Enregistrer métrologie</button></div>
+        </div>
+        <hr>
+        <h6>Nouvel enregistrement d'étalonnage</h6>
+        <div class="row g-3">
+          <div class="col-md-3"><label class="form-label">Date étalonnage</label><input type="date" id="e_date" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Valeur mesurée</label><input type="number" id="e_mesuree" class="form-control" step="0.001"></div>
+          <div class="col-md-3"><label class="form-label">Valeur référence</label><input type="number" id="e_reference" class="form-control" step="0.001"></div>
+          <div class="col-md-3"><label class="form-label">Conforme</label>
+            <select id="e_conforme" class="form-select"><option value="true">Oui</option><option value="false">Non</option></select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Certificat ID</label><input type="text" id="e_certif" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Opérateur</label><input type="text" id="e_operateur" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Notes</label><input type="text" id="e_notes" class="form-control"></div>
+          <div class="col-12"><button class="btn btn-success" onclick="saveEtalonnage()"><i class="fas fa-plus me-1"></i>Ajouter étalonnage</button></div>
+        </div>
+      </div>
+      <div class="tab-pane fade p-3" id="tab-etal">
+        <h6 id="etal-equip-name" class="mb-3">Historique - <strong></strong></h6>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Date</th><th>V. mesurée</th><th>V. référence</th><th>Écart</th><th>Conforme</th><th>Certificat</th><th>Opérateur</th><th>Actions</th></tr></thead>
+            <tbody id="etalonnagesTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -88,26 +109,23 @@
             <label class="form-label">Nom de l'équipement <span class="text-danger">*</span></label>
             <input type="text" id="equipNom" class="form-control" placeholder="Four, balance, chambre froide...">
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Modèle</label>
-            <input type="text" id="equipModele" class="form-control" placeholder="Marque et modèle">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">N° série</label>
-            <input type="text" id="equipSerie" class="form-control" placeholder="SN-XXXXX">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Statut</label>
-            <select id="equipStatut" class="form-select">
-              <option value="actif">Opérationnel</option>
-              <option value="maintenance">Maintenance requise</option>
-              <option value="hors_service">Hors service</option>
+          <div class="col-md-3">
+            <label class="form-label">Type</label>
+            <select id="equipType" class="form-select">
+              <option value="production">Production</option><option value="mesure">Mesure</option><option value="essai">Essai</option><option value="monitoring">Monitoring</option>
             </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Prochaine maintenance</label>
-            <input type="date" id="equipProchaine" class="form-control">
+          <div class="col-md-3">
+            <label class="form-label">Statut</label>
+            <select id="equipStatut" class="form-select">
+              <option value="actif">Opérationnel</option><option value="maintenance">Maintenance requise</option><option value="hors_service">Hors service</option>
+            </select>
           </div>
+          <div class="col-md-6"><label class="form-label">Modèle</label><input type="text" id="equipModele" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">N° série</label><input type="text" id="equipSerie" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Dernière maintenance</label><input type="date" id="equipDerniere" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Prochaine maintenance</label><input type="date" id="equipProchaine" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Fréquence étalonnage (jours)</label><input type="number" id="equipFreqEtal" class="form-control"></div>
         </div>
       </div>
       <div class="modal-footer">
@@ -120,6 +138,8 @@
 {% endblock %}
 {% block scripts %}
 <script>
+let selectedEquipId = null;
+
 function loadEquips() {
   fetch('{{ url_for("qualite.api_equipements") }}')
     .then(r => r.json())
@@ -128,21 +148,27 @@ function loadEquips() {
       const empty = document.getElementById('emptyRow');
       if (items.length === 0) return;
       if (empty) empty.remove();
-      let enService = 0, maintenance = 0, horsService = 0;
+      let enService = 0, maintenance = 0, mesure = 0, etalonne = 0, expire = 0;
       tbody.innerHTML = items.map(r => {
         if (r.statut === 'actif') enService++;
         else if (r.statut === 'maintenance') maintenance++;
-        else horsService++;
+        if (r.type_equipement === 'mesure' || r.type_equipement === 'monitoring') mesure++;
+        if (r.statut_metrologique === 'etalonne') etalonne++;
+        else if (r.statut_metrologique === 'expire') expire++;
         const sc = r.statut === 'actif' ? 'success' : r.statut === 'maintenance' ? 'warning' : 'secondary';
+        const mc = r.statut_metrologique === 'etalonne' ? 'success' : r.statut_metrologique === 'expire' ? 'danger' : r.statut_metrologique === 'en_cours' ? 'info' : 'secondary';
         return `<tr>
           <td><i class="fas fa-cog me-2 text-muted"></i>${r.nom || ''}</td>
+          <td>${r.type_equipement || ''}</td>
           <td>${r.modele || ''}</td>
           <td>${r.numero_serie || ''}</td>
-          <td>${r.derniere_maintenance || ''}</td>
           <td>${r.prochaine_maintenance || ''}</td>
           <td><span class="badge bg-${sc}">${r.statut || ''}</span></td>
+          <td><span class="badge bg-${mc}">${r.statut_metrologique || ''}</span></td>
+          <td>${r.date_prochain_etalonnage || ''}</td>
           <td>
             <button class="btn btn-sm btn-outline-primary" title="Modifier" onclick="editEquip(${r.id})"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-info" title="Métrologie" onclick="showMetro(${r.id})"><i class="fas fa-ruler"></i></button>
             <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="deleteEquip(${r.id})"><i class="fas fa-trash"></i></button>
           </td>
         </tr>`;
@@ -150,7 +176,9 @@ function loadEquips() {
       document.getElementById('statTotal').textContent = items.length;
       document.getElementById('statEnService').textContent = enService;
       document.getElementById('statMaintenance').textContent = maintenance;
-      document.getElementById('statHorsService').textContent = horsService;
+      document.getElementById('statMesure').textContent = mesure;
+      document.getElementById('statEtalonne').textContent = etalonne;
+      document.getElementById('statExpire').textContent = expire;
     });
 }
 
@@ -160,7 +188,10 @@ function saveEquip() {
     nom: document.getElementById('equipNom').value,
     modele: document.getElementById('equipModele').value,
     numero_serie: document.getElementById('equipSerie').value,
+    type_equipement: document.getElementById('equipType').value,
+    derniere_maintenance: document.getElementById('equipDerniere').value || null,
     prochaine_maintenance: document.getElementById('equipProchaine').value || null,
+    frequence_etalonnage_jours: document.getElementById('equipFreqEtal').value || null,
     statut: document.getElementById('equipStatut').value,
   };
   const url = id ? '{{ url_for("qualite.api_equipements_update", item_id=0) }}'.replace('0', id) : '{{ url_for("qualite.api_equipements_create") }}';
@@ -185,9 +216,12 @@ function editEquip(id) {
       document.getElementById('equipNom').value = r.nom || '';
       document.getElementById('equipModele').value = r.modele || '';
       document.getElementById('equipSerie').value = r.numero_serie || '';
+      document.getElementById('equipType').value = r.type_equipement || 'production';
+      document.getElementById('equipDerniere').value = r.derniere_maintenance || '';
       document.getElementById('equipProchaine').value = r.prochaine_maintenance || '';
+      document.getElementById('equipFreqEtal').value = r.frequence_etalonnage_jours || '';
       document.getElementById('equipStatut').value = r.statut || 'actif';
-      document.getElementById('equipModalTitle').textContent = 'Modifier l\'équipement';
+      document.getElementById('equipModalTitle').textContent = "Modifier l'équipement";
       new bootstrap.Modal(document.getElementById('equipModal')).show();
     });
 }
@@ -201,12 +235,96 @@ function deleteEquip(id) {
 
 function resetEquipForm() {
   document.getElementById('equipId').value = '';
-  document.getElementById('equipNom').value = '';
-  document.getElementById('equipModele').value = '';
-  document.getElementById('equipSerie').value = '';
-  document.getElementById('equipProchaine').value = '';
+  ['equipNom','equipModele','equipSerie','equipDerniere','equipProchaine','equipFreqEtal'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('equipType').value = 'production';
   document.getElementById('equipStatut').value = 'actif';
   document.getElementById('equipModalTitle').textContent = 'Nouvel équipement';
+}
+
+function showMetro(id) {
+  selectedEquipId = id;
+  fetch('{{ url_for("qualite.api_equipements") }}').then(r=>r.json()).then(items => {
+    const r = items.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('metro-equip-name').querySelector('strong').textContent = r.nom || '';
+    document.getElementById('etal-equip-name').querySelector('strong').textContent = r.nom || '';
+    document.getElementById('m_freq').value = r.frequence_etalonnage_jours || '';
+    document.getElementById('m_precision').value = r.precision || '';
+    document.getElementById('m_unite').value = r.unite_mesure || '';
+    document.getElementById('m_tol_min').value = r.tolerance_min || '';
+    document.getElementById('m_tol_max').value = r.tolerance_max || '';
+    document.getElementById('m_organisme').value = r.organisme_etalonnage || '';
+    document.getElementById('m_statut_metro').value = r.statut_metrologique || 'en_cours';
+  });
+  loadEtalonnages(id);
+  document.getElementById('tab-metro-li').style.display = 'block';
+  document.getElementById('tab-etal-li').style.display = 'block';
+  document.querySelector('[data-bs-target="#tab-metro"]').click();
+}
+
+function saveMetro() {
+  if (!selectedEquipId) return;
+  const data = {
+    frequence_etalonnage_jours: document.getElementById('m_freq').value || null,
+    precision: document.getElementById('m_precision').value,
+    unite_mesure: document.getElementById('m_unite').value,
+    tolerance_min: document.getElementById('m_tol_min').value || null,
+    tolerance_max: document.getElementById('m_tol_max').value || null,
+    organisme_etalonnage: document.getElementById('m_organisme').value,
+    statut_metrologique: document.getElementById('m_statut_metro').value,
+  };
+  fetch('{{ url_for("qualite.api_equipements_update", item_id=0) }}'.replace('0', selectedEquipId), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(resp => { if (resp.success) loadEquips(); });
+}
+
+function loadEtalonnages(equipId) {
+  const id = equipId || selectedEquipId;
+  if (!id) return;
+  fetch('{{ url_for("qualite.api_etalonnages", equipement_id=0) }}'.replace('0', id))
+    .then(r => r.json())
+    .then(items => {
+      const tbody = document.getElementById('etalonnagesTableBody');
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucun étalonnage</td></tr>'; return; }
+      tbody.innerHTML = items.map(r => `<tr>
+        <td>${r.date_etalonnage || ''}</td>
+        <td>${r.valeur_mesuree ?? ''}</td>
+        <td>${r.valeur_reference ?? ''}</td>
+        <td>${r.ecart ?? ''}</td>
+        <td><span class="badge bg-${r.conforme ? 'success' : 'danger'}">${r.conforme ? 'Conforme' : 'Non conforme'}</span></td>
+        <td>${r.certificat_id || ''}</td>
+        <td>${r.operateur || ''}</td>
+        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteEtalonnage(${r.id})"><i class="fas fa-trash"></i></button></td>
+      </tr>`).join('');
+    });
+}
+
+function saveEtalonnage() {
+  if (!selectedEquipId) return;
+  const data = {
+    equipement_id: selectedEquipId,
+    date_etalonnage: document.getElementById('e_date').value,
+    valeur_mesuree: document.getElementById('e_mesuree').value || null,
+    valeur_reference: document.getElementById('e_reference').value || null,
+    conforme: document.getElementById('e_conforme').value === 'true',
+    certificat_id: document.getElementById('e_certif').value,
+    operateur: document.getElementById('e_operateur').value,
+    notes: document.getElementById('e_notes').value,
+  };
+  fetch('{{ url_for("qualite.api_etalonnages_create") }}', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(resp => {
+      if (resp.success) {
+        loadEtalonnages(selectedEquipId);
+        loadEquips();
+        ['e_date','e_mesuree','e_reference','e_certif','e_operateur','e_notes'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('e_conforme').value = 'true';
+      }
+    });
+}
+
+function deleteEtalonnage(id) {
+  if (!confirm('Supprimer cet enregistrement ?')) return;
+  fetch('{{ url_for("qualite.api_etalonnages_delete", item_id=0) }}'.replace('0', id), {method:'POST'})
+    .then(r=>r.json()).then(resp => { if (resp.success) { loadEtalonnages(selectedEquipId); loadEquips(); } });
 }
 
 document.addEventListener('DOMContentLoaded', loadEquips);

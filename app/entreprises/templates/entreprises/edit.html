@@ -36,140 +36,15 @@
                 <label class="form-label fw-semibold">Téléphone</label>
                 <input type="text" name="telephone" class="form-control" value="{{ entreprise.telephone or '' }}">
               </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Plan d'abonnement</label>
-                <select name="abonnement_type" class="form-select">
-                  <option value="">-- Sélectionner --</option>
-                  {% for p in plans %}
-                  <option value="{{ p.plan_key }}" {% if entreprise.abonnement_type == p.plan_key %}selected{% endif %}>
-                    {{ p.label }} ({{ p.price_mad }} MAD/an)
-                  </option>
-                  {% endfor %}
-                </select>
-              </div>
             </div>
-          </div>
-        </div>
-
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h6 class="mb-0"><i class="fas fa-puzzle-piece me-1"></i>Modules activés</h6>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll()">Tout activer/désactiver</button>
-          </div>
-          <div class="card-body">
-            {% set mods = entreprise.modules_actifs or [] %}
-
-            <div class="row g-3">
-              <!-- COLONNE 1 -->
-              <div class="col-md-4">
-                <h6 class="text-muted text-uppercase small mb-2" style="font-size:.7rem;">🏢 Pilotage & Transversal</h6>
-                {% for mod, label, icon in [
-                  ('pilotage', 'Pilotage', 'fa-tachometer-alt'),
-                  ('ged', 'GED / Documents', 'fa-folder-open'),
-                  ('veille', 'Veille Réglementaire', 'fa-satellite-dish'),
-                  ('processus', 'Processus & Workflows', 'fa-project-diagram'),
-                  ('performance', 'Performance & KPI', 'fa-chart-bar'),
-                  ('planification', 'Planification', 'fa-calendar-alt'),
-                ] %}
-                <div class="form-check form-switch mb-1">
-                  <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}"
-                    {% if mod in mods %}checked{% endif %}>
-                  <label class="form-check-label" for="m_{{ mod }}"><i class="fas {{ icon }} me-1 text-muted" style="font-size:.75rem;"></i>{{ label }}</label>
-                </div>
-                {% endfor %}
-              </div>
-
-              <!-- COLONNE 2 -->
-              <div class="col-md-4">
-                <h6 class="text-muted text-uppercase small mb-2" style="font-size:.7rem;">✅ Qualité & Conformité</h6>
-                {% for mod, label, icon in [
-                  ('qualite', 'Qualité / ISO 9001', 'fa-certificate'),
-                  ('audits', 'Audits', 'fa-clipboard-check'),
-                  ('nc_capa', 'Non-Conformités & CAPA', 'fa-exclamation-triangle'),
-                  ('fournisseurs', 'Fournisseurs & Achats', 'fa-truck'),
-                  ('reunions', 'Réunions & Revues', 'fa-handshake'),
-                  ('connaissances', 'Connaissances', 'fa-book-open'),
-                ] %}
-                <div class="form-check form-switch mb-1">
-                  <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}"
-                    {% if mod in mods %}checked{% endif %}>
-                  <label class="form-check-label" for="m_{{ mod }}"><i class="fas {{ icon }} me-1 text-muted" style="font-size:.75rem;"></i>{{ label }}</label>
-                </div>
-                {% endfor %}
-
-                <h6 class="text-muted text-uppercase small mb-2 mt-3" style="font-size:.7rem;">🎓 RH & Formation</h6>
-                {% for mod, label, icon in [
-                  ('formations', 'Formations & Compétences', 'fa-graduation-cap'),
-                  ('rh_qhse', 'RH QHSE', 'fa-users'),
-                ] %}
-                <div class="form-check form-switch mb-1">
-                  <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}"
-                    {% if mod in mods %}checked{% endif %}>
-                  <label class="form-check-label" for="m_{{ mod }}"><i class="fas {{ icon }} me-1 text-muted" style="font-size:.75rem;"></i>{{ label }}</label>
-                </div>
-                {% endfor %}
-              </div>
-
-              <!-- COLONNE 3 -->
-              <div class="col-md-4">
-                <h6 class="text-muted text-uppercase small mb-2" style="font-size:.7rem;">⛑️ HSE & Environnement</h6>
-                {% for mod, label, icon in [
-                  ('hse', 'HSE / ISO 45001', 'fa-hard-hat'),
-                  ('environnement', 'Environnement / ISO 14001', 'fa-leaf'),
-                  ('haccp', 'HACCP / ISO 22000', 'fa-utensils'),
-                  ('urgences', 'Gestion des Urgences', 'fa-bolt'),
-                ] %}
-                <div class="form-check form-switch mb-1">
-                  <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}"
-                    {% if mod in mods %}checked{% endif %}>
-                  <label class="form-check-label" for="m_{{ mod }}"><i class="fas {{ icon }} me-1 text-muted" style="font-size:.75rem;"></i>{{ label }}</label>
-                </div>
-                {% endfor %}
-
-                <h6 class="text-muted text-uppercase small mb-2 mt-3" style="font-size:.7rem;">⚙️ Opérations</h6>
-                {% for mod, label, icon in [
-                  ('maintenance', 'Maintenance', 'fa-wrench'),
-                  ('laboratoire', 'Laboratoire', 'fa-flask'),
-                ] %}
-                <div class="form-check form-switch mb-1">
-                  <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}"
-                    {% if mod in mods %}checked{% endif %}>
-                  <label class="form-check-label" for="m_{{ mod }}"><i class="fas {{ icon }} me-1 text-muted" style="font-size:.75rem;"></i>{{ label }}</label>
-                </div>
-                {% endfor %}
-
-                <h6 class="text-muted text-uppercase small mb-2 mt-3" style="font-size:.7rem;">🔧 Système</h6>
-                {% for mod, label, icon in [
-                  ('support', 'Support & Incidents', 'fa-life-ring'),
-                  ('notifications', 'Notifications', 'fa-bell'),
-                  ('admin', 'Administration', 'fa-crown'),
-                ] %}
-                <div class="form-check form-switch mb-1">
-                  <input type="checkbox" name="module_{{ mod }}" class="form-check-input" id="m_{{ mod }}"
-                    {% if mod in mods %}checked{% endif %}>
-                  <label class="form-check-label" for="m_{{ mod }}"><i class="fas {{ icon }} me-1 text-muted" style="font-size:.75rem;"></i>{{ label }}</label>
-                </div>
-                {% endfor %}
-              </div>
-            </div>
-
             <hr>
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted"><span id="moduleCount">{{ mods|length }}</span> modules activés sur 23</small>
-              <div>
-                <button type="button" class="btn btn-sm btn-outline-success me-1" onclick="activateCategory('qualite')">Qualité</button>
-                <button type="button" class="btn btn-sm btn-outline-warning me-1" onclick="activateCategory('hse')">HSE</button>
-                <button type="button" class="btn btn-sm btn-outline-info" onclick="activateCategory('all')">Tout</button>
-              </div>
-            </div>
+            <p class="text-muted small mb-0"><i class="fas fa-info-circle me-1"></i>La gestion des modules et de l'abonnement se fait depuis l'administration système.</p>
+            <button type="submit" class="btn btn-danger w-100 mt-2"><i class="fas fa-save me-1"></i>Enregistrer</button>
           </div>
         </div>
-
-        <button type="submit" class="btn btn-danger btn-lg w-100"><i class="fas fa-save me-1"></i>Enregistrer</button>
       </form>
     </div>
 
-    <!-- Sidebar infos -->
     <div class="col-lg-4">
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-body text-center">
@@ -182,49 +57,54 @@
         <div class="card-body">
           <h6 class="text-muted text-uppercase small" style="font-size:.7rem;">Résumé</h6>
           <div class="d-flex justify-content-between mb-1"><span class="small">Utilisateurs</span><strong>{{ entreprise.utilisateurs|length }}</strong></div>
-          <div class="d-flex justify-content-between mb-1"><span class="small">Modules actifs</span><strong id="sidebarCount">{{ mods|length }}</strong></div>
+          <div class="d-flex justify-content-between mb-1"><span class="small">Modules actifs</span><strong>{{ (entreprise.modules_actifs or [])|length }}</strong></div>
           <div class="d-flex justify-content-between mb-1"><span class="small">Abonnement</span><strong>{{ entreprise.abonnement_type }}</strong></div>
           <div class="d-flex justify-content-between"><span class="small">Inscrit le</span><strong>{{ entreprise.date_inscription.strftime('%d/%m/%Y') if entreprise.date_inscription else '-' }}</strong></div>
+        </div>
+      </div>
+      {% if manager %}
+      <div class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-white py-2">
+          <h6 class="mb-0 small fw-semibold"><i class="fas fa-user-tie me-1"></i>Manager</h6>
+        </div>
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width:40px;height:40px;font-size:1rem;">
+              {{ manager.prenom[:1]|upper }}{{ manager.nom[:1]|upper }}
+            </div>
+            <div>
+              <strong class="small">{{ manager.prenom }} {{ manager.nom }}</strong>
+              <div class="text-muted small">{{ manager.email }}</div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Rôle</span>
+            <span>{{ manager.role.nom if manager.role else '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Créé le</span>
+            <span>{{ manager.date_creation.strftime('%d/%m/%Y') if manager.date_creation else '-' }}</span>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Actif</span>
+            <span class="badge bg-{{ 'success' if manager.actif else 'danger' }}">{{ 'Oui' if manager.actif else 'Non' }}</span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small" style="font-size:.7rem;">Actions</h6>
+          <form method="POST" action="{{ url_for('entreprises.resend_welcome_email', entreprise_id=entreprise.id) }}"
+                onsubmit="return confirm('Renvoyer l\'email de bienvenue au manager ?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+              <i class="fas fa-envelope me-2"></i>Renvoyer email de bienvenue
+            </button>
+          </form>
         </div>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-function countModules() {
-  var count = document.querySelectorAll('input[name^="module_"]:checked').length;
-  document.getElementById('moduleCount').textContent = count;
-  document.getElementById('sidebarCount').textContent = count;
-}
-
-function toggleAll() {
-  var checkboxes = document.querySelectorAll('input[name^="module_"]');
-  var allChecked = Array.from(checkboxes).every(function(cb) { return cb.checked; });
-  checkboxes.forEach(function(cb) { cb.checked = !allChecked; });
-  countModules();
-}
-
-function activateCategory(cat) {
-  var categories = {
-    qualite: ['qualite', 'audits', 'nc_capa', 'fournisseurs', 'reunions', 'connaissances', 'formations', 'rh_qhse'],
-    hse: ['hse', 'environnement', 'haccp', 'urgences'],
-    all: ['pilotage', 'ged', 'veille', 'processus', 'audits', 'qualite', 'nc_capa', 'formations', 'rh_qhse',
-          'haccp', 'hse', 'environnement', 'maintenance', 'laboratoire', 'fournisseurs', 'performance',
-          'planification', 'reunions', 'support', 'notifications', 'admin', 'connaissances', 'urgences'],
-  };
-  (categories[cat] || []).forEach(function(mod) {
-    var cb = document.getElementById('m_' + mod);
-    if (cb) cb.checked = true;
-  });
-  countModules();
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('input[name^="module_"]').forEach(function(cb) {
-    cb.addEventListener('change', countModules);
-  });
-});
-</script>
 {% endblock %}

@@ -23,12 +23,14 @@ Version : 2.0.0 (modular architecture)
 """
 
 import os
+import time
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.exceptions import HTTPException
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -108,6 +110,8 @@ def create_app():
     # -------------------------------------------------------------------------
     # 7. Before-request : mise en place du contexte tenant
     # -------------------------------------------------------------------------
+    from flask import render_template
+
     @app.before_request
     def set_tenant():
         from flask_login import current_user
@@ -116,11 +120,140 @@ def create_app():
             is_admin = current_user.role and current_user.role.est_systeme
             set_current_entreprise(current_user.entreprise_id, is_admin)
 
-    # -------------------------------------------------------------------------
-    # 8. Context processor global (sidebar, notifications, etc.)
-    # -------------------------------------------------------------------------
+    @app.before_request
+    def set_request_id():
+        from app.utils.observability import set_request_id
+        set_request_id()
+
+    @app.before_request
+    def check_subscription_block():
+        from flask_login import current_user
+        from flask import request as req, flash, redirect, url_for
+        from app.models import Entreprise
+        from app.services.subscription_service import (
+            get_enterprise_lifecycle_status, get_payment_status,
+            BLOCKED_LIFECYCLE_STATES,
+        )
+        if not current_user.is_authenticated:
+            return
+        if current_user.role and current_user.role.est_systeme:
+            return
+        if req.method in ('GET', 'HEAD', 'OPTIONS'):
+            return
+        whitelist = ('admin.', 'facturation.', 'users.logout', 'users.login', 'static')
+        ep = req.endpoint or ''
+        if any(ep.startswith(p) or ep == p for p in whitelist):
+            return
+        entreprise = Entreprise.query.get(current_user.entreprise_id)
+        if not entreprise:
+            return
+        lifecycle = get_enterprise_lifecycle_status(entreprise)
+        pay_status = get_payment_status(entreprise)
+        if lifecycle in BLOCKED_LIFECYCLE_STATES or pay_status == 'expired':
+            flash(
+                'Votre abonnement est expiré. Cette action est bloquée. '
+                'Merci de régulariser votre paiement.',
+                'danger',
+            )
+            return redirect(url_for('facturation.index'))
     from app.context_processors import inject_globals
     app.context_processor(inject_globals)
+
+    # -------------------------------------------------------------------------
+    # 9. Gestionnaires d'erreurs personnalisés (403, 404, 500)
+    # -------------------------------------------------------------------------
+    from flask import render_template, jsonify, request as req, current_app as _app
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template('errors/403.html'), 403
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return render_template('errors/500.html'), 500
+
+    @app.errorhandler(Exception)
+    def unhandled_exception(error):
+        if isinstance(error, HTTPException):
+            return error
+
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        from flask_login import current_user
+        from app.utils.observability import get_request_id, record_security_event
+
+        tenant_id = current_user.entreprise_id if getattr(current_user, 'is_authenticated', False) else '-'
+        user_id = current_user.id if getattr(current_user, 'is_authenticated', False) else '-'
+        request_id = get_request_id()
+
+        _app.logger.exception(
+            "unhandled_exception path=%s method=%s request_id=%s",
+            req.path, req.method, request_id,
+            extra={'request_id': request_id, 'tenant_id': tenant_id, 'user_id': user_id},
+        )
+
+        record_security_event(
+            type_action='unhandled_exception',
+            utilisateur_id=None if user_id == '-' else user_id,
+            adresse_ip=req.remote_addr,
+            navigateur=req.headers.get('User-Agent'),
+            details={
+                'request_id': request_id,
+                'path': req.path,
+                'method': req.method,
+                'endpoint': req.endpoint,
+                'error_type': type(error).__name__,
+                'error_message': str(error),
+            },
+        )
+
+        try:
+            from app.utils.notifications import create_notification, send_incident_email
+            from app.models.auth import Utilisateur
+
+            incident_message = (
+                "Incident application detecte. "
+                f"Reference: {request_id}. "
+                f"Chemin: {req.method} {req.path}"
+            )
+
+            admins = Utilisateur.query.filter_by(actif=True).all()
+            from app.models.auth import Role
+            admins = Utilisateur.query.join(Role, Utilisateur.role_id == Role.id).filter(Role.est_systeme == True).all()
+            for admin in admins:
+                create_notification(admin.id, incident_message, type='incident')
+
+            if getattr(current_user, 'is_authenticated', False):
+                is_admin_user = getattr(getattr(current_user, 'role', None), 'est_systeme', False)
+                if not is_admin_user:
+                    create_notification(current_user.id, incident_message, type='incident')
+
+            user_info = f"{current_user.email} (ID: {current_user.id})" if getattr(current_user, 'is_authenticated', False) else 'Visiteur'
+            dedup_key = f"{type(error).__name__}|{req.path}"
+            dedup_cache = _app.extensions.setdefault('incident_email_dedup', {})
+            last_sent = dedup_cache.get(dedup_key)
+            now_ts = time.time()
+            if last_sent is None or (now_ts - last_sent) > 300:
+                dedup_cache[dedup_key] = now_ts
+                send_incident_email(error, request_id, req.path, req.method, user_info)
+        except Exception:
+            _app.logger.exception("incident_notification_failed request_id=%s", request_id)
+
+        accepts_json = (
+            req.is_json
+            or req.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (req.headers.get('Accept', ''))
+        )
+        if accepts_json:
+            return jsonify({'success': False, 'error': 'Erreur interne', 'request_id': request_id}), 500
+        return render_template('errors/500.html', request_id=request_id), 500
 
     return app
 
@@ -175,6 +308,10 @@ def _register_blueprints(app):
     app.register_blueprint(fournisseurs_bp, url_prefix='/fournisseurs')
     app.register_blueprint(formations_bp, url_prefix='/formations')
     app.register_blueprint(ishikawa_bp, url_prefix='/ishikawa')
+
+    # --- Objectifs qualité ---
+    from .objectifs import blueprint as objectifs_bp
+    app.register_blueprint(objectifs_bp, url_prefix='/objectifs')
 
     # --- HSE ---
     from .hse import blueprint as hse_bp

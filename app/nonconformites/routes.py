@@ -1,29 +1,24 @@
-from flask import render_template, request, jsonify, abort
+from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
+from app.utils.permissions import has_permission
 from app import db
-from app.models.entreprise import Entreprise
-from app.models.nonconformite import NonConformite
 from app.nonconformites import blueprint
+from app.models.nonconformite import NonConformite
+from sqlalchemy import func
 from datetime import date, datetime
-
-
-def _check_access():
-    entreprise = db.session.get(Entreprise, current_user.entreprise_id)
-    if not entreprise:
-        abort(403)
 
 
 @blueprint.route('/')
 @login_required
+@has_permission('nonconformites.voir')
 def index():
-    _check_access()
     return render_template('nonconformites/index.html')
 
 
 @blueprint.route('/api/liste')
 @login_required
+@has_permission('nonconformites.voir')
 def api_liste():
-    _check_access()
     eid = current_user.entreprise_id
     q = NonConformite.query.filter_by(entreprise_id=eid)
 
@@ -53,10 +48,10 @@ def api_liste():
     return jsonify([_serialize(r) for r in items])
 
 
-@blueprint.route('/api/create', methods=['POST'])
+@blueprint.route('/api/creer', methods=['POST'])
 @login_required
-def api_create():
-    _check_access()
+@has_permission('nonconformites.gerer')
+def api_creer():
     data = request.get_json()
     item = NonConformite(
         entreprise_id=current_user.entreprise_id,
@@ -79,10 +74,10 @@ def api_create():
     return jsonify({'success': True, 'id': item.id})
 
 
-@blueprint.route('/api/<int:item_id>/update', methods=['POST'])
+@blueprint.route('/api/<int:item_id>/modifier', methods=['POST'])
 @login_required
-def api_update(item_id):
-    _check_access()
+@has_permission('nonconformites.gerer')
+def api_modifier(item_id):
     item = NonConformite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     data = request.get_json()
     for f in ('reference', 'description', 'action_corrective', 'responsable_id', 'statut',
@@ -100,10 +95,10 @@ def api_update(item_id):
     return jsonify({'success': True})
 
 
-@blueprint.route('/api/<int:item_id>/delete', methods=['POST'])
+@blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])
 @login_required
-def api_delete(item_id):
-    _check_access()
+@has_permission('nonconformites.gerer')
+def api_supprimer(item_id):
     item = NonConformite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
@@ -112,8 +107,8 @@ def api_delete(item_id):
 
 @blueprint.route('/api/<int:item_id>/valider-cloture', methods=['POST'])
 @login_required
+@has_permission('nonconformites.valider_cloture')
 def api_valider_cloture(item_id):
-    _check_access()
     item = NonConformite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     item.statut = 'cloturee'
     item.validee_par_id = current_user.id
@@ -125,24 +120,22 @@ def api_valider_cloture(item_id):
 
 @blueprint.route('/api/stats')
 @login_required
+@has_permission('nonconformites.voir')
 def api_stats():
-    _check_access()
     eid = current_user.entreprise_id
-    items = NonConformite.query.filter_by(entreprise_id=eid).all()
-
-    stats = {
-        'total': len(items),
-        'ouvertes': sum(1 for r in items if r.statut == 'ouverte'),
-        'en_cours': sum(1 for r in items if r.statut == 'en_cours'),
-        'cloturees': sum(1 for r in items if r.statut == 'cloturee'),
-        'mineur': sum(1 for r in items if r.gravite == 'mineur'),
-        'majeur': sum(1 for r in items if r.gravite == 'majeur'),
-        'critique': sum(1 for r in items if r.gravite == 'critique'),
-        'hse': sum(1 for r in items if r.domaine == 'hse'),
-        'qualite': sum(1 for r in items if r.domaine == 'qualite'),
-        'haccp': sum(1 for r in items if r.domaine == 'haccp'),
-    }
-    return jsonify(stats)
+    base = NonConformite.query.filter_by(entreprise_id=eid)
+    return jsonify({
+        'total': base.count(),
+        'ouvertes': base.filter_by(statut='ouverte').count(),
+        'en_cours': base.filter_by(statut='en_cours').count(),
+        'cloturees': base.filter_by(statut='cloturee').count(),
+        'mineur': base.filter_by(gravite='mineur').count(),
+        'majeur': base.filter_by(gravite='majeur').count(),
+        'critique': base.filter_by(gravite='critique').count(),
+        'hse': base.filter_by(domaine='hse').count(),
+        'qualite': base.filter_by(domaine='qualite').count(),
+        'haccp': base.filter_by(domaine='haccp').count(),
+    })
 
 
 def _serialize(r):

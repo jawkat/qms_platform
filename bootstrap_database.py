@@ -159,7 +159,7 @@ def init_db():
                 er = EntrepriseRole(entreprise_id=entreprise.id, role_id=role.id)
                 db.session.add(er)
 
-        # Permissions aux rôles par défaut
+        # Permissions aux rôles par défaut (globales + entreprise par défaut)
         from app.utils.permission_catalog import get_default_enterprise_role_permissions
         default_perms = get_default_enterprise_role_permissions()
         for role in created_roles:
@@ -168,14 +168,22 @@ def init_db():
                 perm = Permission.query.filter_by(code=code).first()
                 if not perm:
                     continue
+                # Globale (toutes les entreprises)
+                if not RolePermission.query.filter_by(
+                    role_id=role.id, permission_id=perm.id, entreprise_id=None
+                ).first():
+                    db.session.add(RolePermission(
+                        role_id=role.id, permission_id=perm.id,
+                        entreprise_id=None, autorise=True
+                    ))
+                # Entreprise par défaut
                 if not RolePermission.query.filter_by(
                     role_id=role.id, permission_id=perm.id, entreprise_id=entreprise.id
                 ).first():
-                    rp = RolePermission(
+                    db.session.add(RolePermission(
                         role_id=role.id, permission_id=perm.id,
                         entreprise_id=entreprise.id, autorise=True
-                    )
-                    db.session.add(rp)
+                    ))
         db.session.commit()
 
         # Créer l'utilisateur admin

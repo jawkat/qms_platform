@@ -75,9 +75,11 @@ class Utilisateur(UserMixin, db.Model):
         perm = Permission.query.filter_by(code=permission_code).first()
         if not perm:
             return False
-        rp = RolePermission.query.filter_by(
-            role_id=self.role_id, permission_id=perm.id,
-            entreprise_id=eid, autorise=True
+        rp = RolePermission.query.filter(
+            RolePermission.role_id == self.role_id,
+            RolePermission.permission_id == perm.id,
+            db.or_(RolePermission.entreprise_id == eid, RolePermission.entreprise_id.is_(None)),
+            RolePermission.autorise == True
         ).first()
         return rp is not None
 

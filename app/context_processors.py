@@ -25,6 +25,7 @@ from datetime import datetime, date
 from urllib.parse import urlencode
 from flask import request
 from app.models import Entreprise
+from app.services.subscription_service import get_enterprise_lifecycle_status, get_payment_status
 from app.utils.domaine_switch import get_domaine_actif
 
 
@@ -160,11 +161,19 @@ def inject_globals():
         if entreprise:
             modules = entreprise.modules_actifs or ['hse']
             domaine = get_domaine_actif(entreprise)
+            lifecycle = get_enterprise_lifecycle_status(entreprise)
+            pay_status = get_payment_status(entreprise)
+            due = getattr(entreprise, 'abonnement_prochaine_echeance', None)
+            days_remaining = (due - date.today()).days if due else None
             ctx.update({
                 'domaine_actif': domaine,
                 'modules_actifs': modules,
                 'has_switch': len(modules) > 1,
                 'entreprise': entreprise,
+                'subscription_lifecycle': lifecycle,
+                'subscription_pay_status': pay_status,
+                'subscription_due_date': due,
+                'subscription_days_remaining': days_remaining,
             })
 
     ctx['sidebar_sections'] = _build_sidebar(current_user, ctx['modules_actifs'])

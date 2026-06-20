@@ -4,8 +4,13 @@ from app.admin import admin
 from app import db
 from app.models import (
     Utilisateur, Entreprise, SubscriptionPlan, Secteur,
-    TexteReglementaire, EntrepriseTexte
+    TexteReglementaire, EntrepriseTexte, ActionCorrective, ProofMaster,
 )
+from app.services.subscription_service import (
+    get_enterprise_lifecycle_status, get_payment_status,
+    _get_storage_size_for_proofs,
+)
+from app.utils.subscriptions import get_subscription_plan
 from functools import wraps
 from datetime import date, datetime, time, timedelta
 
@@ -44,11 +49,37 @@ def dashboard():
 def entreprises():
     entreprises = Entreprise.query.order_by(Entreprise.date_inscription.desc()).all()
     data = []
+    today = date.today()
     for e in entreprises:
         nb_users = Utilisateur.query.filter_by(entreprise_id=e.id).count()
         plan = SubscriptionPlan.query.filter_by(plan_key=e.abonnement_type).first()
-        data.append({'entreprise': e, 'nb_users': nb_users, 'plan': plan})
-    return render_template('admin/entreprises.html', data=data)
+        plan_def = get_subscription_plan(e.abonnement_type)
+        lifecycle = get_enterprise_lifecycle_status(e)
+        pay_status = get_payment_status(e)
+        nb_actions = ActionCorrective.query.filter(
+            ActionCorrective.entreprise_id == e.id,
+            ActionCorrective.statut != 'Terminée',
+        ).count()
+        max_users = plan_def['max_users'] if plan_def else 0
+        max_actions = plan_def['max_open_actions'] if plan_def else 0
+        user_pct = int((nb_users / max_users) * 100) if max_users else 0
+        action_pct = int((nb_actions / max_actions) * 100) if max_actions else 0
+        due = getattr(e, 'abonnement_prochaine_echeance', None)
+        days_remaining = (due - today).days if due else None
+        data.append({
+            'entreprise': e,
+            'nb_users': nb_users,
+            'plan_obj': plan,
+            'lifecycle': lifecycle,
+            'pay_status': pay_status,
+            'nb_actions': nb_actions,
+            'max_users': max_users,
+            'max_actions': max_actions,
+            'user_pct': user_pct,
+            'action_pct': action_pct,
+            'days_remaining': days_remaining,
+        })
+    return render_template('admin/entreprises.html', data=data, today=today)
 
 
 @admin.route('/entreprises/create', methods=['GET', 'POST'])
@@ -139,6 +170,10 @@ def entreprise_update(eid):
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
         abort(404)
+    for f in ('nom', 'taille', 'pays', 'adresse', 'telephone'):
+        val = request.form.get(f)
+        if val is not None:
+            setattr(entreprise, f, val)
     abonnement_type = request.form.get('abonnement_type')
     modules_actifs = request.form.getlist('modules_actifs')
     statut = request.form.get('statut')
@@ -148,7 +183,10 @@ def entreprise_update(eid):
     if modules_actifs:
         entreprise.modules_actifs = modules_actifs
     if statut:
-        entreprise.statut = statut
+        normalize = {'actif': 'active', 'suspendu': 'suspended',
+                     'en_attente': 'suspended', 'annule': 'cancelled',
+                     'archive': 'archived'}
+        entreprise.statut = normalize.get(statut.lower(), statut)
     if motif_suspension:
         entreprise.motif_suspension = motif_suspension
     else:

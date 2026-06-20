@@ -42,17 +42,30 @@ class TestEnterpriseLifecycleStatus:
         session.commit()
         assert get_enterprise_lifecycle_status(ent) == 'active'
 
-    def test_no_statut_no_payment_is_active(self, session):
+    def test_no_statut_no_payment_is_trial(self, session):
         ent = Entreprise(nom='T')
+        session.add(ent)
+        session.commit()
+        assert get_enterprise_lifecycle_status(ent) == 'trial'
+
+    def test_paid_no_statut_is_active(self, session):
+        ent = Entreprise(nom='T', abonnement_paye=True)
         session.add(ent)
         session.commit()
         assert get_enterprise_lifecycle_status(ent) == 'active'
 
-    def test_unknown_statut_fallback(self, session):
+    def test_trial_expired_is_suspended(self, session):
+        ent = Entreprise(nom='T', abonnement_type='trial',
+                         abonnement_prochaine_echeance=date.today() - timedelta(days=1))
+        session.add(ent)
+        session.commit()
+        assert get_enterprise_lifecycle_status(ent) == 'suspended'
+
+    def test_unknown_statut_no_payment_is_trial(self, session):
         ent = Entreprise(nom='T', statut='unknown')
         session.add(ent)
         session.commit()
-        assert get_enterprise_lifecycle_status(ent) == 'active'
+        assert get_enterprise_lifecycle_status(ent) == 'trial'
 
 
 class TestEnsureEnterpriseOperationAllowed:

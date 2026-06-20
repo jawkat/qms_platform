@@ -149,11 +149,37 @@ class Prp(db.Model):
     frequence = db.Column(db.String(100))
     responsable = db.Column(db.String(100))
     procedure_reference = db.Column(db.String(200))
+    type_prp = db.Column(db.String(20), default='generic')  # 'generic' | 'operational'
+    processus_id = db.Column(db.Integer, db.ForeignKey('haccp_processus.id'), nullable=True)
+    danger_id = db.Column(db.Integer, db.ForeignKey('haccp_analyse_danger.id'), nullable=True)
+    limite_critique = db.Column(db.String(200))
+    methode_surveillance = db.Column(db.Text)
+    frequence_surveillance = db.Column(db.String(100))
+    action_corrective = db.Column(db.Text)
     verifie_le = db.Column(db.Date)
     prochaine_verification = db.Column(db.Date)
     statut = db.Column(db.String(20), default='actif')
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     entreprise = db.relationship('Entreprise')
+    processus = db.relationship('ProcessusHaccp', foreign_keys=[processus_id])
+    danger = db.relationship('AnalyseDanger', foreign_keys=[danger_id])
+
+
+class EnregistrementOprp(db.Model):
+    __tablename__ = 'haccp_enregistrement_oprp'
+    id = db.Column(db.Integer, primary_key=True)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
+    oprp_id = db.Column(db.Integer, db.ForeignKey('haccp_prp.id'), nullable=False)
+    date_controle = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    valeur = db.Column(db.String(100), nullable=False)
+    unite = db.Column(db.String(20))
+    conforme = db.Column(db.Boolean, default=True)
+    operateur = db.Column(db.String(100))
+    commentaire = db.Column(db.Text)
+    action_entreprise = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    entreprise = db.relationship('Entreprise')
+    oprp = db.relationship('Prp', backref=db.backref('enregistrements_oprp', lazy='dynamic', cascade='all, delete-orphan'))
 
 
 class TracabiliteLot(db.Model):

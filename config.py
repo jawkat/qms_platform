@@ -18,6 +18,7 @@ class Config:
     MAIL_USERNAME = os.getenv('MAIL_USERNAME', '')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@qmsplatform.ma')
+    MAIL_ADMIN_EMAIL = os.getenv('MAIL_ADMIN_EMAIL', 'jwd.katten@gmail.com')
     MAIL_SUPPRESS_SEND = os.getenv('MAIL_SUPPRESS_SEND', '0') == '1'
     APP_LOGIN_URL = os.getenv('APP_LOGIN_URL', 'http://localhost:5005/')
 

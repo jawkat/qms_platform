@@ -5,7 +5,7 @@ from app import db
 from app.haccp import blueprint
 from app.haccp.models import (
     ProcessusHaccp, ProduitHaccp, AnalyseDanger, Ccp,
-    EnregistrementCcp, Prp,
+    EnregistrementCcp, Prp, EnregistrementOprp,
     TracabiliteLot, RappelProduit,
 )
 from app.models.nonconformite import NonConformite
@@ -63,6 +63,20 @@ def enregistrements():
 @module_access_required('haccp', 'haccp.voir')
 def prp():
     return render_template('haccp/prp.html')
+
+
+@blueprint.route('/oprp')
+@login_required
+@module_access_required('haccp', 'haccp.voir')
+def oprp():
+    return render_template('haccp/oprp.html')
+
+
+@blueprint.route('/enregistrements-oprp')
+@login_required
+@module_access_required('haccp', 'haccp.voir')
+def enregistrements_oprp():
+    return render_template('haccp/enregistrements_oprp.html')
 
 
 @blueprint.route('/tracabilite')
@@ -160,7 +174,9 @@ def api_stats():
         'dangers': AnalyseDanger.query.filter_by(entreprise_id=eid).count(),
         'nonconformites': NonConformite.query.filter_by(entreprise_id=eid, domaine='haccp').count(),
         'enregistrements': EnregistrementCcp.query.filter_by(entreprise_id=eid).count(),
-        'prp': Prp.query.filter_by(entreprise_id=eid).count(),
+        'prp': Prp.query.filter_by(entreprise_id=eid, type_prp='generic').count(),
+        'oprp': Prp.query.filter_by(entreprise_id=eid, type_prp='operational').count(),
+        'enregistrements_oprp': EnregistrementOprp.query.filter_by(entreprise_id=eid).count(),
         'tracabilite': TracabiliteLot.query.filter_by(entreprise_id=eid).count(),
         'rappels': RappelProduit.query.filter_by(entreprise_id=eid).count(),
     })
@@ -434,7 +450,7 @@ def api_enregistrements_delete(item_id):
 @login_required
 @module_access_required('haccp', 'haccp.voir')
 def api_prp():
-    items = Prp.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    items = Prp.query.filter_by(entreprise_id=current_user.entreprise_id, type_prp='generic')\
         .order_by(Prp.categorie, Prp.date_creation.desc()).all()
     return jsonify([{
         'id': r.id, 'categorie': r.categorie, 'element': r.element,
@@ -492,6 +508,156 @@ def api_prp_update(item_id):
 @module_access_required('haccp', 'haccp.gerer_prp')
 def api_prp_delete(item_id):
     item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# --- API: OPRP ---
+
+@blueprint.route('/api/oprp')
+@login_required
+@module_access_required('haccp', 'haccp.voir')
+def api_oprp():
+    items = Prp.query.filter_by(entreprise_id=current_user.entreprise_id, type_prp='operational')\
+        .order_by(Prp.categorie, Prp.date_creation.desc()).all()
+    return jsonify([{
+        'id': r.id, 'categorie': r.categorie, 'element': r.element,
+        'description': r.description, 'frequence': r.frequence,
+        'responsable': r.responsable, 'procedure_reference': r.procedure_reference,
+        'type_prp': r.type_prp,
+        'processus_id': r.processus_id,
+        'danger_id': r.danger_id,
+        'limite_critique': r.limite_critique,
+        'methode_surveillance': r.methode_surveillance,
+        'frequence_surveillance': r.frequence_surveillance,
+        'action_corrective': r.action_corrective,
+        'etape': r.processus.etape if r.processus else '',
+        'danger_libelle': r.danger.danger if r.danger else '',
+        'verifie_le': r.verifie_le.isoformat() if r.verifie_le else None,
+        'prochaine_verification': r.prochaine_verification.isoformat() if r.prochaine_verification else None,
+        'statut': r.statut,
+        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
+    } for r in items])
+
+
+@blueprint.route('/api/oprp/create', methods=['POST'])
+@login_required
+@module_access_required('haccp', 'haccp.gerer_prp')
+def api_oprp_create():
+    data = request.get_json()
+    item = Prp(
+        entreprise_id=current_user.entreprise_id,
+        categorie=data.get('categorie', 'autre'),
+        element=data.get('element'),
+        description=data.get('description'),
+        frequence=data.get('frequence'),
+        responsable=data.get('responsable'),
+        procedure_reference=data.get('procedure_reference'),
+        type_prp='operational',
+        processus_id=data.get('processus_id'),
+        danger_id=data.get('danger_id'),
+        limite_critique=data.get('limite_critique'),
+        methode_surveillance=data.get('methode_surveillance'),
+        frequence_surveillance=data.get('frequence_surveillance'),
+        action_corrective=data.get('action_corrective'),
+        verifie_le=datetime.strptime(data['verifie_le'], '%Y-%m-%d').date()
+        if data.get('verifie_le') else None,
+        prochaine_verification=datetime.strptime(data['prochaine_verification'], '%Y-%m-%d').date()
+        if data.get('prochaine_verification') else None,
+        statut=data.get('statut', 'actif'),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({'success': True, 'id': item.id})
+
+
+@blueprint.route('/api/oprp/<int:item_id>/update', methods=['POST'])
+@login_required
+@module_access_required('haccp', 'haccp.gerer_prp')
+def api_oprp_update(item_id):
+    item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    data = request.get_json()
+    for f in ('categorie', 'element', 'description', 'frequence', 'responsable',
+              'procedure_reference', 'processus_id', 'danger_id', 'limite_critique',
+              'methode_surveillance', 'frequence_surveillance', 'action_corrective', 'statut'):
+        if f in data:
+            setattr(item, f, data[f])
+    if data.get('verifie_le'):
+        item.verifie_le = datetime.strptime(data['verifie_le'], '%Y-%m-%d').date()
+    if data.get('prochaine_verification'):
+        item.prochaine_verification = datetime.strptime(data['prochaine_verification'], '%Y-%m-%d').date()
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@blueprint.route('/api/oprp/<int:item_id>/delete', methods=['POST'])
+@login_required
+@module_access_required('haccp', 'haccp.gerer_prp')
+def api_oprp_delete(item_id):
+    item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# --- API: Enregistrements OPRP ---
+
+@blueprint.route('/api/enregistrements-oprp')
+@login_required
+@module_access_required('haccp', 'haccp.voir')
+def api_enregistrements_oprp():
+    items = EnregistrementOprp.query.filter_by(entreprise_id=current_user.entreprise_id)\
+        .order_by(EnregistrementOprp.date_controle.desc()).all()
+    return jsonify([{
+        'id': r.id, 'oprp_id': r.oprp_id,
+        'date_controle': r.date_controle.isoformat() if r.date_controle else None,
+        'valeur': r.valeur, 'unite': r.unite, 'conforme': r.conforme,
+        'operateur': r.operateur, 'commentaire': r.commentaire,
+        'action_entreprise': r.action_entreprise,
+        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
+    } for r in items])
+
+
+@blueprint.route('/api/enregistrements-oprp/create', methods=['POST'])
+@login_required
+@module_access_required('haccp', 'haccp.gerer_enregistrements')
+def api_enregistrements_oprp_create():
+    data = request.get_json()
+    date_val = datetime.fromisoformat(data['date_controle']) if data.get('date_controle') else datetime.utcnow()
+    item = EnregistrementOprp(
+        entreprise_id=current_user.entreprise_id,
+        oprp_id=data.get('oprp_id'),
+        date_controle=date_val,
+        valeur=data.get('valeur'), unite=data.get('unite'),
+        conforme=data.get('conforme', True),
+        operateur=data.get('operateur'), commentaire=data.get('commentaire'),
+        action_entreprise=data.get('action_entreprise'),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({'success': True, 'id': item.id})
+
+
+@blueprint.route('/api/enregistrements-oprp/<int:item_id>/update', methods=['POST'])
+@login_required
+@module_access_required('haccp', 'haccp.gerer_enregistrements')
+def api_enregistrements_oprp_update(item_id):
+    item = EnregistrementOprp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    data = request.get_json()
+    for f in ('oprp_id', 'valeur', 'unite', 'conforme', 'operateur',
+              'commentaire', 'action_entreprise'):
+        if f in data:
+            setattr(item, f, data[f])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@blueprint.route('/api/enregistrements-oprp/<int:item_id>/delete', methods=['POST'])
+@login_required
+@module_access_required('haccp', 'haccp.gerer_enregistrements')
+def api_enregistrements_oprp_delete(item_id):
+    item = EnregistrementOprp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return jsonify({'success': True})

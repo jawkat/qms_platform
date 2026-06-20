@@ -4,12 +4,13 @@ from flask import render_template, request, jsonify, redirect, url_for, flash, s
 from flask_login import login_required, current_user
 from app import db
 from app.models import ProofMaster, ProofReference, Dossier, TypeDocument, WorkflowLog, Utilisateur
+from app.models.systeme import Notification
 from app.documents import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
 from app.services.quota_middleware import check_quota
 from app.services.proof_service import ProofService
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, func
 
@@ -348,7 +349,47 @@ def soumettre(proof_id):
         flash('Seul un document en brouillon peut être soumis.', 'warning')
         return redirect(url_for('documents.detail', proof_id=proof_id))
 
+    workflow_modele_id = request.form.get('workflow_modele_id', type=int)
     approbateur_id = request.form.get('approbateur_id', type=int) or proof.workflow_approbateur_id
+
+    if workflow_modele_id:
+        from app.workflow_engine.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
+        modele = WorkflowModele.query.filter_by(id=workflow_modele_id, entreprise_id=current_user.entreprise_id).first()
+        if modele:
+            etapes = list(modele.etapes.order_by(WorkflowEtape.ordre).all())
+            if etapes:
+                premiere = etapes[0]
+                deadline = None
+                if premiere.delai_jours:
+                    deadline = datetime.utcnow() + timedelta(days=premiere.delai_jours)
+                instance = WorkflowInstance(
+                    entreprise_id=current_user.entreprise_id,
+                    modele_id=modele.id,
+                    entity_type='documents',
+                    entity_id=proof.id,
+                    etape_courante_id=premiere.id,
+                    demandeur_id=current_user.id,
+                    statut='en_cours',
+                    date_deadline=deadline,
+                )
+                db.session.add(instance)
+                db.session.flush()
+                h = WorkflowHistorique(
+                    instance_id=instance.id, etape_id=premiere.id,
+                    utilisateur_id=current_user.id, action='creer',
+                    commentaire='Document soumis pour approbation',
+                )
+                db.session.add(h)
+                if premiere.role_requis:
+                    from app.models.auth import Utilisateur as AuthUtilisateur
+                    validateurs = AuthUtilisateur.query.filter_by(
+                        entreprise_id=current_user.entreprise_id, actif=True
+                    ).all()
+                    for v in validateurs:
+                        if v.role and v.role.nom and premiere.role_requis.lower() in v.role.nom.lower():
+                            notif = Notification(type='workflow', message=f'Nouveau document "{proof.nom_fichier}" à valider (workflow: {modele.nom})', utilisateur_id=v.id)
+                            db.session.add(notif)
+
     if not approbateur_id:
         flash('Veuillez sélectionner un approbateur.', 'warning')
         return redirect(url_for('documents.detail', proof_id=proof_id))
@@ -359,6 +400,8 @@ def soumettre(proof_id):
     proof.workflow_statut = 'soumis'
     proof.workflow_approbateur_id = approbateur_id
     proof.date_soumission = datetime.utcnow()
+    notif = Notification(type='workflow', message=f'Document "{proof.nom_fichier}" soumis pour votre approbation.', utilisateur_id=approbateur_id)
+    db.session.add(notif)
     db.session.commit()
     flash('Document soumis pour approbation.', 'success')
     return redirect(url_for('documents.detail', proof_id=proof_id))
@@ -375,6 +418,32 @@ def approuver(proof_id):
     if proof.workflow_approbateur_id != current_user.id and not (current_user.role and current_user.role.est_systeme):
         flash('Vous n\'êtes pas l\'approbateur de ce document.', 'warning')
         return redirect(url_for('documents.detail', proof_id=proof_id))
+
+    from app.workflow_engine.models import WorkflowInstance as WFInstance, WorkflowHistorique as WFHistorique, WorkflowEtape as WFEtape
+    wf_instances = WFInstance.query.filter_by(entity_type='documents', entity_id=proof.id, statut='en_cours').all()
+    for wf_inst in wf_instances:
+        h = WFHistorique(
+            instance_id=wf_inst.id, etape_id=wf_inst.etape_courante_id,
+            utilisateur_id=current_user.id, action='approuver',
+            commentaire=request.form.get('commentaire', 'Document approuvé'),
+        )
+        db.session.add(h)
+        etapes = list(wf_inst.modele.etapes.order_by(WFEtape.ordre).all())
+        current_idx = next((i for i, e in enumerate(etapes) if e.id == wf_inst.etape_courante_id), -1)
+        if current_idx < len(etapes) - 1:
+            next_etape = etapes[current_idx + 1]
+            wf_inst.etape_courante_id = next_etape.id
+            if next_etape.delai_jours:
+                wf_inst.date_deadline = datetime.utcnow() + timedelta(days=next_etape.delai_jours)
+            if wf_inst.demandeur_id:
+                notif = Notification(type='workflow', message=f'Workflow "{wf_inst.modele.nom}" : étape "{next_etape.nom}" en attente.', utilisateur_id=wf_inst.demandeur_id)
+                db.session.add(notif)
+        else:
+            wf_inst.statut = 'termine'
+            wf_inst.date_fin = datetime.utcnow()
+            if wf_inst.demandeur_id:
+                notif = Notification(type='workflow', message=f'Workflow "{wf_inst.modele.nom}" terminé avec succès.', utilisateur_id=wf_inst.demandeur_id)
+                db.session.add(notif)
 
     _log_workflow(proof_id, 'approuve',
                   request.form.get('commentaire', 'Document approuvé'),
@@ -402,6 +471,21 @@ def rejeter(proof_id):
     if not commentaire:
         flash('Veuillez fournir un motif de rejet.', 'warning')
         return redirect(url_for('documents.detail', proof_id=proof_id))
+
+    from app.workflow_engine.models import WorkflowInstance as WFInstance, WorkflowHistorique as WFHistorique
+    wf_instances = WFInstance.query.filter_by(entity_type='documents', entity_id=proof.id, statut='en_cours').all()
+    for wf_inst in wf_instances:
+        h = WFHistorique(
+            instance_id=wf_inst.id, etape_id=wf_inst.etape_courante_id,
+            utilisateur_id=current_user.id, action='rejeter',
+            commentaire=commentaire,
+        )
+        db.session.add(h)
+        wf_inst.statut = 'rejete'
+        wf_inst.date_fin = datetime.utcnow()
+        if wf_inst.demandeur_id:
+            notif = Notification(type='workflow', message=f'Workflow "{wf_inst.modele.nom}" rejeté. Motif : {commentaire}', utilisateur_id=wf_inst.demandeur_id)
+            db.session.add(notif)
 
     _log_workflow(proof_id, 'rejete', commentaire, current_user.id)
     proof.workflow_statut = 'rejete'

@@ -1,0 +1,142 @@
+{% extends 'layout.html' %}
+{% block title %}HSE - Arbre des causes{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-sitemap me-2 text-danger"></i>Arbre des causes — {{ incident.type_incident }} du {{ incident.date_incident }}</h1>
+    <div>
+      <a href="{{ url_for('hse.incidents') }}" class="btn btn-outline-secondary btn-sm me-2"><i class="fas fa-arrow-left me-1"></i>Retour incidents</a>
+      <button class="btn btn-danger" onclick="addRootCause()"><i class="fas fa-plus me-1"></i>Ajouter cause racine</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div id="tree-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="causeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="causeModalTitle">Ajouter une cause</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="causeId" value="">
+        <input type="hidden" id="causeParentId" value="">
+        <div class="mb-3"><label class="form-label">Catégorie (5M)</label><select id="f_categorie" class="form-select">
+          <option value="main_oeuvre">Main-d'œuvre</option><option value="methode">Méthode</option>
+          <option value="milieu">Milieu</option><option value="matiere">Matière</option>
+          <option value="machine">Machine</option><option value="autre">Autre</option>
+        </select></div>
+        <div class="mb-3"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="f_description" class="form-control" rows="3"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" onclick="saveCause()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const INCIDENT_ID = {{ incident.id }};
+const API = '{{ url_for("hse.api_causes", incident_id=incident.id) }}';
+const CREATE = '{{ url_for("hse.api_causes_create", incident_id=incident.id) }}';
+const UPDATE = '{{ url_for("hse.api_causes_update", item_id=0) }}';
+const DELETE = '{{ url_for("hse.api_causes_delete", item_id=0) }}';
+
+const CAT_COLORS = { main_oeuvre: '#e74c3c', methode: '#f39c12', milieu: '#2ecc71', matiere: '#3498db', machine: '#9b59b6', autre: '#95a5a6' };
+const CAT_LABELS = { main_oeuvre: 'Main-d\'œuvre', methode: 'Méthode', milieu: 'Milieu', matiere: 'Matière', machine: 'Machine', autre: 'Autre' };
+
+function renderTree(causes, parentEl, level) {
+  level = level || 0;
+  causes.forEach(c => {
+    const div = document.createElement('div');
+    div.style.marginLeft = (level * 30) + 'px';
+    div.style.marginBottom = '8px';
+    div.style.borderLeft = level > 0 ? '3px solid ' + (CAT_COLORS[c.categorie] || '#95a5a6') : 'none';
+    div.style.paddingLeft = level > 0 ? '12px' : '0';
+    div.style.paddingTop = '4px';
+    div.style.paddingBottom = '4px';
+    const color = CAT_COLORS[c.categorie] || '#95a5a6';
+    div.innerHTML = `<div class="d-flex align-items-start">
+      <span class="badge me-2 mt-1" style="background:${color};min-width:80px;">${CAT_LABELS[c.categorie]||c.categorie}</span>
+      <div class="flex-grow-1">
+        <p class="mb-1">${c.description}</p>
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-primary btn-sm" onclick="addChild(${c.id})"><i class="fas fa-plus"></i> Sous-cause</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="editCause(${c.id})"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteCause(${c.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+    parentEl.appendChild(div);
+    if (c.enfants && c.enfants.length) {
+      renderTree(c.enfants, parentEl, level + 1);
+    }
+  });
+}
+
+function loadTree() {
+  fetch(API).then(r=>r.json()).then(causes => {
+    const container = document.getElementById('tree-container');
+    container.innerHTML = '';
+    if (!causes.length) {
+      container.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-tree fa-3x mb-3"></i><p>Aucune cause identifiée. Commencez par ajouter une cause racine.</p></div>';
+      return;
+    }
+    renderTree(causes, container, 0);
+  });
+}
+
+function addRootCause() {
+  document.getElementById('causeId').value = '';
+  document.getElementById('causeParentId').value = '';
+  document.getElementById('f_categorie').value = 'autre';
+  document.getElementById('f_description').value = '';
+  document.getElementById('causeModalTitle').textContent = 'Ajouter une cause racine';
+  new bootstrap.Modal(document.getElementById('causeModal')).show();
+}
+
+function addChild(parentId) {
+  document.getElementById('causeId').value = '';
+  document.getElementById('causeParentId').value = parentId;
+  document.getElementById('f_categorie').value = 'autre';
+  document.getElementById('f_description').value = '';
+  document.getElementById('causeModalTitle').textContent = 'Ajouter une sous-cause';
+  new bootstrap.Modal(document.getElementById('causeModal')).show();
+}
+
+function editCause(id) {
+  fetch(API).then(r=>r.json()).then(function flat(items, out) {
+    items.forEach(function rec(c) { out.push(c); if(c.enfants) c.enfants.forEach(e => rec(e)); });
+    return out;
+  }([])).then(items => {
+    const r = items.find(x=>x.id===id); if(!r) return;
+    document.getElementById('causeId').value = r.id;
+    document.getElementById('causeParentId').value = r.parent_id||'';
+    document.getElementById('f_categorie').value = r.categorie||'autre';
+    document.getElementById('f_description').value = r.description||'';
+    document.getElementById('causeModalTitle').textContent = 'Modifier la cause';
+    new bootstrap.Modal(document.getElementById('causeModal')).show();
+  });
+}
+
+function saveCause() {
+  const id = document.getElementById('causeId').value;
+  const data = { parent_id: document.getElementById('causeParentId').value || null,
+    categorie: document.getElementById('f_categorie').value, description: document.getElementById('f_description').value };
+  const url = id ? UPDATE.replace('0', id) : CREATE;
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json()).then(r=>{ if(r.success) { bootstrap.Modal.getInstance(document.getElementById('causeModal')).hide(); loadTree(); } });
+}
+
+function deleteCause(id) { if(!confirm('Supprimer cette cause et ses sous-causes ?')) return; fetch(DELETE.replace('0',id), {method:'POST'}).then(r=>r.json()).then(r=>{if(r.success) loadTree();}); }
+
+document.addEventListener('DOMContentLoaded', loadTree);
+</script>
+{% endblock %}

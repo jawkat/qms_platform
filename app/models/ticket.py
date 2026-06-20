@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime
+import secrets
 
 
 class Ticket(db.Model):
@@ -18,6 +19,15 @@ class Ticket(db.Model):
     date_fermeture = db.Column(db.DateTime)
 
     messages = db.relationship('MessageTicket', back_populates='ticket', cascade='all, delete-orphan')
+
+    @staticmethod
+    def generer_reference():
+        from datetime import date
+        suffix = secrets.token_hex(3).upper()
+        return f"TKT-{date.today().strftime('%Y%m%d')}-{suffix}"
+
+    def nb_messages(self):
+        return len(self.messages) if self.messages else 0
 
 
 class MessageTicket(db.Model):

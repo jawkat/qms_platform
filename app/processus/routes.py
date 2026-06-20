@@ -61,10 +61,13 @@ def api_liste():
 def api_stats():
     eid = current_user.entreprise_id
     base = Processus.query.filter_by(entreprise_id=eid)
+    today = date.today()
+    a_revoir_q = base.filter(Processus.date_prochaine_revu < today)
     return jsonify({
         'total': base.count(),
         'actifs': base.filter_by(statut='actif').count(),
-        'a_revoir': base.filter(Processus.date_prochaine_revu < date.today()).count() if base.filter(Processus.date_prochaine_revu.isnot(None)).count() else 0,
+        'a_revoir': a_revoir_q.count() if base.filter(Processus.date_prochaine_revu.isnot(None)).count() else 0,
+        'sous_processus': base.filter(Processus.processus_parent_id.isnot(None)).count(),
     })
 
 

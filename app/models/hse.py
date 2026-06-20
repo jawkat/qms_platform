@@ -1,5 +1,13 @@
 from app import db
 from datetime import datetime, date
+from enum import Enum
+
+
+class TypeMethodeAnalyse(str, Enum):
+    ARBRE_CAUSES = 'arbre_des_causes'
+    CINQ_POURQUOI = 'cinq_pourquoi'
+    ISHIKAWA = 'ishikawa'
+    AMDEC = 'amdec'
 
 
 class Incident(db.Model):
@@ -18,6 +26,7 @@ class Incident(db.Model):
     declarant_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
     cause_initiale = db.Column(db.Text)
     analyse_racine = db.Column(db.Text)
+    methode_analyse = db.Column(db.String(20), default='arbre_des_causes')
     statut = db.Column(db.String(20), default='ouvert')
     gravite = db.Column(db.String(20), default='majeur')
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
@@ -26,6 +35,91 @@ class Incident(db.Model):
     entreprise = db.relationship('Entreprise')
     declarant = db.relationship('Utilisateur', foreign_keys=[declarant_id])
     action_corrective = db.relationship('ActionCorrective')
+    causes = db.relationship('CauseIncident', backref='incident', lazy='dynamic',
+                              cascade='all, delete-orphan', order_by='CauseIncident.ordre')
+
+
+class UniteTravail(db.Model):
+    __tablename__ = 'unite_travail'
+    id = db.Column(db.Integer, primary_key=True)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
+    nom = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    service = db.Column(db.String(100))
+    effectif = db.Column(db.Integer, default=0)
+    horaires = db.Column(db.String(100))
+    statut = db.Column(db.String(20), default='actif')
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    entreprise = db.relationship('Entreprise')
+    dangers = db.relationship('DangerSst', backref='unite_travail', lazy='dynamic',
+                               cascade='all, delete-orphan')
+
+
+class DangerSst(db.Model):
+    __tablename__ = 'danger_sst'
+    id = db.Column(db.Integer, primary_key=True)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
+    unite_travail_id = db.Column(db.Integer, db.ForeignKey('unite_travail.id'), nullable=False)
+    famille_danger = db.Column(db.String(30), nullable=False)  # physique, chimique, biologique, ergonomique, psychosocial, accident
+    danger = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    source = db.Column(db.String(200))
+    consequence = db.Column(db.Text)
+    mesures_existantes = db.Column(db.Text)
+    statut = db.Column(db.String(20), default='actif')
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    entreprise = db.relationship('Entreprise')
+    evaluations = db.relationship('EvaluationRisqueSst', backref='danger_sst', lazy='dynamic',
+                                   cascade='all, delete-orphan')
+
+
+class EvaluationRisqueSst(db.Model):
+    __tablename__ = 'evaluation_risque_sst'
+    id = db.Column(db.Integer, primary_key=True)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
+    danger_id = db.Column(db.Integer, db.ForeignKey('danger_sst.id'), nullable=False)
+    gravite = db.Column(db.Integer, default=1)        # 1-4
+    probabilite = db.Column(db.Integer, default=1)     # 1-4
+    frequence = db.Column(db.Integer, default=1)        # 1-4
+    maitrise = db.Column(db.Integer, default=1)         # 1-4 (inverse: 1=pas maîtrisé, 4=totalement)
+    plan_action = db.Column(db.Text)
+    responsable_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
+    date_echeance = db.Column(db.Date)
+    date_revu = db.Column(db.Date)
+    statut = db.Column(db.String(20), default='a_traiter')
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    entreprise = db.relationship('Entreprise')
+    responsable = db.relationship('Utilisateur', foreign_keys=[responsable_id])
+
+    @property
+    def criticite(self):
+        return self.gravite * self.probabilite * self.frequence
+
+    @property
+    def niveau_risque(self):
+        c = self.criticite
+        if c >= 27: return 'critique'
+        if c >= 18: return 'eleve'
+        if c >= 9: return 'moyen'
+        return 'faible'
+
+    @property
+    def maitrise_score(self):
+        return 4 - self.maitrise  # inversion pour l'affichage
+
+
+class CauseIncident(db.Model):
+    __tablename__ = 'cause_incident'
+    id = db.Column(db.Integer, primary_key=True)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
+    incident_id = db.Column(db.Integer, db.ForeignKey('incident.id'), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('cause_incident.id'), nullable=True)
+    categorie = db.Column(db.String(30), default='autre')  # main_oeuvre, methode, milieu, matiere, machine, autre
+    description = db.Column(db.Text, nullable=False)
+    ordre = db.Column(db.Integer, default=0)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    entreprise = db.relationship('Entreprise')
+    parent = db.relationship('CauseIncident', remote_side=[id], backref='enfants')
 
 
 class EPI(db.Model):
