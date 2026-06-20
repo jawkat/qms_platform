@@ -1,5 +1,5 @@
-from flask import Blueprint
+from flask_smorest import Blueprint
+blueprint = Blueprint('fournisseurs', __name__, template_folder='templates', description='Gestion et évaluation des fournisseurs')
 
-blueprint = Blueprint('fournisseurs', __name__, template_folder='templates')
 
 from . import routes

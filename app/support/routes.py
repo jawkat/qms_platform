@@ -7,6 +7,7 @@ from app.models import Ticket, MessageTicket, Notification, Utilisateur, Role
 from app.support import support
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
+from app.schemas.support import TicketSchema
 
 
 STATUTS = ['OUVERT', 'EN_COURS', 'ATTENTE', 'FERME']
@@ -171,22 +172,11 @@ def fermer_ticket(ticket_id):
     return redirect(url_for('support.detail_ticket', ticket_id=ticket.id))
 
 
-@support.route('/api/liste')
+@support.get('/api/liste')
 @login_required
 @has_permission('support.voir')
+@support.response(200, TicketSchema(many=True))
 def api_liste():
-    tickets = Ticket.query.filter_by(entreprise_id=current_user.entreprise_id) \
+    """Liste de vos tickets support"""
+    return Ticket.query.filter_by(entreprise_id=current_user.entreprise_id) \
         .order_by(Ticket.date_creation.desc()).all()
-    return jsonify([{
-        'id': t.id,
-        'reference': t.reference,
-        'type': t.type,
-        'sujet': t.sujet,
-        'statut': t.statut,
-        'email_contact': t.email_contact,
-        'nom_contact': t.nom_contact,
-        'telephone': t.telephone,
-        'date_creation': t.date_creation.isoformat() if t.date_creation else None,
-        'date_dernier_message': t.date_dernier_message.isoformat() if t.date_dernier_message else None,
-        'date_fermeture': t.date_fermeture.isoformat() if t.date_fermeture else None,
-    } for t in tickets])

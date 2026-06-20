@@ -1,6 +1,7 @@
-from app import db
+from app.extensions import db
 from datetime import datetime
 from enum import Enum
+from .base import BaseModel, TimestampMixin
 
 
 class ExigenceType(Enum):
@@ -47,17 +48,15 @@ class ConformiteEnum(Enum):
         return [(m.name, m.value) for m in cls]
 
 
-class EntrepriseTexte(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'))
+class EntrepriseTexte(BaseModel):
+    __tablename__ = 'entreprise_texte'
     texte_version_id = db.Column(db.Integer, db.ForeignKey('texte_version.id', ondelete='CASCADE'))
-    date_attribution = db.Column(db.Date, default=datetime.utcnow().date)
+    date_attribution = db.Column(db.Date, default=lambda: datetime.utcnow().date())
     score_conformite = db.Column(db.Float)
     statut_evaluation = db.Column(db.String(50))
     statut_obligation = db.Column(db.String(30))
     motif_obligation = db.Column(db.String(255))
     mode_evaluation = db.Column(db.String(30))
-    derniere_mise_a_jour = db.Column(db.DateTime)
     responsable_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
 
     entreprise = db.relationship('Entreprise')
@@ -66,8 +65,8 @@ class EntrepriseTexte(db.Model):
     evaluations = db.relationship('EvaluationArticle', back_populates='entreprise_texte', cascade='all, delete-orphan')
 
 
-class EvaluationArticle(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class EvaluationArticle(db.Model, TimestampMixin): # No entreprise_id here, as it belongs to EntrepriseTexte
+    __tablename__ = 'evaluation_article'
     entreprise_texte_id = db.Column(db.Integer, db.ForeignKey('entreprise_texte.id'))
     article_id = db.Column(db.Integer, db.ForeignKey('article.id'))
     applicable = db.Column(db.Enum(ApplicabiliteEnum), nullable=True)
@@ -79,7 +78,7 @@ class EvaluationArticle(db.Model):
     entreprise_texte = db.relationship('EntrepriseTexte', back_populates='evaluations')
     article = db.relationship('Article')
     evaluateur = db.relationship('Utilisateur', foreign_keys=[evalue_par])
-    historique = db.relationship('HistoriqueEvaluation', back_populates='evaluation')
+    historique = db.relationship('HistoriqueEvaluation', back_populates='evaluation', cascade='all, delete-orphan')
     actions = db.relationship('ActionCorrective',
                               primaryjoin="and_(ActionCorrective.source_type=='evaluation_article', "
                                           "foreign(ActionCorrective.source_id)==EvaluationArticle.id)",
@@ -93,13 +92,12 @@ class EvaluationArticle(db.Model):
     )
 
 
-class HistoriqueEvaluation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class HistoriqueEvaluation(db.Model, TimestampMixin):
+    __tablename__ = 'historique_evaluation'
     evaluation_article_id = db.Column(db.Integer, db.ForeignKey('evaluation_article.id'))
     ancienne_valeur = db.Column(db.JSON)
     nouvelle_valeur = db.Column(db.JSON)
     modifie_par = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
-    date_modification = db.Column(db.DateTime, default=datetime.utcnow)
     commentaire = db.Column(db.Text)
 
     evaluation = db.relationship('EvaluationArticle', back_populates='historique')

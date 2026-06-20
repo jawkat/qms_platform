@@ -19,17 +19,24 @@ from .competence import Competence, FormationParticipant, EmployeCompetence
 from .historique_fournisseur import EvaluationFournisseur, HistoriqueFournisseur
 from .echeancier import ObligationReglementaire
 from .veille import SourceReglementaire, Veille
-from .haccp import *
+from .haccp import (
+    TypeDanger, StatutHaccp, ProcessusHaccp, ProduitHaccp, MatierePremiere,
+    AnalyseDanger, Ccp, EnregistrementCcp, Prp, EnregistrementOprp,
+    TracabiliteLot, RappelProduit
+)
 
-# Nouveaux modules (8 modules manquants)
-from app.environnement.models import AspectEnvironnemental, SuiviEnvironnemental
-from app.maintenance.models import EquipementMaintenance, InterventionMaintenance
-from app.laboratoire.models import PlanAnalyse, Echantillon, ResultatAnalyse
-from app.planification.models import EvenementPlanification
-from app.reunions.models import Reunion, CompteRendu, ActionReunion
-from app.rh_qhse.models import EmployeQHSE
-from app.connaissances.models import REX, FAQ
-from app.urgences.models import PlanUrgence, ExerciceEvacuation, MainCourante
+# Nouveaux modules centralisés
+from .environnement import AspectEnvironnemental, SuiviEnvironnemental
+from .maintenance import EquipementMaintenance, InterventionMaintenance
+from .laboratoire import PlanAnalyse, Echantillon, ResultatAnalyse
+from .planification import EvenementPlanification
+from .reunions import Reunion, CompteRendu, ActionReunion
+from .rh_qhse import EmployeQHSE
+from .connaissances import REX, FAQ
+from .urgences import PlanUrgence, ExerciceEvacuation, MainCourante
+from .change_management import ChangeRequest
+from .processus import Processus, IndicateurProcessus
+from .workflow_engine import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
 
 # backward-compatible aliases pour migration progressive des routes
 ReclamationClient = Reclamation

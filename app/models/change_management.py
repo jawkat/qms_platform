@@ -1,11 +1,10 @@
-from app import db
+from app.extensions import db
+from .base import BaseModel
 from datetime import datetime, date
 
 
-class ChangeRequest(db.Model):
+class ChangeRequest(BaseModel):
     __tablename__ = 'change_request'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False, index=True)
     reference = db.Column(db.String(50))
     titre = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
@@ -32,7 +31,6 @@ class ChangeRequest(db.Model):
     resultat_verification = db.Column(db.Text)
     source_type = db.Column(db.String(50))
     source_id = db.Column(db.Integer)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
 
     entreprise = db.relationship('Entreprise')
     demandeur = db.relationship('Utilisateur', foreign_keys=[demandeur_id])

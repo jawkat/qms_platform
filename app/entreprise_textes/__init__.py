@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask_smorest import Blueprint
 
 entreprise_textes = Blueprint('entreprise_textes', __name__, template_folder='templates')
 

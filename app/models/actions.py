@@ -1,5 +1,5 @@
-from app import db
-from datetime import datetime
+from app.extensions import db
+from .base import BaseModel
 from enum import Enum
 
 
@@ -15,9 +15,13 @@ class ActionStatusEnum(Enum):
         return [(m.name, m.value) for m in cls]
 
 
-class ActionCorrective(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False, index=True)
+class ActionCorrective(BaseModel):
+    """
+    Modèle pour les actions correctives et préventives (CAPA).
+    Hérite de BaseModel (id, entreprise_id, date_creation, date_modification).
+    """
+    __tablename__ = 'action_corrective'
+
     domaine = db.Column(db.String(20), default='hse', nullable=False, index=True)
 
     description = db.Column(db.Text)
@@ -48,8 +52,7 @@ class ActionCorrective(db.Model):
     source_type = db.Column(db.String(50), nullable=True, index=True)
     source_id = db.Column(db.Integer, nullable=True)
 
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-
+    # Relations
     entreprise = db.relationship('Entreprise')
     responsable = db.relationship('Utilisateur', foreign_keys=[responsable_id])
     evaluation = db.relationship('EvaluationArticle', foreign_keys='ActionCorrective.source_id',

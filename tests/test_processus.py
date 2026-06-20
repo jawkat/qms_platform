@@ -1,6 +1,6 @@
 import pytest
 from app import db
-from app.processus.models import Processus
+from app.models import Processus
 from datetime import date
 
 

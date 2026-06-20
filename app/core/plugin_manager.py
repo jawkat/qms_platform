@@ -318,7 +318,7 @@ class PluginManager:
             if m.name in active_names
         ]
 
-    def get_sidebar_sections(self, entreprise_id: int, is_systeme: bool = False) -> List[Dict]:
+    def get_sidebar_sections(self, entreprise_id: int, is_systeme: bool = False, is_manager: bool = False) -> List[Dict]:
         sections = []
 
         active = self.get_active_modules(entreprise_id)
@@ -347,6 +347,15 @@ class PluginManager:
                      'active_prefix': 'veille.'},
                     {'endpoint': 'secteur.liste_secteurs', 'icon': 'fa-layer-group', 'label': 'Secteur',
                      'active_prefix': 'secteur.'},
+                ]
+            })
+
+        # --- MANAGEMENT ENTREPRISE (Managers uniquement) ---
+        if is_manager and not is_systeme:
+            sections.append({
+                'id': 'management', 'title': 'Ma Structure', 'icon': 'fa-building', 'items': [
+                    {'endpoint': 'entreprises.management', 'icon': 'fa-desktop', 'label': 'Tableau de bord'},
+                    {'endpoint': 'users.list_users', 'icon': 'fa-users', 'label': 'Équipe & Accès'},
                 ]
             })
 
@@ -590,6 +599,8 @@ class PluginManager:
         sections.append({
             'id': 'compte', 'title': 'Mon compte', 'icon': 'fa-user', 'items': [
                 {'endpoint': 'users.profile', 'icon': None, 'label': None, 'is_profile': True},
+                {'endpoint': 'users.notification_preferences', 'icon': 'fa-bell', 'label': 'Réglages Notifications',
+                 'active_prefix': 'users.notification_preferences'},
                 {'endpoint': 'facturation.index', 'icon': 'fa-credit-card', 'label': 'Facturation',
                  'active_prefix': 'facturation.'},
                 {'endpoint': 'plans.index', 'icon': 'fa-crown', 'label': 'Mon abonnement',

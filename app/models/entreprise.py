@@ -1,9 +1,10 @@
-from app import db
+from app.extensions import db
+from .base import TimestampMixin
 from datetime import datetime, date
 
-
-class Entreprise(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class Entreprise(db.Model, TimestampMixin):
+    __tablename__ = 'entreprise'
+    
     nom = db.Column(db.String(100), nullable=False)
     taille = db.Column(db.String(20), default='PME')
     pays = db.Column(db.String(50), default='Maroc')
@@ -28,8 +29,8 @@ class Entreprise(db.Model):
     historique_paiements = db.relationship('HistoriquePaiement', back_populates='entreprise')
 
 
-class Secteur(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class Secteur(db.Model, TimestampMixin):
+    __tablename__ = 'secteur'
     nom = db.Column(db.String(100), unique=True, nullable=False)
     description = db.Column(db.Text)
     entreprises = db.relationship('Entreprise', secondary='entreprise_secteur', back_populates='secteurs')
@@ -42,8 +43,8 @@ class EntrepriseSecteur(db.Model):
     secteur_id = db.Column(db.Integer, db.ForeignKey('secteur.id'), primary_key=True)
 
 
-class SubscriptionPlan(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class SubscriptionPlan(db.Model, TimestampMixin):
+    __tablename__ = 'subscription_plan'
     plan_key = db.Column(db.String(50), unique=True, nullable=False)
     label = db.Column(db.String(100), nullable=False)
     max_users = db.Column(db.Integer, default=2)
@@ -54,12 +55,10 @@ class SubscriptionPlan(db.Model):
     trial_days = db.Column(db.Integer, default=14)
     features = db.Column(db.JSON, default=dict)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class HistoriquePaiement(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+class HistoriquePaiement(db.Model, TimestampMixin):
+    __tablename__ = 'historique_paiement'
     entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     date_paiement = db.Column(db.Date, nullable=False)
     montant_mad = db.Column(db.Numeric(10, 2), nullable=False)
@@ -68,5 +67,5 @@ class HistoriquePaiement(db.Model):
     statut_paiement = db.Column(db.String(20))
     notes = db.Column(db.Text)
     enregistre_par = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise', back_populates='historique_paiements')

@@ -13,6 +13,7 @@ from app.services.subscription_service import (
 )
 from app.utils.subscriptions import get_subscription_plan
 from functools import wraps
+from app.schemas.admin import EntrepriseSchema, HistoriquePaiementSchema, QuotaSchema
 from datetime import date, datetime, time, timedelta
 
 
@@ -157,10 +158,12 @@ def entreprise_update(eid):
     return redirect(url_for('admin.entreprise_detail', eid=eid) + fragment)
 
 
-@admin.route('/entreprises/<int:eid>/api/quota')
+@admin.get('/entreprises/<int:eid>/api/quota')
 @login_required
 @admin_required
+@admin.response(200, QuotaSchema)
 def entreprise_api_quota(eid):
+    """Quotas d'une entreprise"""
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
         abort(404)
@@ -174,7 +177,7 @@ def entreprise_api_quota(eid):
     nb_docs = ProofMaster.query.filter_by(entreprise_id=eid, statut='ACTIF').count()
     proofs = ProofMaster.query.filter_by(entreprise_id=eid, statut='ACTIF').all()
     storage = _get_storage_size_for_proofs(proofs)
-    return jsonify({
+    return {
         'used_users': nb_users,
         'max_users': plan.max_users if plan else 0,
         'used_actions': nb_actions,
@@ -183,73 +186,53 @@ def entreprise_api_quota(eid):
         'max_documents': plan.max_documents if plan else 0,
         'used_storage_mb': round(storage, 1) if storage else 0,
         'max_storage_mb': plan.max_storage_mb if plan else 0,
-    })
+    }
 
 
-@admin.route('/entreprises/<int:eid>/api/paiements')
+@admin.get('/entreprises/<int:eid>/api/paiements')
 @login_required
 @admin_required
+@admin.response(200, HistoriquePaiementSchema(many=True))
 def entreprise_api_paiements(eid):
+    """Historique des paiements d'une entreprise"""
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
         abort(404)
-    items = HistoriquePaiement.query.filter_by(entreprise_id=eid)\
+    return HistoriquePaiement.query.filter_by(entreprise_id=eid)\
         .order_by(HistoriquePaiement.date_paiement.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'date_paiement': r.date_paiement.isoformat() if r.date_paiement else None,
-        'montant_mad': float(r.montant_mad) if r.montant_mad else None,
-        'methode_paiement': r.methode_paiement,
-        'reference_externe': r.reference_externe,
-        'statut_paiement': r.statut_paiement,
-        'notes': r.notes,
-        'enregistre_par': r.enregistre_par,
-    } for r in items])
 
 
-@admin.route('/entreprises/<int:eid>/api/paiements/create', methods=['POST'])
+@admin.post('/entreprises/<int:eid>/api/paiements/create')
 @login_required
 @admin_required
-def entreprise_api_paiements_create(eid):
+@admin.arguments(HistoriquePaiementSchema)
+@admin.response(201, HistoriquePaiementSchema)
+def entreprise_api_paiements_create(data, eid):
+    """Enregistrer un nouveau paiement"""
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
         abort(404)
-    data = request.get_json()
-    if not data:
-        return jsonify({'success': False, 'error': 'Données requises.'}), 400
-    try:
-        date_paiement = datetime.strptime(data['date_paiement'], '%Y-%m-%d').date() if data.get('date_paiement') else date.today()
-        montant = float(data.get('montant_mad', 0))
-    except (ValueError, TypeError):
-        return jsonify({'success': False, 'error': 'Montant ou date invalide.'}), 400
-
-    paiement = HistoriquePaiement(
-        entreprise_id=eid,
-        date_paiement=date_paiement,
-        montant_mad=montant,
-        methode_paiement=data.get('methode_paiement'),
-        reference_externe=data.get('reference_externe'),
-        statut_paiement='valide',
-        notes=data.get('notes'),
-        enregistre_par=current_user.id,
-    )
-    db.session.add(paiement)
+    
+    data.entreprise_id = eid
+    data.statut_paiement = 'valide'
+    data.enregistre_par = current_user.id
+    db.session.add(data)
 
     # Étendre l'échéance d'1 an à partir de la date d'échéance actuelle (ou de la date de paiement si pas d'échéance)
     due = entreprise.abonnement_prochaine_echeance
     if due and due >= date.today():
         entreprise.abonnement_prochaine_echeance = add_one_year_safe(due)
     else:
-        entreprise.abonnement_prochaine_echeance = add_one_year_safe(date_paiement)
+        entreprise.abonnement_prochaine_echeance = add_one_year_safe(data.date_paiement or date.today())
 
     entreprise.abonnement_paye = True
-    entreprise.date_dernier_paiement = date_paiement
-    entreprise.montant_annuel_mad = montant
+    entreprise.date_dernier_paiement = data.date_paiement or date.today()
+    entreprise.montant_annuel_mad = data.montant_mad
     entreprise.statut = 'active'
     entreprise.motif_suspension = None
 
     db.session.commit()
-    return jsonify({'success': True, 'id': paiement.id})
+    return data
 
 
 @admin.route('/entreprises/<int:eid>/suspendre', methods=['POST'])

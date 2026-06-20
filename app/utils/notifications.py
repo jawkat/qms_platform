@@ -253,3 +253,43 @@ def send_incident_email(error_message, request_id, path, method, user_info='-'):
     except Exception:
         logger.exception("Echec email incident (Ref: %s)", request_id)
         return False
+def send_email_notification_task(email, name, category, message, urgence='normale'):
+    """
+    Tâche d'envoi d'email pour les notifications de la plateforme.
+    Formatte le message selon la catégorie et l'urgence.
+    """
+    try:
+        from app import mail
+        from flask_mail import Message
+
+        subject = f"Alerte QMS — {category.upper()} — {urgence.upper()}"
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@qmsplatform.ma')
+
+        # Construction du corps du mail
+        html_body = f"""
+        <div style='font-family: sans-serif; padding: 20px; border: 1px solid #eee;'>
+            <h2 style='color: #e63946;'>Notification QMS</h2>
+            <p>Bonjour {name},</p>
+            <p style='background: #f8f9fa; padding: 15px; border-left: 4px solid #e63946;'>
+                <strong>Message :</strong> {message}
+            </p>
+            <p style='font-size: 0.8rem; color: #666;'>
+                Catégorie : {category} | Priorité : {urgence}<br>
+                Ceci est un message automatique de QMS Platform.
+            </p>
+        </div>
+        """
+
+        msg = Message(subject=subject, recipients=[email], sender=sender)
+        msg.html = html_body
+        
+        if current_app.config.get('MAIL_SUPPRESS_SEND', False):
+            logger.info("Email notification simule pour %s (Cat: %s)", email, category)
+            return True
+
+        mail.send(msg)
+        logger.info("Email notification envoye a %s (Cat: %s)", email, category)
+        return True
+    except Exception:
+        logger.exception("Erreur envoi email notification a %s", email)
+        return False

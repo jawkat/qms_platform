@@ -3,7 +3,9 @@ import tempfile
 import pytest
 from datetime import date, datetime
 
+# MUST be set before any app imports — Flask-SQLAlchemy binds at import time
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+os.environ['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 os.environ['SECRET_KEY'] = 'test-secret-key'
 os.environ['MAIL_SERVER'] = 'localhost'
 os.environ['MAIL_PORT'] = '25'
@@ -11,6 +13,10 @@ os.environ['MAIL_USE_TLS'] = '0'
 os.environ['MAIL_USERNAME'] = ''
 os.environ['MAIL_PASSWORD'] = ''
 os.environ['AUTO_BOOTSTRAP'] = '0'
+os.environ['MINIO_ENDPOINT'] = 'localhost:9000'
+os.environ['MINIO_ACCESS_KEY'] = 'minioadmin'
+os.environ['MINIO_SECRET_KEY'] = 'minioadmin'
+os.environ['MINIO_BUCKET'] = 'test-bucket'
 
 from app import db as _db, create_app
 from app.models import (
@@ -24,22 +30,40 @@ from app.utils.permission_catalog import PERMISSION_CATALOG
 
 @pytest.fixture(scope='session')
 def app():
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
-    app.config['SERVER_NAME'] = 'localhost'
-    return app
+    """Create app with isolated SQLite in-memory database for tests."""
+    _app = create_app('config.TestConfig')
+    _app.config.update({
+        'WTF_CSRF_ENABLED': False,
+        'UPLOAD_FOLDER': tempfile.mkdtemp(),
+        'SERVER_NAME': 'localhost',
+    })
+    return _app
 
 
 @pytest.fixture(scope='function')
 def _db_session(app):
-    """Create all tables and yield a session; drop after test."""
+    """Create all tables and yield a session; drop after test.
+
+    Bypasses SQLAlchemy's topological sort (which crashes on circular FKs)
+    by issuing raw DROP TABLE statements in reverse table order via SQLite
+    PRAGMA foreign_keys = OFF.
+    """
+    from sqlalchemy import text
+
     with app.app_context():
         _db.create_all()
         yield _db.session
-        _db.session.rollback()
-        _db.drop_all()
+        _db.session.remove()
+
+        # Manually drop all tables bypassing SQLAlchemy's topological sort
+        engine = _db.engine
+        with engine.connect() as conn:
+            conn.execute(text('PRAGMA foreign_keys = OFF'))
+            for table in reversed(_db.metadata.sorted_tables):
+                conn.execute(text(f'DROP TABLE IF EXISTS "{table.name}"'))
+            conn.execute(text('PRAGMA foreign_keys = ON'))
+
+
 
 
 @pytest.fixture(scope='function')

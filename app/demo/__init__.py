@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask_smorest import Blueprint
 
 demo = Blueprint('demo', __name__, template_folder='templates')
 

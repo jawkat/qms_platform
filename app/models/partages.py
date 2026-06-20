@@ -1,11 +1,10 @@
-from app import db
-from datetime import date, datetime
+from app.extensions import db
+from datetime import date
+from .base import BaseModel
 
 
-class Fournisseur(db.Model):
+class Fournisseur(BaseModel):
     __tablename__ = 'fournisseur_partage'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     domaine = db.Column(db.String(20), default='qualite')
     nom = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String(100))
@@ -28,7 +27,7 @@ class Fournisseur(db.Model):
     score_prix = db.Column(db.Float, default=0)
     score_global = db.Column(db.Float, default=0)
     commentaire_score = db.Column(db.Text)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
 
     @property
@@ -48,10 +47,8 @@ class Fournisseur(db.Model):
         return self.score_global
 
 
-class Formation(db.Model):
+class Formation(BaseModel):
     __tablename__ = 'formation_partage'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     domaine = db.Column(db.String(20), default='qualite')
     titre = db.Column(db.String(200), nullable=False)
     theme = db.Column(db.String(100))
@@ -66,14 +63,12 @@ class Formation(db.Model):
     cout = db.Column(db.Numeric(10, 2))
     statut = db.Column(db.String(20), default='planifiee')
     annee = db.Column(db.Integer)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
 
 
-class Reclamation(db.Model):
+class Reclamation(BaseModel):
     __tablename__ = 'reclamation_partage'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     domaine = db.Column(db.String(20), default='qualite')
     date_reclamation = db.Column(db.Date, nullable=False, default=date.today)
     client = db.Column(db.String(100), nullable=False)
@@ -90,6 +85,6 @@ class Reclamation(db.Model):
     investigation = db.Column(db.Text)
     cause_racine = db.Column(db.Text)
     action_corrective_id = db.Column(db.Integer, db.ForeignKey('action_corrective.id'))
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     responsable = db.relationship('Utilisateur', foreign_keys=[responsable_id])

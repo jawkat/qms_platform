@@ -1,32 +1,27 @@
-from app import db
+from app.extensions import db
 from datetime import datetime, timedelta
+from .base import BaseModel, TimestampMixin
 
 
-class WorkflowModele(db.Model):
+class WorkflowModele(BaseModel):
     __tablename__ = 'workflow_modele'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False, index=True)
     nom = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     module_cible = db.Column(db.String(50), nullable=False)
     statut = db.Column(db.String(20), default='actif')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
 
     entreprise = db.relationship('Entreprise')
     etapes = db.relationship('WorkflowEtape', backref='modele', lazy='dynamic',
                              cascade='all, delete-orphan', order_by='WorkflowEtape.ordre')
 
     def to_dict(self):
-        return {
-            'id': self.id, 'nom': self.nom, 'description': self.description,
-            'module_cible': self.module_cible, 'statut': self.statut,
-            'nb_etapes': self.etapes.count(),
-        }
+        d = super().to_dict()
+        d['nb_etapes'] = self.etapes.count()
+        return d
 
 
-class WorkflowEtape(db.Model):
+class WorkflowEtape(db.Model, TimestampMixin):
     __tablename__ = 'workflow_etape'
-    id = db.Column(db.Integer, primary_key=True)
     modele_id = db.Column(db.Integer, db.ForeignKey('workflow_modele.id'), nullable=False)
     nom = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
@@ -35,20 +30,13 @@ class WorkflowEtape(db.Model):
     action_requise = db.Column(db.String(50), default='approuver')
     delai_jours = db.Column(db.Integer, nullable=True)
     statut = db.Column(db.String(20), default='active')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
-        return {
-            'id': self.id, 'nom': self.nom, 'description': self.description,
-            'ordre': self.ordre, 'role_requis': self.role_requis,
-            'action_requise': self.action_requise, 'delai_jours': self.delai_jours,
-        }
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
-class WorkflowInstance(db.Model):
+class WorkflowInstance(BaseModel):
     __tablename__ = 'workflow_instance'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False, index=True)
     modele_id = db.Column(db.Integer, db.ForeignKey('workflow_modele.id'), nullable=False)
     entity_type = db.Column(db.String(50), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)
@@ -59,7 +47,6 @@ class WorkflowInstance(db.Model):
     date_fin = db.Column(db.DateTime)
     date_deadline = db.Column(db.DateTime, nullable=True)
     commentaire = db.Column(db.Text)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
 
     entreprise = db.relationship('Entreprise')
     modele = db.relationship('WorkflowModele')
@@ -70,7 +57,7 @@ class WorkflowInstance(db.Model):
 
     __table_args__ = (
         db.Index('idx_wf_entity', 'entity_type', 'entity_id'),
-        db.Index('idx_wf_statut', 'entreprise_id', 'statut'),
+        db.Index('idx_wf_statut', 'statut'), # entreprise_id is already indexed by BaseModel
     )
 
     def compute_deadline(self):
@@ -113,9 +100,8 @@ class WorkflowInstance(db.Model):
         }
 
 
-class WorkflowHistorique(db.Model):
+class WorkflowHistorique(db.Model, TimestampMixin):
     __tablename__ = 'workflow_historique'
-    id = db.Column(db.Integer, primary_key=True)
     instance_id = db.Column(db.Integer, db.ForeignKey('workflow_instance.id'), nullable=False)
     etape_id = db.Column(db.Integer, db.ForeignKey('workflow_etape.id'), nullable=False)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)

@@ -1,11 +1,9 @@
-from app import db
-from datetime import datetime
+from app.extensions import db
+from .base import BaseModel
 
 
-class Processus(db.Model):
+class Processus(BaseModel):
     __tablename__ = 'processus'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False, index=True)
     nom = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     type_processus = db.Column(db.String(50), default='operationnel')
@@ -18,7 +16,6 @@ class Processus(db.Model):
     statut = db.Column(db.String(20), default='actif')
     date_derniere_revu = db.Column(db.Date)
     date_prochaine_revu = db.Column(db.Date)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     extra_metadata = db.Column(db.JSON, default=dict)
 
     entreprise = db.relationship('Entreprise')
@@ -32,7 +29,6 @@ class IndicateurProcessus(db.Model):
     processus_id = db.Column(db.Integer, db.ForeignKey('processus.id'), nullable=False)
     indicateur_id = db.Column(db.Integer, db.ForeignKey('indicateur.id'), nullable=False)
     objectif = db.Column(db.Float)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-
+    
     processus = db.relationship('Processus', backref='indicateurs')
     indicateur = db.relationship('Indicateur')

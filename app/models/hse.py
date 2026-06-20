@@ -1,6 +1,7 @@
-from app import db
+from app.extensions import db
 from datetime import datetime, date
 from enum import Enum
+from .base import BaseModel, TimestampMixin
 
 
 class TypeMethodeAnalyse(str, Enum):
@@ -10,10 +11,8 @@ class TypeMethodeAnalyse(str, Enum):
     AMDEC = 'amdec'
 
 
-class Incident(db.Model):
+class Incident(BaseModel):
     __tablename__ = 'incident'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     type_incident = db.Column(db.String(30), nullable=False)
     date_incident = db.Column(db.Date, nullable=False, default=date.today)
     lieu = db.Column(db.String(200))
@@ -29,9 +28,9 @@ class Incident(db.Model):
     methode_analyse = db.Column(db.String(20), default='arbre_des_causes')
     statut = db.Column(db.String(20), default='ouvert')
     gravite = db.Column(db.String(20), default='majeur')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     date_cloture = db.Column(db.Date)
     action_corrective_id = db.Column(db.Integer, db.ForeignKey('action_corrective.id'))
+    
     entreprise = db.relationship('Entreprise')
     declarant = db.relationship('Utilisateur', foreign_keys=[declarant_id])
     action_corrective = db.relationship('ActionCorrective')
@@ -39,26 +38,22 @@ class Incident(db.Model):
                               cascade='all, delete-orphan', order_by='CauseIncident.ordre')
 
 
-class UniteTravail(db.Model):
+class UniteTravail(BaseModel):
     __tablename__ = 'unite_travail'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     nom = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     service = db.Column(db.String(100))
     effectif = db.Column(db.Integer, default=0)
     horaires = db.Column(db.String(100))
     statut = db.Column(db.String(20), default='actif')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     dangers = db.relationship('DangerSst', backref='unite_travail', lazy='dynamic',
                                cascade='all, delete-orphan')
 
 
-class DangerSst(db.Model):
+class DangerSst(BaseModel):
     __tablename__ = 'danger_sst'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     unite_travail_id = db.Column(db.Integer, db.ForeignKey('unite_travail.id'), nullable=False)
     famille_danger = db.Column(db.String(30), nullable=False)  # physique, chimique, biologique, ergonomique, psychosocial, accident
     danger = db.Column(db.String(200), nullable=False)
@@ -67,16 +62,14 @@ class DangerSst(db.Model):
     consequence = db.Column(db.Text)
     mesures_existantes = db.Column(db.Text)
     statut = db.Column(db.String(20), default='actif')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     evaluations = db.relationship('EvaluationRisqueSst', backref='danger_sst', lazy='dynamic',
                                    cascade='all, delete-orphan')
 
 
-class EvaluationRisqueSst(db.Model):
+class EvaluationRisqueSst(BaseModel):
     __tablename__ = 'evaluation_risque_sst'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     danger_id = db.Column(db.Integer, db.ForeignKey('danger_sst.id'), nullable=False)
     gravite = db.Column(db.Integer, default=1)        # 1-4
     probabilite = db.Column(db.Integer, default=1)     # 1-4
@@ -87,7 +80,7 @@ class EvaluationRisqueSst(db.Model):
     date_echeance = db.Column(db.Date)
     date_revu = db.Column(db.Date)
     statut = db.Column(db.String(20), default='a_traiter')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     responsable = db.relationship('Utilisateur', foreign_keys=[responsable_id])
 
@@ -108,24 +101,20 @@ class EvaluationRisqueSst(db.Model):
         return 4 - self.maitrise  # inversion pour l'affichage
 
 
-class CauseIncident(db.Model):
+class CauseIncident(BaseModel):
     __tablename__ = 'cause_incident'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     incident_id = db.Column(db.Integer, db.ForeignKey('incident.id'), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('cause_incident.id'), nullable=True)
     categorie = db.Column(db.String(30), default='autre')  # main_oeuvre, methode, milieu, matiere, machine, autre
     description = db.Column(db.Text, nullable=False)
     ordre = db.Column(db.Integer, default=0)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
-    parent = db.relationship('CauseIncident', remote_side=[id], backref='enfants')
+    parent = db.relationship('CauseIncident', remote_side='CauseIncident.id', backref='enfants')
 
 
-class EPI(db.Model):
+class EPI(BaseModel):
     __tablename__ = 'epi'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     type_epi = db.Column(db.String(50), nullable=False)
     designation = db.Column(db.String(200), nullable=False)
     marque = db.Column(db.String(100))
@@ -140,15 +129,13 @@ class EPI(db.Model):
     stock_emplacement = db.Column(db.String(100))
     prochain_controle = db.Column(db.Date)
     certificat_conformite = db.Column(db.Boolean, default=False)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     utilisateur_affecte = db.relationship('Utilisateur', foreign_keys=[utilisateur_affecte_id])
 
 
-class Inspection(db.Model):
+class Inspection(BaseModel):
     __tablename__ = 'inspection'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     type_inspection = db.Column(db.String(30), nullable=False)
     date_inspection = db.Column(db.Date, nullable=False, default=date.today)
     lieu = db.Column(db.String(200))
@@ -157,26 +144,23 @@ class Inspection(db.Model):
     observations = db.Column(db.Text)
     anomalies_detectees = db.Column(db.Integer, default=0)
     statut = db.Column(db.String(20), default='en_cours')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     inspecteur = db.relationship('Utilisateur', foreign_keys=[inspecteur_id])
     items = db.relationship('InspectionItem', backref='inspection', lazy='dynamic',
-                            cascade='all, delete-orphan')
+                             cascade='all, delete-orphan')
 
 
-class InspectionItem(db.Model):
+class InspectionItem(db.Model, TimestampMixin): # Use TimestampMixin because it doesn't need entreprise_id (inherited via Inspection)
     __tablename__ = 'inspection_item'
-    id = db.Column(db.Integer, primary_key=True)
     inspection_id = db.Column(db.Integer, db.ForeignKey('inspection.id'), nullable=False)
     checklist_item = db.Column(db.Text, nullable=False)
     conforme = db.Column(db.Boolean)
     observation = db.Column(db.Text)
 
 
-class PermisTravail(db.Model):
+class PermisTravail(BaseModel):
     __tablename__ = 'permis_travail'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     type_permis = db.Column(db.String(30), nullable=False)
     date_permis = db.Column(db.Date, nullable=False, default=date.today)
     date_debut = db.Column(db.Date)
@@ -190,7 +174,7 @@ class PermisTravail(db.Model):
     mesures_preventives = db.Column(db.Text)
     consignes_securite = db.Column(db.Text)
     statut = db.Column(db.String(20), default='en_attente')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    
     entreprise = db.relationship('Entreprise')
     demandant = db.relationship('Utilisateur', foreign_keys=[demandant_id])
     responsable_securite = db.relationship('Utilisateur', foreign_keys=[responsable_securite_id])

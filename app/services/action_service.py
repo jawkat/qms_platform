@@ -1,61 +1,51 @@
 from datetime import datetime, timedelta
-from app import db
+from app.extensions import db
 from app.models import ActionCorrective
-from flask import current_app
+from .base import BaseService
 
-class ActionService:
-    @staticmethod
-    def generate_next_occurrence(action):
+class ActionService(BaseService):
+    """
+    Service pour la gestion des actions correctives.
+    Hérite de BaseService (get_by_id, create, update, delete).
+    """
+    model = ActionCorrective
+
+    @classmethod
+    def get_all_by_tenant(cls, entreprise_id, domaine=None, statut=None, priorite=None, source=None, search=None):
+        q = cls.model.query.filter_by(entreprise_id=entreprise_id)
+        if domaine:
+            q = q.filter_by(domaine=domaine)
+        if statut:
+            q = q.filter(cls.model.statut == statut)
+        if priorite:
+            q = q.filter(cls.model.priorite == priorite)
+        if source:
+            q = q.filter(cls.model.source_type == source)
+        if search:
+            q = q.filter(cls.model.description.ilike(f'%{search}%'))
+        return q.order_by(cls.model.date_creation.desc()).all()
+
+    @classmethod
+    def generate_next_occurrence(cls, action):
         """Génère la prochaine occurrence d'une action périodique"""
         if not action.est_recurrente or not action.frequence:
             return None
             
-        # Calculer la nouvelle date d'échéance
         base_date = action.date_echeance or datetime.utcnow().date()
         
+        # Calcul de la nouvelle date selon la fréquence
         if action.frequence == 'hebdomadaire':
             new_date = base_date + timedelta(weeks=1)
         elif action.frequence == 'mensuel':
-            # Utilisation de timedelta 30j pour simplifier ou calcul exact
-            month = base_date.month % 12 + 1
-            year = base_date.year + (base_date.month // 12)
-            try:
-                new_date = base_date.replace(year=year, month=month)
-            except ValueError:
-                # Si le jour n'existe pas (ex: 31 Jan -> 31 Fev), on prend le dernier jour du mois
-                import calendar
-                last_day = calendar.monthrange(year, month)[1]
-                new_date = base_date.replace(year=year, month=month, day=last_day)
+            new_date = cls._add_months(base_date, 1)
         elif action.frequence == 'trimestriel':
-            month = (base_date.month + 2) % 12 + 1
-            year = base_date.year + ((base_date.month + 2) // 12)
-            try:
-                # Correction pour le saut de 3 mois
-                new_month = base_date.month + 3
-                new_year = base_date.year
-                if new_month > 12:
-                    new_month -= 12
-                    new_year += 1
-                new_date = base_date.replace(year=new_year, month=new_month)
-            except ValueError:
-                import calendar
-                new_month = base_date.month + 3
-                new_year = base_date.year
-                if new_month > 12:
-                    new_month -= 12
-                    new_year += 1
-                last_day = calendar.monthrange(new_year, new_month)[1]
-                new_date = base_date.replace(year=new_year, month=new_month, day=last_day)
+            new_date = cls._add_months(base_date, 3)
         elif action.frequence == 'annuel':
-            try:
-                new_date = base_date.replace(year=base_date.year + 1)
-            except ValueError:
-                # Cas rare : 29 fevrier une année bissextile
-                new_date = base_date.replace(year=base_date.year + 1, month=2, day=28)
+            new_date = cls._add_months(base_date, 12)
         else:
             return None
             
-        new_action = ActionCorrective(
+        new_action = cls.model(
             entreprise_id=action.entreprise_id,
             domaine=action.domaine,
             source_type=action.source_type,
@@ -76,35 +66,29 @@ class ActionService:
         return new_action
 
     @staticmethod
-    def process_all_periodic_actions():
-        """Tâche de fond pour vérifier les récurrences et générer les nouvelles occurrences si nécessaire"""
-        # On cherche les actions récurrentes réalisées qui n'ont pas encore d'occurrence suivante active
-        # Dans notre logique actuelle, c'est fait au moment du "update", 
-        # mais cette méthode peut servir de sécurité ou de déclencheur temporel
-        pass
+    def _add_months(source_date, months):
+        import calendar
+        month = (source_date.month - 1 + months) % 12 + 1
+        year = source_date.year + (source_date.month - 1 + months) // 12
+        day = min(source_date.day, calendar.monthrange(year, month)[1])
+        return source_date.replace(year=year, month=month, day=day)
 
-    @staticmethod
-    def send_action_reminders():
-        """Envoie des rappels pour les actions arrivant à échéance (7j, 3j, Jour J et Retard)"""
+    @classmethod
+    def send_action_reminders(cls):
+        """Envoie des rappels pour les actions arrivant à échéance"""
         from app.utils.notifications import send_action_reminder_email
         
         today = datetime.utcnow().date()
-        
-        # 1. Actions à échéance dans 7 jours, 3 jours, ou aujourd'hui
         reminder_dates = [
             today + timedelta(days=7),
             today + timedelta(days=3),
-            today
+            today,
+            today - timedelta(days=1) # En retard
         ]
         
-        # 2. Actions en retard (optionnel : on peut limiter aux actions en retard depuis 1 jour pour ne pas spammer)
-        overdue_date = today - timedelta(days=1)
-        
-        all_reminder_dates = reminder_dates + [overdue_date]
-        
-        actions = ActionCorrective.query.filter(
-            ActionCorrective.statut == 'A_FAIRE',
-            ActionCorrective.date_echeance.in_(all_reminder_dates)
+        actions = cls.model.query.filter(
+            cls.model.statut == 'A_FAIRE',
+            cls.model.date_echeance.in_(reminder_dates)
         ).all()
         
         count = 0

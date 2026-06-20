@@ -9,6 +9,9 @@ from datetime import date, datetime
 from sqlalchemy import func
 
 
+from app.schemas.partages import ReclamationSchema
+
+
 @blueprint.route('/')
 @login_required
 @has_permission('reclamations.voir')
@@ -19,35 +22,24 @@ def index():
     return render_template('reclamations/index.html', utilisateurs=utilisateurs)
 
 
-@blueprint.route('/api/liste')
+@blueprint.get('/api/liste')
 @login_required
 @has_permission('reclamations.voir')
+@blueprint.response(200, ReclamationSchema(many=True))
 def api_liste():
+    """Liste des réclamations clients"""
     domaine = session.get('domaine', 'hse')
-    items = Reclamation.query.filter_by(
+    return Reclamation.query.filter_by(
         entreprise_id=current_user.entreprise_id,
         domaine=domaine
     ).order_by(Reclamation.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id,
-        'date_reclamation': r.date_reclamation.isoformat() if r.date_reclamation else None,
-        'client': r.client, 'produit': r.produit, 'lot': r.lot,
-        'description': r.description, 'type_reclamation': r.type_reclamation,
-        'severite': r.severite, 'categorie': r.categorie,
-        'action': r.action, 'responsable_id': r.responsable_id,
-        'responsable': f'{r.responsable.prenom} {r.responsable.nom}' if r.responsable else '',
-        'cloture_le': r.cloture_le.isoformat() if r.cloture_le else None,
-        'statut': r.statut,
-        'investigation': r.investigation, 'cause_racine': r.cause_racine,
-        'action_corrective_id': r.action_corrective_id,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
 
 
-@blueprint.route('/api/stats')
+@blueprint.get('/api/stats')
 @login_required
 @has_permission('reclamations.voir')
 def api_stats():
+    """Statistiques des réclamations"""
     eid = current_user.entreprise_id
     domaine = session.get('domaine', 'hse')
     base = Reclamation.query.filter_by(entreprise_id=eid, domaine=domaine)
@@ -59,7 +51,7 @@ def api_stats():
     par_statut = dict(base.with_entities(Reclamation.statut, func.count())
         .group_by(Reclamation.statut).all())
 
-    return jsonify({
+    return {
         'total': base.count(),
         'ouvertes': base.filter_by(statut='ouverte').count(),
         'en_cours': base.filter_by(statut='en_cours').count(),
@@ -67,13 +59,14 @@ def api_stats():
         'par_severite': par_severite,
         'par_type': par_type,
         'par_statut': par_statut,
-    })
+    }
 
 
-@blueprint.route('/api/pareto')
+@blueprint.get('/api/pareto')
 @login_required
 @has_permission('reclamations.voir')
 def api_pareto():
+    """Analyse Pareto des réclamations"""
     eid = current_user.entreprise_id
     domaine = session.get('domaine', 'hse')
     rows = db.session.query(
@@ -92,63 +85,48 @@ def api_pareto():
             'count': count,
             'cumulative_pct': round(cumulative / total * 100, 1) if total else 0,
         })
-    return jsonify(result)
+    return result
 
 
-@blueprint.route('/api/creer', methods=['POST'])
+@blueprint.post('/api/creer')
 @login_required
 @has_permission('reclamations.gerer')
-def api_creer():
-    data = request.get_json()
-    item = Reclamation(
-        entreprise_id=current_user.entreprise_id,
-        domaine=session.get('domaine', 'hse'),
-        date_reclamation=datetime.strptime(data['date_reclamation'], '%Y-%m-%d').date()
-        if data.get('date_reclamation') else date.today(),
-        client=data.get('client'), produit=data.get('produit'),
-        lot=data.get('lot'), description=data.get('description'),
-        type_reclamation=data.get('type_reclamation'),
-        severite=data.get('severite', 'moyenne'),
-        categorie=data.get('categorie'),
-        action=data.get('action'),
-        responsable_id=data.get('responsable_id'),
-        investigation=data.get('investigation'),
-        cause_racine=data.get('cause_racine'),
-        statut=data.get('statut', 'ouverte'),
-    )
-    db.session.add(item)
+@blueprint.arguments(ReclamationSchema)
+@blueprint.response(201, ReclamationSchema)
+def api_creer(data):
+    """Déclarer une nouvelle réclamation"""
+    data.entreprise_id = current_user.entreprise_id
+    data.domaine = session.get('domaine', 'hse')
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
+    return data
 
 
-@blueprint.route('/api/<int:item_id>/modifier', methods=['POST'])
+@blueprint.post('/api/<int:item_id>/modifier')
 @login_required
 @has_permission('reclamations.gerer')
-def api_modifier(item_id):
+@blueprint.arguments(ReclamationSchema(partial=True))
+@blueprint.response(200, ReclamationSchema)
+def api_modifier(data, item_id):
+    """Mettre à jour une réclamation"""
     item = Reclamation.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
-    data = request.get_json()
-    for f in ('client', 'produit', 'lot', 'description', 'type_reclamation',
-              'severite', 'categorie', 'action', 'responsable_id', 'statut',
-              'investigation', 'cause_racine', 'action_corrective_id'):
-        if f in data:
-            setattr(item, f, data[f])
-    if data.get('date_reclamation'):
-        item.date_reclamation = datetime.strptime(data['date_reclamation'], '%Y-%m-%d').date()
-    if data.get('cloture_le'):
-        item.cloture_le = datetime.strptime(data['cloture_le'], '%Y-%m-%d').date()
+    for field, value in request.get_json().items():
+        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
+            setattr(item, field, value)
     db.session.commit()
-    return jsonify({'success': True})
+    return item
 
 
-@blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])
+@blueprint.post('/api/<int:item_id>/supprimer')
 @login_required
 @has_permission('reclamations.gerer')
 def api_supprimer(item_id):
+    """Supprimer une réclamation"""
     item = Reclamation.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}

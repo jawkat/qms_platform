@@ -1,92 +1,5 @@
 {% extends 'layout.html' %}
 {% block title %}Nouvelle entreprise{% endblock %}
-{% block head_css %}
-<style>
-  .card-create {
-    border: none;
-    border-radius: 1rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
-    overflow: hidden;
-  }
-  .card-create .card-header-create {
-    background: linear-gradient(135deg, #b91c1c 0%, #e63946 100%);
-    padding: .9rem 1.25rem .9rem 1.5rem;
-    border-bottom: 1px solid rgba(255,255,255,.15);
-  }
-  .card-create .card-header-create h5 { color: #fff; margin: 0; font-weight: 600; font-size: .95rem; display: flex; align-items: center; gap: .6rem; padding-left: .3rem; }
-  .card-create .card-header-create h5 i { width: 1.4rem; text-align: center; display: inline-block; }
-  .card-create .card-header-create p { color: rgba(255,255,255,.65); font-size: .85rem; margin: .25rem 0 0; }
-  .card-create .card-body { padding: 1rem 1.25rem; }
-  .section-title {
-    font-size: .7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: #6b7280;
-    padding-bottom: .5rem;
-    border-bottom: 1px solid #e9ecef;
-    margin-bottom: 1rem;
-  }
-  .form-label-custom {
-    font-size: .8rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: .25rem;
-  }
-  .form-control-custom, .form-select-custom {
-    border: 1px solid #e2e8f0;
-    border-radius: .5rem;
-    font-size: .875rem;
-    padding: .5rem .75rem;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .form-control-custom:focus, .form-select-custom:focus {
-    border-color: #e63946;
-    box-shadow: 0 0 0 3px rgba(230,57,70,.12);
-  }
-  .btn-create {
-    background: #e63946;
-    border: none;
-    color: #fff;
-    padding: .5rem 2rem;
-    border-radius: .5rem;
-    font-weight: 600;
-    font-size: .875rem;
-    transition: background .15s;
-  }
-  .btn-create:hover { background: #b91c1c; color: #fff; }
-  .info-card {
-    background: #fff5f5;
-    border: 1px solid #fecaca;
-    border-radius: .5rem;
-    padding: .75rem 1rem;
-  }
-  .form-text-custom { font-size: .75rem; color: #9ca3af; margin-top: .25rem; }
-  .mod-group-label {
-    font-size: .7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    color: #6b7280;
-    margin-bottom: .5rem;
-    padding-left: .15rem;
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-  }
-  .mod-group-label i { color: #e63946; font-size: .85rem; width: 1.1rem; text-align: center; }
-  .form-switch .form-check-input { width: 2.2em; }
-  .form-switch .form-check-label { font-size: .8rem; padding-top: .05rem; }
-  .plan-option {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: .875rem;
-  }
-  .plan-option .badge-plan { font-size: .7rem; font-weight: 600; }
-  .help-icon { color: #9ca3af; font-size: .75rem; cursor: help; }
-</style>
-{% endblock %}
 {% block content %}
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
@@ -284,8 +197,9 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='tag-select.css') }}">{% endblock %}
+
 {% block scripts %}
-<link rel="stylesheet" href="{{ url_for('static', filename='tag-select.css') }}">
 <script src="{{ url_for('static', filename='tag-select.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {

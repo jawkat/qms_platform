@@ -15,7 +15,7 @@ def entreprise(entreprise):
 # =============================================================================
 # FOURNISSEURS
 # =============================================================================
-from app.models.partages import Fournisseur
+from app.models import Fournisseur
 
 @pytest.fixture
 def fournisseur(session, entreprise):
@@ -81,7 +81,7 @@ class TestFournisseurs:
 # =============================================================================
 # ENVIRONNEMENT
 # =============================================================================
-from app.environnement.models import AspectEnvironnemental
+from app.models import AspectEnvironnemental
 
 @pytest.fixture
 def aspect(session, entreprise):
@@ -138,7 +138,7 @@ class TestEnvironnement:
 # =============================================================================
 # MAINTENANCE
 # =============================================================================
-from app.maintenance.models import EquipementMaintenance
+from app.models import EquipementMaintenance
 
 @pytest.fixture
 def equipement(session, entreprise):
@@ -199,7 +199,7 @@ class TestMaintenance:
 # =============================================================================
 # LABORATOIRE
 # =============================================================================
-from app.laboratoire.models import PlanAnalyse
+from app.models import PlanAnalyse
 
 @pytest.fixture
 def plan_analyse(session, entreprise):
@@ -261,7 +261,7 @@ class TestLaboratoire:
 # =============================================================================
 # PLANIFICATION
 # =============================================================================
-from app.planification.models import EvenementPlanification
+from app.models import EvenementPlanification
 
 @pytest.fixture
 def evenement(session, entreprise):
@@ -327,7 +327,7 @@ class TestPlanification:
 # =============================================================================
 # REUNIONS
 # =============================================================================
-from app.reunions.models import Reunion
+from app.models import Reunion
 
 @pytest.fixture
 def reunion(session, entreprise):
@@ -388,7 +388,7 @@ class TestReunions:
 # =============================================================================
 # RH QHSE
 # =============================================================================
-from app.rh_qhse.models import EmployeQHSE
+from app.models import EmployeQHSE
 
 @pytest.fixture
 def employe_qhse(session, entreprise, manager_user):
@@ -450,7 +450,7 @@ class TestRHQHSE:
 # =============================================================================
 # CONNAISSANCES
 # =============================================================================
-from app.connaissances.models import REX
+from app.models import REX
 
 @pytest.fixture
 def rex(session, entreprise):
@@ -514,7 +514,7 @@ class TestConnaissances:
 # =============================================================================
 # URGENCES
 # =============================================================================
-from app.urgences.models import PlanUrgence
+from app.models import PlanUrgence
 
 @pytest.fixture
 def plan_urgence(session, entreprise):

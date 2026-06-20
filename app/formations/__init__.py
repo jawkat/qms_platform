@@ -1,5 +1,5 @@
-from flask import Blueprint
+from flask_smorest import Blueprint
+blueprint = Blueprint('formations', __name__, template_folder='templates', description='Gestion des formations et compétences')
 
-blueprint = Blueprint('formations', __name__, template_folder='templates')
 
 from . import routes

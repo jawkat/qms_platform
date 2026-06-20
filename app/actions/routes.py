@@ -6,7 +6,8 @@ from app.actions import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
 from app.services.quota_middleware import check_quota
-from app.services.proof_service import ProofService
+from app.services.action_service import ActionService
+from app.schemas.actions import ActionSchema, ActionCreateSchema
 from datetime import datetime, date
 import csv
 import io
@@ -19,66 +20,38 @@ import io
 @has_permission('actions.voir')
 def liste_actions():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    q = ActionCorrective.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+    actions = ActionService.get_all_by_tenant(
+        entreprise_id=current_user.entreprise_id,
+        domaine=domaine,
+        **request.args
     )
-    statut = request.args.get('statut')
-    priorite = request.args.get('priorite')
-    source = request.args.get('source')
-    search = request.args.get('search')
-    if statut:
-        q = q.filter(ActionCorrective.statut == statut)
-    if priorite:
-        q = q.filter(ActionCorrective.priorite == priorite)
-    if source:
-        q = q.filter(ActionCorrective.source_type == source)
-    if search:
-        q = q.filter(ActionCorrective.description.ilike(f'%{search}%'))
-    actions = q.order_by(ActionCorrective.date_creation.desc()).all()
     responsables = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
     return render_template('actions/liste.html', actions=actions, responsables=responsables,
                            domaine=domaine, filters=request.args)
 
 
-@blueprint.route('/api/liste')
+@blueprint.get('/api/liste')
 @login_required
 @has_permission('actions.voir')
+@blueprint.response(200, ActionSchema(many=True))
 def api_liste_actions():
+    """Liste des actions au format JSON"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    actions = ActionCorrective.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
-    ).order_by(ActionCorrective.date_creation.desc()).all()
-    return jsonify([{
-        'id': a.id, 'description': a.description, 'statut': a.statut,
-        'statut_label': a.statut_label, 'priorite': a.priorite,
-        'date_echeance': a.date_echeance.isoformat() if a.date_echeance else None,
-        'responsable': a.responsable.prenom + ' ' + a.responsable.nom if a.responsable else None,
-        'responsable_id': a.responsable_id, 'source_type': a.source_type,
-        'cause': a.cause_identifiee, 'date_creation': a.date_creation.isoformat() if a.date_creation else None,
-    } for a in actions])
+    return ActionService.get_all_by_tenant(current_user.entreprise_id)
 
 
-@blueprint.route('/api/create', methods=['POST'])
+@blueprint.post('/api/create')
 @login_required
 @has_permission('actions.cree')
 @check_quota('actions')
-def api_create_action():
+@blueprint.arguments(ActionCreateSchema)
+@blueprint.response(201, ActionSchema)
+def api_create_action(data):
+    """Créer une nouvelle action corrective"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    data = request.get_json()
-    action = ActionCorrective(
-        entreprise_id=current_user.entreprise_id, domaine=domaine,
-        description=data.get('description'),
-        type_action=data.get('type_action', 'corrective'),
-        priorite=data.get('priorite', 'moyenne'),
-        responsable_id=data.get('responsable_id'),
-        cause_identifiee=data.get('cause_identifiee'),
-        source_type=data.get('source_type'), source_id=data.get('source_id'),
-        date_echeance=datetime.strptime(data['date_echeance'], '%Y-%m-%d').date()
-        if data.get('date_echeance') else None,
-    )
-    db.session.add(action)
-    db.session.commit()
-    return jsonify({'success': True, 'id': action.id})
+    data['entreprise_id'] = current_user.entreprise_id
+    data['domaine'] = domaine
+    return ActionService.create(**data)
 
 
 @blueprint.route('/<int:action_id>', methods=['GET', 'POST'])
@@ -115,34 +88,35 @@ def detail_action(action_id):
     return render_template('actions/detail.html', action=action, responsables=responsables)
 
 
-@blueprint.route('/<int:action_id>/api/update', methods=['POST'])
+@blueprint.post('/<int:action_id>/api/update')
 @login_required
 @has_permission('actions.modifier')
-def api_update_action(action_id):
-    action = tenant_get_or_404(ActionCorrective, action_id)
-    data = request.get_json()
-    for field in ('description', 'statut', 'priorite', 'type_action', 'cause_identifiee',
-                  'commentaire_efficacite', 'critere_efficacite',
-                  'rca_pourquoi1', 'rca_pourquoi2', 'rca_pourquoi3',
-                  'rca_pourquoi4', 'rca_pourquoi5', 'rca_conclusion', 'frequence'):
-        if field in data:
-            setattr(action, field, data[field])
-    if 'responsable_id' in data:
-        action.responsable_id = data['responsable_id']
-    if 'efficacite' in data:
-        action.efficacite = float(data['efficacite']) if data['efficacite'] else None
-    if 'est_recurrente' in data:
-        action.est_recurrente = bool(data['est_recurrente'])
+@blueprint.arguments(ActionSchema(partial=True))
+@blueprint.response(200, ActionSchema)
+def api_update_action(data, action_id):
+    """Mettre à jour une action via API"""
+    action = ActionService.update(action_id, current_user.entreprise_id, **data)
+    if not action:
+        return {"message": "Action non trouvée"}, 404
+    
+    # Logique spéciale pour la date de réalisation
     if data.get('statut') == 'REALISE' and not action.date_realisation:
         action.date_realisation = date.today()
-    db.session.commit()
-    return jsonify({'success': True})
+        db.session.commit()
+        
+    return action
 
 
-@blueprint.route('/<int:action_id>/status', methods=['POST'])
+from app.schemas.actions import ActionSchema, ActionCreateSchema, ActionReferenceSchema
+from app.services.proof_service import ProofService
+
+
+@blueprint.post('/<int:action_id>/status')
 @login_required
 @has_permission('actions.modifier')
+@blueprint.response(200, ActionSchema)
 def update_status(action_id):
+    """Mettre à jour le statut d'une action"""
     action = tenant_get_or_404(ActionCorrective, action_id)
     new_status = request.json.get('statut') if request.is_json else request.form.get('statut')
     if new_status:
@@ -150,16 +124,18 @@ def update_status(action_id):
         if new_status == 'REALISE':
             action.date_realisation = date.today()
         db.session.commit()
+    
     if request.is_json:
-        return jsonify({'success': True, 'statut': action.statut_label})
-    flash('Statut mis a jour.', 'success')
+        return action
+    flash('Statut mis à jour.', 'success')
     return redirect(url_for('actions.detail_action', action_id=action.id))
 
 
-@blueprint.route('/<int:action_id>/proof/attach', methods=['POST'])
+@blueprint.post('/<int:action_id>/proof/attach')
 @login_required
 @has_permission('actions.modifier')
 def attach_proof(action_id):
+    """Attacher une preuve à une action"""
     action = tenant_get_or_404(ActionCorrective, action_id)
     proof_id = request.json.get('proof_id') if request.is_json else request.form.get('proof_id')
     ref = None
@@ -170,38 +146,37 @@ def attach_proof(action_id):
             proof_id=int(proof_id), attached_by=current_user.id,
         )
         db.session.commit()
+    
     if request.is_json:
-        return jsonify({'success': bool(ref), 'reference_id': ref.id if ref else None})
+        return {'success': bool(ref), 'reference_id': ref.id if ref else None}
     if ref:
-        flash('Preuve attachee.', 'success')
+        flash('Preuve attachée.', 'success')
     else:
         flash('Erreur : preuve non trouvée.', 'danger')
     return redirect(url_for('actions.detail_action', action_id=action.id))
 
 
-@blueprint.route('/<int:action_id>/proof/detach/<int:ref_id>', methods=['POST'])
+@blueprint.post('/<int:action_id>/proof/detach/<int:ref_id>')
 @login_required
 @has_permission('actions.modifier')
 def detach_proof(action_id, ref_id):
+    """Détacher une preuve d'une action"""
     ref = tenant_get_or_404(ProofReference, ref_id)
     ProofService.detach_proof(ref.proof_master_id, ref.entity_type, ref.entity_id)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
-@blueprint.route('/<int:action_id>/proof/liste')
+@blueprint.get('/<int:action_id>/proof/liste')
 @login_required
 @has_permission('actions.modifier')
+@blueprint.response(200, ActionReferenceSchema(many=True))
 def list_proofs(action_id):
+    """Liste des preuves attachées à une action"""
     action = tenant_get_or_404(ActionCorrective, action_id)
-    refs = ProofReference.query.filter_by(
+    return ProofReference.query.filter_by(
         entity_type='action_corrective', entity_id=action.id
     ).all()
-    return jsonify([{
-        'id': r.id, 'proof_id': r.proof_master_id,
-        'nom_fichier': r.proof_master.nom_fichier if r.proof_master else '?',
-        'date_attached': r.date_attached.isoformat() if r.date_attached else None,
-    } for r in refs])
 
 
 @blueprint.route('/<int:action_id>/delete', methods=['POST'])

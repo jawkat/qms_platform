@@ -19,10 +19,13 @@ from flask_login import login_required, current_user
 from app.utils.permissions import has_permission
 from app import db
 from app.processus import blueprint
-from app.processus.models import Processus, IndicateurProcessus
+from app.models import Processus, IndicateurProcessus
 from app.models.auth import Utilisateur
 from app.models.indicateurs import Indicateur
 from datetime import date, datetime
+
+
+from app.schemas.processus import ProcessusSchema
 
 
 @blueprint.route('/')
@@ -35,94 +38,75 @@ def index():
     return render_template('processus/index.html', utilisateurs=utilisateurs)
 
 
-@blueprint.route('/api/liste')
+@blueprint.get('/api/liste')
 @login_required
 @has_permission('processus.voir')
+@blueprint.response(200, ProcessusSchema(many=True))
 def api_liste():
-    items = Processus.query.filter_by(
+    """Liste des processus"""
+    return Processus.query.filter_by(
         entreprise_id=current_user.entreprise_id
     ).order_by(Processus.nom).all()
-    return jsonify([{
-        'id': r.id, 'nom': r.nom, 'description': r.description,
-        'type_processus': r.type_processus,
-        'proprietaire': f'{r.proprietaire.prenom} {r.proprietaire.nom}' if r.proprietaire else '',
-        'proprietaire_id': r.proprietaire_id,
-        'processus_parent_id': r.processus_parent_id,
-        'entree': r.entree, 'sortie': r.sortie,
-        'objectifs': r.objectifs, 'statut': r.statut,
-        'date_derniere_revu': r.date_derniere_revu.isoformat() if r.date_derniere_revu else None,
-        'date_prochaine_revu': r.date_prochaine_revu.isoformat() if r.date_prochaine_revu else None,
-    } for r in items])
 
 
-@blueprint.route('/api/stats')
+@blueprint.get('/api/stats')
 @login_required
 @has_permission('processus.voir')
 def api_stats():
+    """Statistiques des processus"""
     eid = current_user.entreprise_id
     base = Processus.query.filter_by(entreprise_id=eid)
     today = date.today()
     a_revoir_q = base.filter(Processus.date_prochaine_revu < today)
-    return jsonify({
+    return {
         'total': base.count(),
         'actifs': base.filter_by(statut='actif').count(),
         'a_revoir': a_revoir_q.count() if base.filter(Processus.date_prochaine_revu.isnot(None)).count() else 0,
         'sous_processus': base.filter(Processus.processus_parent_id.isnot(None)).count(),
-    })
+    }
 
 
-@blueprint.route('/api/creer', methods=['POST'])
+@blueprint.post('/api/creer')
 @login_required
 @has_permission('processus.gerer')
-def api_creer():
-    data = request.get_json()
-    item = Processus(
-        entreprise_id=current_user.entreprise_id,
-        nom=data.get('nom'), description=data.get('description'),
-        type_processus=data.get('type_processus', 'operationnel'),
-        proprietaire_id=data.get('proprietaire_id'),
-        processus_parent_id=data.get('processus_parent_id'),
-        entree=data.get('entree'), sortie=data.get('sortie'),
-        objectifs=data.get('objectifs'), statut=data.get('statut', 'actif'),
-    )
-    if data.get('date_prochaine_revu'):
-        item.date_prochaine_revu = datetime.strptime(data['date_prochaine_revu'], '%Y-%m-%d').date()
-    db.session.add(item)
+@blueprint.arguments(ProcessusSchema)
+@blueprint.response(201, ProcessusSchema)
+def api_creer(data):
+    """Créer un nouveau processus"""
+    data.entreprise_id = current_user.entreprise_id
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
+    return data
 
 
-@blueprint.route('/api/<int:item_id>/modifier', methods=['POST'])
+@blueprint.post('/api/<int:item_id>/modifier')
 @login_required
 @has_permission('processus.gerer')
-def api_modifier(item_id):
+@blueprint.arguments(ProcessusSchema(partial=True))
+@blueprint.response(200, ProcessusSchema)
+def api_modifier(data, item_id):
+    """Modifier un processus"""
     item = Processus.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
-    data = request.get_json()
-    for f in ('nom', 'description', 'type_processus', 'proprietaire_id',
-              'processus_parent_id', 'entree', 'sortie', 'objectifs',
-              'risques_associes', 'statut'):
-        if f in data:
-            setattr(item, f, data[f])
-    if data.get('date_derniere_revu'):
-        item.date_derniere_revu = datetime.strptime(data['date_derniere_revu'], '%Y-%m-%d').date()
-    if data.get('date_prochaine_revu'):
-        item.date_prochaine_revu = datetime.strptime(data['date_prochaine_revu'], '%Y-%m-%d').date()
+    for field, value in request.get_json().items():
+        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
+            setattr(item, field, value)
     db.session.commit()
-    return jsonify({'success': True})
+    return item
 
 
-@blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])
+@blueprint.post('/api/<int:item_id>/supprimer')
 @login_required
 @has_permission('processus.gerer')
 def api_supprimer(item_id):
+    """Supprimer un processus"""
     item = Processus.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
 # =============================================================================

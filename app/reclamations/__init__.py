@@ -1,5 +1,5 @@
-from flask import Blueprint
+from flask_smorest import Blueprint
+blueprint = Blueprint('reclamations', __name__, template_folder='templates', description='Gestion des réclamations clients')
 
-blueprint = Blueprint('reclamations', __name__, template_folder='templates')
 
 from . import routes

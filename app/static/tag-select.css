@@ -19,7 +19,7 @@
   display: inline-flex;
   align-items: center;
   background: #f0f7f6;
-  color: var(--ds-brand-strong);
+  color: #0a6b5a;
   border: 1px solid rgba(15, 139, 117, 0.2);
   padding: 0.25rem 0.65rem;
   border-radius: 999px;
@@ -38,7 +38,7 @@
   border: none;
   padding: 0;
   margin-left: 0.4rem;
-  color: var(--ds-brand);
+  color: #0f8b75;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -51,7 +51,7 @@
 .tag-close:hover {
   opacity: 1;
   transform: scale(1.1);
-  color: var(--ds-danger);
+  color: #e63946;
 }
 
 .tag-select-input {
@@ -60,14 +60,14 @@
   position: relative;
   background: #fff;
   border: 1px solid #ccd9df;
-  border-radius: var(--ds-radius-sm);
+  border-radius: 0.5rem;
   padding: 0.45rem 0.75rem;
   transition: border-color 0.2s, box-shadow 0.2s;
   cursor: text;
 }
 
 .tag-select-input:focus-within {
-  border-color: var(--ds-brand);
+  border-color: #0f8b75;
   box-shadow: 0 0 0 0.18rem rgba(15, 139, 117, 0.15);
 }
 
@@ -77,7 +77,7 @@
   outline: none;
   flex-grow: 1;
   font-size: 0.88rem;
-  color: var(--ds-ink);
+  color: #1e293b;
   min-width: 120px;
 }
 
@@ -103,9 +103,9 @@
   z-index: 1000;
   background: #fff;
   border: 1px solid #d6e1e6;
-  border-radius: var(--ds-radius-sm);
+  border-radius: 0.5rem;
   margin-top: 4px;
-  box-shadow: var(--ds-shadow);
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
   max-height: 280px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -162,7 +162,7 @@
 
 .tag-select-option.selected {
   background: #edf7f5;
-  color: var(--ds-brand-strong);
+  color: #0a6b5a;
   font-weight: 500;
 }
 
@@ -182,7 +182,7 @@
 .tag-select-option-label input[type="checkbox"] {
   width: 15px;
   height: 15px;
-  accent-color: var(--ds-brand);
+  accent-color: #0f8b75;
   cursor: pointer;
 }
 
@@ -190,7 +190,7 @@
   content: "Aucune option disponible";
   display: block;
   padding: 1rem 0.75rem;
-  color: var(--ds-muted);
+  color: #6b7280;
   font-size: 0.875rem;
   text-align: center;
 }

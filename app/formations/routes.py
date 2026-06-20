@@ -8,6 +8,8 @@ from app.models.competence import Competence, FormationParticipant, EmployeCompe
 from app.models.auth import Utilisateur
 from datetime import datetime, date
 from sqlalchemy import func
+from app.schemas.partages import FormationSchema
+from app.schemas.competence import CompetenceSchema, FormationParticipantSchema, EmployeCompetenceSchema
 
 
 @blueprint.route('/')
@@ -23,140 +25,117 @@ def index():
     return render_template('formations/index.html', utilisateurs=utilisateurs, competences=competences)
 
 
-@blueprint.route('/api/liste')
+@blueprint.get('/api/liste')
 @login_required
 @has_permission('formations.voir')
+@blueprint.response(200, FormationSchema(many=True))
 def api_liste():
+    """Liste des formations"""
     domaine = session.get('domaine', 'hse')
-    items = Formation.query.filter_by(
+    return Formation.query.filter_by(
         entreprise_id=current_user.entreprise_id,
         domaine=domaine
     ).order_by(Formation.date_creation.desc()).all()
-    return jsonify([{
-        'id': r.id, 'titre': r.titre, 'theme': r.theme,
-        'formateur': r.formateur, 'participants': r.participants,
-        'duree_heures': r.duree_heures,
-        'date_formation': r.date_formation.isoformat() if r.date_formation else None,
-        'evaluation': r.evaluation, 'statut': r.statut,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    } for r in items])
 
 
-@blueprint.route('/api/creer', methods=['POST'])
+@blueprint.post('/api/creer')
 @login_required
 @has_permission('formations.gerer')
-def api_creer():
-    data = request.get_json()
-    item = Formation(
-        entreprise_id=current_user.entreprise_id,
-        domaine=session.get('domaine', 'hse'),
-        titre=data.get('titre'), theme=data.get('theme'),
-        formateur=data.get('formateur'), participants=data.get('participants'),
-        duree_heures=data.get('duree_heures'),
-        date_formation=datetime.strptime(data['date_formation'], '%Y-%m-%d').date()
-        if data.get('date_formation') else None,
-        evaluation=data.get('evaluation'), statut=data.get('statut', 'planifiee'),
-    )
-    db.session.add(item)
+@blueprint.arguments(FormationSchema)
+@blueprint.response(201, FormationSchema)
+def api_creer(data):
+    """Créer une nouvelle formation"""
+    data.entreprise_id = current_user.entreprise_id
+    data.domaine = session.get('domaine', 'hse')
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
+    return data
 
 
-@blueprint.route('/api/<int:item_id>/modifier', methods=['POST'])
+@blueprint.post('/api/<int:item_id>/modifier')
 @login_required
 @has_permission('formations.gerer')
-def api_modifier(item_id):
+@blueprint.arguments(FormationSchema(partial=True))
+@blueprint.response(200, FormationSchema)
+def api_modifier(data, item_id):
+    """Mettre à jour une formation"""
     item = Formation.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
-    data = request.get_json()
-    for f in ('titre', 'theme', 'formateur', 'participants', 'duree_heures',
-              'evaluation', 'statut'):
-        if f in data:
-            setattr(item, f, data[f])
-    if data.get('date_formation'):
-        item.date_formation = datetime.strptime(data['date_formation'], '%Y-%m-%d').date()
+    for field, value in request.get_json().items():
+        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
+            setattr(item, field, value)
     db.session.commit()
-    return jsonify({'success': True})
+    return item
 
 
-@blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])
+@blueprint.post('/api/<int:item_id>/supprimer')
 @login_required
 @has_permission('formations.gerer')
 def api_supprimer(item_id):
+    """Supprimer une formation"""
     item = Formation.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
-@blueprint.route('/api/competences')
+@blueprint.get('/api/competences')
 @login_required
 @has_permission('formations.voir')
+@blueprint.response(200, CompetenceSchema(many=True))
 def api_competences():
-    items = Competence.query.filter_by(
+    """Liste des compétences"""
+    return Competence.query.filter_by(
         entreprise_id=current_user.entreprise_id
     ).order_by(Competence.nom).all()
-    return jsonify([{
-        'id': c.id, 'nom': c.nom, 'description': c.description, 'domaine': c.domaine,
-    } for c in items])
 
 
-@blueprint.route('/api/competences/create', methods=['POST'])
+@blueprint.post('/api/competences/create')
 @login_required
 @has_permission('formations.gerer')
-def api_competences_create():
-    data = request.get_json()
-    item = Competence(
-        entreprise_id=current_user.entreprise_id,
-        nom=data.get('nom'), description=data.get('description'),
-        domaine=data.get('domaine', 'qualite'),
-    )
-    db.session.add(item)
+@blueprint.arguments(CompetenceSchema)
+@blueprint.response(201, CompetenceSchema)
+def api_competences_create(data):
+    """Créer une nouvelle compétence"""
+    data.entreprise_id = current_user.entreprise_id
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
+    return data
 
 
-@blueprint.route('/api/competences/<int:item_id>/delete', methods=['POST'])
+@blueprint.post('/api/competences/<int:item_id>/delete')
 @login_required
 @has_permission('formations.gerer')
 def api_competences_delete(item_id):
+    """Supprimer une compétence"""
     item = Competence.query.filter_by(
         id=item_id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
-@blueprint.route('/api/certifications')
+@blueprint.get('/api/certifications')
 @login_required
 @has_permission('formations.voir')
+@blueprint.response(200, FormationParticipantSchema(many=True))
 def api_certifications():
-    items = FormationParticipant.query.join(Formation).filter(
+    """Liste des participants certifiés"""
+    return FormationParticipant.query.join(Formation).filter(
         Formation.entreprise_id == current_user.entreprise_id,
         FormationParticipant.certifie == True,
     ).all()
-    result = []
-    for fp in items:
-        result.append({
-            'id': fp.id,
-            'utilisateur': f'{fp.utilisateur.prenom} {fp.utilisateur.nom}' if fp.utilisateur else '',
-            'utilisateur_id': fp.utilisateur_id,
-            'formation': fp.formation.titre if fp.formation else '',
-            'date_certification': fp.date_certification.isoformat() if fp.date_certification else None,
-            'date_expiration': fp.date_expiration_certification.isoformat() if fp.date_expiration_certification else None,
-            'score': fp.evaluation_score,
-        })
-    return jsonify(result)
 
 
-@blueprint.route('/api/calendrier')
+@blueprint.get('/api/calendrier')
 @login_required
 @has_permission('formations.voir')
 def api_calendrier():
+    """Calendrier des formations"""
     domaine = session.get('domaine', 'hse')
     items = Formation.query.filter_by(
         entreprise_id=current_user.entreprise_id,
@@ -166,7 +145,7 @@ def api_calendrier():
         'planifiee': '#3b82f6', 'realisee': '#10b981',
         'en_cours': '#f59e0b', 'annulee': '#ef4444',
     }
-    return jsonify([{
+    return [{
         'id': r.id,
         'title': r.titre,
         'start': r.date_formation.isoformat() if r.date_formation else None,
@@ -177,13 +156,14 @@ def api_calendrier():
             'statut': r.statut,
             'duree': r.duree_heures,
         },
-    } for r in items])
+    } for r in items]
 
 
-@blueprint.route('/api/stats')
+@blueprint.get('/api/stats')
 @login_required
 @has_permission('formations.voir')
 def api_stats():
+    """Statistiques formations"""
     eid = current_user.entreprise_id
     today = date.today()
     total_formations = Formation.query.filter_by(entreprise_id=eid).count()
@@ -199,13 +179,13 @@ def api_stats():
         FormationParticipant.date_expiration_certification <= today + __import__('datetime').timedelta(days=30),
         FormationParticipant.date_expiration_certification >= today,
     ).count()
-    return jsonify({
+    return {
         'total_formations': total_formations,
         'planifiees': planifiees,
         'realisees': realisees,
         'certifies': certifies,
         'expires_bientot': expires_bientot,
-    })
+    }
 
 
 @blueprint.route('/participants')
@@ -222,68 +202,57 @@ def participants():
                            formations=formations, utilisateurs=utilisateurs)
 
 
-@blueprint.route('/api/participants/<int:formation_id>')
+@blueprint.get('/api/participants/<int:formation_id>')
 @login_required
 @has_permission('formations.voir')
+@blueprint.response(200, FormationParticipantSchema(many=True))
 def api_participants_list(formation_id):
-    items = FormationParticipant.query.filter_by(formation_id=formation_id).all()
-    return jsonify([{
-        'id': p.id, 'utilisateur_id': p.utilisateur_id,
-        'utilisateur': f'{p.utilisateur.prenom} {p.utilisateur.nom}' if p.utilisateur else '',
-        'statut': p.statut, 'evaluation_score': p.evaluation_score,
-        'evaluation_commentaire': p.evaluation_commentaire,
-        'certifie': p.certifie,
-        'date_certification': p.date_certification.isoformat() if p.date_certification else None,
-        'date_expiration': p.date_expiration_certification.isoformat() if p.date_expiration_certification else None,
-    } for p in items])
+    """Liste des participants à une formation"""
+    return FormationParticipant.query.filter_by(formation_id=formation_id).all()
 
 
-@blueprint.route('/api/participants/create', methods=['POST'])
+@blueprint.post('/api/participants/create')
 @login_required
 @has_permission('formations.gerer')
-def api_participants_create():
-    data = request.get_json()
+@blueprint.arguments(FormationParticipantSchema)
+@blueprint.response(201, FormationParticipantSchema)
+def api_participants_create(data):
+    """Inscrire un participant à une formation"""
     exists = FormationParticipant.query.filter_by(
-        formation_id=data.get('formation_id'),
-        utilisateur_id=data.get('utilisateur_id'),
+        formation_id=data.formation_id,
+        utilisateur_id=data.utilisateur_id,
     ).first()
     if exists:
-        return jsonify({'success': False, 'error': 'Ce participant est déjà inscrit à cette formation.'}), 400
-    p = FormationParticipant(
-        formation_id=data['formation_id'],
-        utilisateur_id=data['utilisateur_id'],
-        statut=data.get('statut', 'inscrit'),
-    )
-    db.session.add(p)
+        return {"message": "Ce participant est déjà inscrit à cette formation."}, 400
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': p.id})
+    return data
 
 
-@blueprint.route('/api/participants/<int:id>/update', methods=['POST'])
+@blueprint.post('/api/participants/<int:id>/update')
 @login_required
 @has_permission('formations.gerer')
-def api_participants_update(id):
+@blueprint.arguments(FormationParticipantSchema(partial=True))
+@blueprint.response(200, FormationParticipantSchema)
+def api_participants_update(data, id):
+    """Mettre à jour un participant"""
     p = FormationParticipant.query.get_or_404(id)
-    data = request.get_json()
-    for f in ('statut', 'evaluation_score', 'evaluation_commentaire', 'certifie'):
-        if f in data:
-            setattr(p, f, data[f])
-    if data.get('date_certification'):
-        p.date_certification = datetime.strptime(data['date_certification'], '%Y-%m-%d').date()
-    if data.get('date_expiration'):
-        p.date_expiration_certification = datetime.strptime(data['date_expiration'], '%Y-%m-%d').date()
+    for field, value in request.get_json().items():
+        if hasattr(p, field) and field not in ('id', 'formation_id', 'utilisateur_id'):
+            setattr(p, field, value)
     db.session.commit()
-    return jsonify({'success': True})
+    return p
 
 
-@blueprint.route('/api/participants/<int:id>/delete', methods=['POST'])
+@blueprint.post('/api/participants/<int:id>/delete')
 @login_required
 @has_permission('formations.gerer')
 def api_participants_delete(id):
+    """Supprimer un participant"""
     p = FormationParticipant.query.get_or_404(id)
     db.session.delete(p)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
 # --- Matrice compétences ---
@@ -302,82 +271,65 @@ def matrice():
                            competences=competences, utilisateurs=utilisateurs)
 
 
-@blueprint.route('/api/matrice')
+@blueprint.get('/api/matrice')
 @login_required
 @has_permission('formations.voir')
+@blueprint.response(200, EmployeCompetenceSchema(many=True))
 def api_matrice():
-    items = EmployeCompetence.query.filter_by(
+    """Matrice des compétences des employés"""
+    return EmployeCompetence.query.filter_by(
         entreprise_id=current_user.entreprise_id
     ).all()
-    return jsonify([{
-        'id': e.id, 'utilisateur_id': e.utilisateur_id,
-        'utilisateur': f'{e.utilisateur.prenom} {e.utilisateur.nom}' if e.utilisateur else '',
-        'competence_id': e.competence_id,
-        'competence': e.competence.nom if e.competence else '',
-        'niveau_requis': e.niveau_requis,
-        'niveau_actuel': e.niveau_actuel,
-        'date_evaluation': e.date_evaluation.isoformat() if e.date_evaluation else None,
-        'evalue_par_id': e.evalue_par_id,
-        'evalue_par': f'{e.evalue_par.prenom} {e.evalue_par.nom}' if e.evalue_par else '',
-        'notes': e.notes,
-    } for e in items])
 
 
-@blueprint.route('/api/matrice/create', methods=['POST'])
+@blueprint.post('/api/matrice/create')
 @login_required
 @has_permission('formations.gerer')
-def api_matrice_create():
-    data = request.get_json()
+@blueprint.arguments(EmployeCompetenceSchema)
+@blueprint.response(201, EmployeCompetenceSchema)
+def api_matrice_create(data):
+    """Évaluer une compétence pour un employé"""
     exists = EmployeCompetence.query.filter_by(
         entreprise_id=current_user.entreprise_id,
-        utilisateur_id=data['utilisateur_id'],
-        competence_id=data['competence_id'],
+        utilisateur_id=data.utilisateur_id,
+        competence_id=data.competence_id,
     ).first()
     if exists:
-        return jsonify({'success': False, 'error': 'Cette compétence est déjà évaluée pour cet employé.'}), 400
-    e = EmployeCompetence(
-        entreprise_id=current_user.entreprise_id,
-        utilisateur_id=data['utilisateur_id'],
-        competence_id=data['competence_id'],
-        niveau_requis=data.get('niveau_requis', 1),
-        niveau_actuel=data.get('niveau_actuel', 0),
-        date_evaluation=datetime.strptime(data['date_evaluation'], '%Y-%m-%d').date()
-        if data.get('date_evaluation') else None,
-        evalue_par_id=data.get('evalue_par_id'),
-        notes=data.get('notes'),
-    )
-    db.session.add(e)
+        return {"message": "Cette compétence est déjà évaluée pour cet employé."}, 400
+    data.entreprise_id = current_user.entreprise_id
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': e.id})
+    return data
 
 
-@blueprint.route('/api/matrice/<int:id>/update', methods=['POST'])
+@blueprint.post('/api/matrice/<int:id>/update')
 @login_required
 @has_permission('formations.gerer')
-def api_matrice_update(id):
+@blueprint.arguments(EmployeCompetenceSchema(partial=True))
+@blueprint.response(200, EmployeCompetenceSchema)
+def api_matrice_update(data, id):
+    """Mettre à jour une évaluation de compétence"""
     e = EmployeCompetence.query.filter_by(
         id=id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
-    data = request.get_json()
-    for f in ('niveau_requis', 'niveau_actuel', 'evalue_par_id', 'notes'):
-        if f in data:
-            setattr(e, f, data[f])
-    if data.get('date_evaluation'):
-        e.date_evaluation = datetime.strptime(data['date_evaluation'], '%Y-%m-%d').date()
+    for field, value in request.get_json().items():
+        if hasattr(e, field) and field not in ('id', 'entreprise_id', 'utilisateur_id', 'competence_id'):
+            setattr(e, field, value)
     db.session.commit()
-    return jsonify({'success': True})
+    return e
 
 
-@blueprint.route('/api/matrice/<int:id>/delete', methods=['POST'])
+@blueprint.post('/api/matrice/<int:id>/delete')
 @login_required
 @has_permission('formations.gerer')
 def api_matrice_delete(id):
+    """Supprimer une évaluation de compétence"""
     e = EmployeCompetence.query.filter_by(
         id=id, entreprise_id=current_user.entreprise_id
     ).first_or_404()
     db.session.delete(e)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
 # --- Certifications ---

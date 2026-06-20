@@ -11,6 +11,14 @@ class Config:
     WTF_CSRF_ENABLED = os.getenv('WTF_CSRF_ENABLED', '1') == '1'
     WTF_CSRF_TIME_LIMIT = int(os.getenv('WTF_CSRF_TIME_LIMIT', '3600'))
 
+    # API Documentation (flask-smorest)
+    API_TITLE = 'QMS Platform API'
+    API_VERSION = 'v1'
+    OPENAPI_VERSION = '3.0.2'
+    OPENAPI_URL_PREFIX = '/api'
+    OPENAPI_SWAGGER_UI_PATH = '/swagger-ui'
+    OPENAPI_SWAGGER_UI_URL = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist/'
+
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.example.com')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', '1') == '1'

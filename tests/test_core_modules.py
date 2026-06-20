@@ -1,7 +1,6 @@
 import pytest
 from app import db
-from app.change_management.models import ChangeRequest
-from app.workflow_engine.models import WorkflowModele, WorkflowEtape, WorkflowInstance
+from app.models import ChangeRequest, WorkflowModele, WorkflowEtape, WorkflowInstance
 from datetime import date, datetime
 
 

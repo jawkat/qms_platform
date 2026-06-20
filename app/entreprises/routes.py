@@ -327,3 +327,37 @@ def api_delete(item_id):
     db.session.delete(r)
     db.session.commit()
     return jsonify({'success': True})
+@entreprises.route('/mon-entreprise')
+@login_required
+@has_permission('entreprises.modifier')
+def management():
+    """
+    Console de management locale pour les administrateurs d'entreprise.
+    Permet de gérer les informations de la société, voir les modules actifs
+    et superviser l'équipe sans avoir accès à l'administration globale.
+    """
+    entreprise_id = current_user.entreprise_id
+    if not entreprise_id:
+        abort(403)
+        
+    entreprise = db.session.get(Entreprise, entreprise_id)
+    if not entreprise:
+        abort(404)
+    
+    # Statistiques de l'équipe
+    users_count = Utilisateur.query.filter_by(entreprise_id=entreprise.id).count()
+    users_actifs = Utilisateur.query.filter_by(entreprise_id=entreprise.id, actif=True).count()
+    
+    # Modules
+    from app.core import plugin_manager
+    active_manifests = plugin_manager.get_active_modules(entreprise.id)
+    all_manifests = plugin_manager.get_all_manifests()
+    
+    return render_template(
+        'entreprises/management.html',
+        entreprise=entreprise,
+        users_count=users_count,
+        users_actifs=users_actifs,
+        active_manifests=active_manifests,
+        all_manifests=[m for m in all_manifests if m.visible]
+    )

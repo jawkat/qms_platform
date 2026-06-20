@@ -6,6 +6,7 @@ from app.main import main
 from app.utils.domaine_switch import set_domaine_actif
 from app.utils.permissions import has_permission
 from app.models import Notification
+from app.schemas.users import NotificationSchema
 from datetime import date
 import platform
 
@@ -23,6 +24,13 @@ def health():
         'python': platform.python_version(),
         'flask': '2.3.3',
     })
+
+
+@main.route('/force-error')
+@login_required
+def force_error():
+    """Route de test pour simulate une erreur 500."""
+    raise Exception("Test de remontée d'incident technique (Bug Bug !)")
 
 
 @main.route('/')
@@ -104,10 +112,11 @@ def tableau_de_bord():
     return render_template('main/dashboard.html', entreprise=entreprise, domaine=domaine)
 
 
-@main.route('/api/stats')
+@main.get('/api/stats')
 @login_required
 @has_permission('actions.voir')
 def api_stats():
+    """Statistiques globales du tableau de bord"""
     domaine = session.get('domaine_actif', 'hse')
     eid = current_user.entreprise_id
     today = date.today()
@@ -139,14 +148,14 @@ def api_stats():
         entreprise_id=eid
     ).count()
 
-    return jsonify(
-        total_actions=total_actions,
-        actions_en_cours=actions_en_cours,
-        actions_en_retard=actions_en_retard,
-        total_documents=total_documents,
-        total_audits=total_audits,
-        total_users=total_users,
-    )
+    return {
+        'total_actions': total_actions,
+        'actions_en_cours': actions_en_cours,
+        'actions_en_retard': actions_en_retard,
+        'total_documents': total_documents,
+        'total_audits': total_audits,
+        'total_users': total_users,
+    }
 
 
 @main.route('/switch-domaine/<domaine>')
@@ -162,44 +171,42 @@ def switch_domaine(domaine):
     return redirect(request.referrer or url_for('main.tableau_de_bord'))
 
 
-@main.route('/api/notifications')
+@main.get('/api/notifications')
 @login_required
+@main.response(200, NotificationSchema(many=True))
 def api_notifications():
-    notifs = Notification.query.filter_by(utilisateur_id=current_user.id)\
+    """Liste de vos notifications les plus récentes"""
+    return Notification.query.filter_by(utilisateur_id=current_user.id)\
         .order_by(Notification.lu.asc(), Notification.date_envoi.desc()).limit(20).all()
-    return jsonify([{
-        'id': n.id,
-        'type': n.type,
-        'message': n.message,
-        'date_envoi': n.date_envoi.isoformat() if n.date_envoi else None,
-        'lu': n.lu,
-    } for n in notifs])
 
 
-@main.route('/api/notifications/unread-count')
+@main.get('/api/notifications/unread-count')
 @login_required
 def api_notifications_unread_count():
+    """Nombre de notifications non lues"""
     count = Notification.query.filter_by(
         utilisateur_id=current_user.id, lu=False
     ).count()
-    return jsonify({'unread': count})
+    return {'unread': count}
 
 
-@main.route('/api/notifications/<int:id>/read', methods=['POST'])
+@main.post('/api/notifications/<int:id>/read')
 @login_required
 def api_notification_read(id):
+    """Marquer une notification comme lue"""
     notif = Notification.query.filter_by(id=id, utilisateur_id=current_user.id).first_or_404()
     notif.lu = True
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
-@main.route('/api/notifications/read-all', methods=['POST'])
+@main.post('/api/notifications/read-all')
 @login_required
 def api_notification_read_all():
+    """Marquer toutes les notifications comme lues"""
     Notification.query.filter_by(utilisateur_id=current_user.id, lu=False).update({'lu': True})
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
 @main.route('/notifications/<int:id>/open')

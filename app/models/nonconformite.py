@@ -1,11 +1,10 @@
-from app import db
-from datetime import datetime, date
+from app.extensions import db
+from .base import BaseModel
+from datetime import date
 
 
-class NonConformite(db.Model):
+class NonConformite(BaseModel):
     __tablename__ = 'nonconformite'
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     domaine = db.Column(db.String(20), nullable=False)
 
     reference = db.Column(db.String(50))
@@ -15,7 +14,6 @@ class NonConformite(db.Model):
     responsable_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
     statut = db.Column(db.String(20), default='ouverte')
     gravite = db.Column(db.String(20), default='majeur')
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
 
     produit_processus = db.Column(db.String(200))
     evaluation_id = db.Column(db.Integer, db.ForeignKey('evaluation_article.id'))

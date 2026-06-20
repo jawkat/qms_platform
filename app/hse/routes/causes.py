@@ -1,9 +1,10 @@
-from flask import render_template, request, jsonify
+from flask import render_template, request
 from flask_login import login_required, current_user
 from app.utils.permissions import module_access_required
 from app import db
 from app.hse import blueprint
 from app.models.hse import Incident, CauseIncident
+from app.schemas.hse import CauseIncidentSchema
 from datetime import datetime
 
 
@@ -19,62 +20,54 @@ def arbre_causes(incident_id):
 
 # --- API: Causes d'un incident ---
 
-@blueprint.route('/api/incidents/<int:incident_id>/causes')
+@blueprint.get('/api/incidents/<int:incident_id>/causes')
 @login_required
 @module_access_required('hse', 'hse.voir_incidents')
+@blueprint.response(200, CauseIncidentSchema(many=True))
 def api_causes(incident_id):
-    items = CauseIncident.query.filter_by(
+    """Liste des causes d'un incident (arbre des causes)"""
+    return CauseIncident.query.filter_by(
         entreprise_id=current_user.entreprise_id,
         incident_id=incident_id,
+        parent_id=None
     ).order_by(CauseIncident.ordre).all()
 
-    def serialize(c):
-        return {
-            'id': c.id, 'parent_id': c.parent_id,
-            'categorie': c.categorie, 'description': c.description,
-            'ordre': c.ordre, 'date_creation': c.date_creation.isoformat() if c.date_creation else None,
-            'enfants': [serialize(e) for e in c.enfants.order_by(CauseIncident.ordre).all()],
-        }
 
-    return jsonify([serialize(c) for c in items if c.parent_id is None])
-
-
-@blueprint.route('/api/incidents/<int:incident_id>/causes/create', methods=['POST'])
+@blueprint.post('/api/incidents/<int:incident_id>/causes/create')
 @login_required
 @module_access_required('hse', 'hse.gerer_incidents')
-def api_causes_create(incident_id):
-    data = request.get_json()
-    item = CauseIncident(
-        entreprise_id=current_user.entreprise_id,
-        incident_id=incident_id,
-        parent_id=data.get('parent_id'),
-        categorie=data.get('categorie', 'autre'),
-        description=data.get('description'),
-        ordre=data.get('ordre', 0),
-    )
-    db.session.add(item)
+@blueprint.arguments(CauseIncidentSchema)
+@blueprint.response(201, CauseIncidentSchema)
+def api_causes_create(data, incident_id):
+    """Ajouter une cause à un incident"""
+    data.entreprise_id = current_user.entreprise_id
+    data.incident_id = incident_id
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': item.id})
+    return data
 
 
-@blueprint.route('/api/causes/<int:item_id>/update', methods=['POST'])
+@blueprint.post('/api/causes/<int:item_id>/update')
 @login_required
 @module_access_required('hse', 'hse.gerer_incidents')
-def api_causes_update(item_id):
+@blueprint.arguments(CauseIncidentSchema(partial=True))
+@blueprint.response(200, CauseIncidentSchema)
+def api_causes_update(data, item_id):
+    """Mettre à jour une cause"""
     item = CauseIncident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    for f in ('parent_id', 'categorie', 'description', 'ordre'):
-        if f in data:
-            setattr(item, f, data[f])
+    for field, value in request.get_json().items():
+        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
+            setattr(item, field, value)
     db.session.commit()
-    return jsonify({'success': True})
+    return item
 
 
-@blueprint.route('/api/causes/<int:item_id>/delete', methods=['POST'])
+@blueprint.post('/api/causes/<int:item_id>/delete')
 @login_required
 @module_access_required('hse', 'hse.gerer_incidents')
 def api_causes_delete(item_id):
+    """Supprimer une cause"""
     item = CauseIncident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}

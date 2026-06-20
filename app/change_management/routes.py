@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.utils.permissions import has_permission
 from app import db
 from app.change_management import blueprint
-from app.change_management.models import ChangeRequest
+from app.models import ChangeRequest
 from app.models.auth import Utilisateur
 from datetime import date, datetime
 

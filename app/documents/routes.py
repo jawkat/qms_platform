@@ -121,35 +121,38 @@ def gestion():
 # Folder management
 # ---------------------------------------------------------------------------
 
-@blueprint.route('/api/dossiers')
+from app.schemas.documents import DossierSchema, TypeDocumentSchema, ProofMasterSchema
+
+
+@blueprint.get('/api/dossiers')
 @login_required
 @has_permission('documents.voir')
+@blueprint.response(200, DossierSchema(many=True))
 def api_dossiers():
+    """Arborescence des dossiers de la GED"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     dossiers = Dossier.query.filter_by(
         entreprise_id=current_user.entreprise_id, domaine=domaine
     ).order_by(Dossier.nom).all()
 
+    # Pre-calculating doc counts to avoid N+1 in recursion
+    doc_counts = {
+        d.id: ProofMaster.query.filter_by(
+            dossier_id=d.id, entreprise_id=current_user.entreprise_id, statut='ACTIF'
+        ).count() for d in dossiers
+    }
+
     def build_tree(parent_id=None):
         items = [d for d in dossiers if d.parent_id == parent_id]
         result = []
         for d in items:
-            children = build_tree(d.id)
-            doc_count = ProofMaster.query.filter_by(
-                dossier_id=d.id, entreprise_id=current_user.entreprise_id, statut='ACTIF'
-            ).count()
-            result.append({
-                'id': d.id,
-                'nom': d.nom,
-                'description': d.description,
-                'parent_id': d.parent_id,
-                'doc_count': doc_count,
-                'children': children,
-                'date_creation': d.date_creation.isoformat() if d.date_creation else None,
-            })
+            data = DossierSchema().dump(d)
+            data['doc_count'] = doc_counts.get(d.id, 0)
+            data['children'] = build_tree(d.id)
+            result.append(data)
         return result
 
-    return jsonify(build_tree(None))
+    return build_tree(None)
 
 
 @blueprint.route('/api/dossiers/create', methods=['POST'])
@@ -583,18 +586,16 @@ def nouvelle_version(proof_id):
 # Document type management
 # ---------------------------------------------------------------------------
 
-@blueprint.route('/api/types')
+@blueprint.get('/api/types')
 @login_required
 @has_permission('documents.voir')
+@blueprint.response(200, TypeDocumentSchema(many=True))
 def api_types():
+    """Liste des types de documents disponibles"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    types = TypeDocument.query.filter_by(
+    return TypeDocument.query.filter_by(
         entreprise_id=current_user.entreprise_id, domaine=domaine
     ).order_by(TypeDocument.nom).all()
-    return jsonify([{
-        'id': t.id, 'nom': t.nom, 'description': t.description,
-        'schema_metadonnees': t.schema_metadonnees or {},
-    } for t in types])
 
 
 @blueprint.route('/api/types/create', methods=['POST'])
@@ -651,10 +652,12 @@ def type_delete(type_id):
 # Enhanced search / filter API
 # ---------------------------------------------------------------------------
 
-@blueprint.route('/api/recherche')
+@blueprint.get('/api/recherche')
 @login_required
 @has_permission('documents.voir')
+@blueprint.response(200, ProofMasterSchema(many=True))
 def api_recherche():
+    """Recherche avancée dans la GED"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     eid = current_user.entreprise_id
     q = ProofMaster.query.filter_by(entreprise_id=eid, domaine=domaine, statut='ACTIF')
@@ -701,55 +704,24 @@ def api_recherche():
     else:
         q = q.order_by(ProofMaster.date_creation.desc())
 
-    proofs = q.all()
-    return jsonify([{
-        'id': p.id,
-        'nom_fichier': p.nom_fichier,
-        'type': p.type,
-        'taille_bytes': p.taille_bytes,
-        'description': p.description,
-        'categorie': p.categorie,
-        'validite': p.validite.isoformat() if p.validite else None,
-        'statut': p.statut,
-        'workflow_statut': p.workflow_statut,
-        'numero_document': p.numero_document,
-        'dossier_id': p.dossier_id,
-        'type_document_id': p.type_document_id,
-        'date_creation': p.date_creation.isoformat() if p.date_creation else None,
-        'date_soumission': p.date_soumission.isoformat() if p.date_soumission else None,
-        'date_approbation': p.date_approbation.isoformat() if p.date_approbation else None,
-        'reference_count': p.reference_count or 0,
-        'uploader': p.uploader.prenom + ' ' + p.uploader.nom if p.uploader else None,
-        'dossier_nom': p.dossier.nom if p.dossier else None,
-        'type_nom': p.type_doc.nom if p.type_doc else None,
-        'approbateur': p.approbateur.prenom + ' ' + p.approbateur.nom if p.approbateur else None,
-    } for p in proofs])
+    return q.all()
 
 
 # ---------------------------------------------------------------------------
 # Existing routes (keep as-is or enhanced)
 # ---------------------------------------------------------------------------
 
-@blueprint.route('/api/liste')
+@blueprint.get('/api/liste')
 @login_required
 @has_permission('documents.voir')
+@blueprint.response(200, ProofMasterSchema(many=True))
 def api_liste():
+    """Liste simple des documents actifs"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    proofs = ProofMaster.query.filter_by(
+    return ProofMaster.query.filter_by(
         entreprise_id=current_user.entreprise_id,
         domaine=domaine, statut='ACTIF'
     ).order_by(ProofMaster.date_creation.desc()).all()
-    return jsonify([{
-        'id': p.id, 'nom_fichier': p.nom_fichier, 'type': p.type,
-        'taille_bytes': p.taille_bytes, 'description': p.description,
-        'categorie': p.categorie,
-        'validite': p.validite.isoformat() if p.validite else None,
-        'statut': p.statut, 'workflow_statut': p.workflow_statut,
-        'numero_document': p.numero_document,
-        'date_creation': p.date_creation.isoformat() if p.date_creation else None,
-        'reference_count': p.reference_count or 0,
-        'uploader': p.uploader.prenom + ' ' + p.uploader.nom if p.uploader else None,
-    } for p in proofs])
 
 
 @blueprint.route('/<int:proof_id>/download')

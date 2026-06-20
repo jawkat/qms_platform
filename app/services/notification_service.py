@@ -1,205 +1,142 @@
-from flask import current_app
+from flask import current_app, render_template
 from datetime import datetime
+from app import db
+from app.models.systeme import Notification, NotificationPreference
+from app.models.auth import Utilisateur
+from app.core import plugin_manager
 
 
-def validate_notification_ids(notification_ids):
+class NotificationService:
     """
-    Validate notification IDs are a list of integers or strings representing IDs.
-    Returns (is_valid, error_messages).
+    Système central de distribution des notifications (In-App et Email).
+    Gère les préférences utilisateurs et le filtrage par module.
     """
-    errors = []
 
-    if not notification_ids:
-        errors.append('notification_ids list is required and cannot be empty')
-        return False, errors
+    @staticmethod
+    def notify(utilisateur_id, category, message, urgence='normale', entite_type=None, entite_id=None):
+        """
+        Envoie une notification à un utilisateur spécifique si ses préférences le permettent.
+        """
+        user = db.session.get(Utilisateur, utilisateur_id)
+        if not user:
+            return False
 
-    if not isinstance(notification_ids, (list, tuple)):
-        errors.append(f'notification_ids must be list or tuple, got {type(notification_ids)}')
-        return False, errors
+        # 1. Vérifier si le module lié à la catégorie est actif pour l'entreprise
+        if category not in ['systeme', 'general', 'technique']:
+            if not plugin_manager.is_active(category, user.entreprise_id):
+                return False
 
-    if len(notification_ids) == 0:
-        errors.append('notification_ids list cannot be empty')
-        return False, errors
+        # 2. Récupérer les préférences de l'utilisateur
+        prefs = NotificationPreference.query.filter_by(
+            utilisateur_id=utilisateur_id, 
+            categorie=category
+        ).first()
 
-    for item in notification_ids:
-        if not isinstance(item, (int, str)):
-            errors.append(f'Each notification ID must be int or str, got {type(item)}')
-            return False, errors
+        # Si pas de préférences, on active par défaut pour les urgences hautes/critiques
+        app_enabled = prefs.app_enabled if prefs else True
+        email_enabled = prefs.email_enabled if prefs else (urgence in ['haute', 'critique'])
 
-        if isinstance(item, str) and not item.isdigit():
-            errors.append(f'Invalid notification ID (not numeric string): {item}')
-            return False, errors
+        # 3. Notification In-App
+        if app_enabled:
+            notif = Notification(
+                utilisateur_id=utilisateur_id,
+                message=message,
+                categorie=category,
+                urgence=urgence,
+                entite_type=entite_type,
+                entite_id=entite_id,
+                lu=False
+            )
+            db.session.add(notif)
 
-    return True, errors
+        # 4. Notification Email (via Task Queue pour ne pas bloquer le thread principal)
+        if email_enabled and user.email:
+            NotificationService._enqueue_email(user, category, message, urgence)
 
+        db.session.commit()
+        return True
 
-def send_notifications(notification_ids):
-    """
-    Fetch notifications by IDs, validate, and send them.
-    Returns stats dict with sent_count, failed_count, errors.
-    """
-    stats = {
-        'notification_ids': notification_ids,
-        'fetched_count': 0,
-        'sent_count': 0,
-        'failed_count': 0,
-        'errors': [],
-        'validation_failed': 0,
-    }
+    @staticmethod
+    def notify_managers(entreprise_id, category, message, urgence='normale', entite_type=None, entite_id=None):
+        """
+        Alerte tous les managers/admins d'une entreprise pour un incident ou un événement de supervision.
+        """
+        managers = Utilisateur.query.join(Utilisateur.role).filter(
+            Utilisateur.entreprise_id == entreprise_id,
+            (Utilisateur.role.nom == 'Manager') | (Utilisateur.role.est_systeme == True),
+            Utilisateur.actif == True
+        ).all()
 
-    # Validate notification IDs
-    ids_valid, ids_errors = validate_notification_ids(notification_ids)
-    if not ids_valid:
-        stats['validation_failed'] = len(ids_errors)
-        stats['errors'].extend(ids_errors)
-        return stats
+        for manager in managers:
+            NotificationService.notify(manager.id, category, message, urgence, entite_type, entite_id)
 
-    try:
-        # Placeholder: fetch notifications from database
-        notifications = _fetch_notifications(notification_ids)
-        stats['fetched_count'] = len(notifications)
+    @staticmethod
+    def notify_system_admins(category, message, urgence='haute', entite_type=None, entite_id=None):
+        """
+        Alerte tous les administrateurs globaux (est_systeme) de la plateforme.
+        """
+        from app.models.auth import Role, Utilisateur
+        try:
+            current_app.logger.info(f"NotificationService: Alerte technique reçue: {message[:50]}...")
+            # On s'assure d'avoir une session propre pour la lecture
+            db.session.remove()
+            
+            admins = db.session.query(Utilisateur).join(Role, Utilisateur.role_id == Role.id).filter(
+                Role.est_systeme == True,
+                Utilisateur.actif == True
+            ).all()
 
-        if not notifications:
-            stats['errors'].append(f'No notifications found for IDs: {notification_ids}')
-            return stats
+            if not admins:
+                current_app.logger.error("NotificationService: AUCUN ADMIN SYSTEME TROUVE. Utilisation du fallback email.")
+                emergency_email = current_app.config.get('MAIL_ADMIN_EMAIL')
+                if emergency_email:
+                    from app.utils.notifications import send_email_notification_task
+                    send_email_notification_task(emergency_email, "Super Admin", category, message, urgence)
+                return
 
-        # Validate and send each notification
-        for notification in notifications:
-            try:
-                # Validate notification structure
-                is_valid, validation_errors = _validate_notification(notification)
-                if not is_valid:
-                    stats['failed_count'] += 1
-                    stats['errors'].extend(validation_errors)
-                    continue
+            current_app.logger.info(f"NotificationService: {len(admins)} admins à notifier.")
+            for admin in admins:
+                try:
+                    NotificationService.notify(admin.id, category, message, urgence, entite_type, entite_id)
+                except Exception as ex:
+                    current_app.logger.error(f"Echec envoi individuel à {admin.email}: {str(ex)}")
 
-                # Send notification
-                result = _send_single_notification(notification)
-                if result['success']:
-                    stats['sent_count'] += 1
-                    # Mark notification as sent in DB
-                    _mark_notification_sent(notification['id'])
-                else:
-                    stats['failed_count'] += 1
-                    stats['errors'].append(result.get('error', f'Failed to send notification {notification["id"]}'))
+            # Un commit final pour être sûr
+            db.session.commit()
+        except Exception as e:
+            current_app.logger.error(f"Bug critique dans NotificationService: {str(e)}")
+            db.session.rollback()
 
-            except Exception as e:
-                stats['failed_count'] += 1
-                stats['errors'].append(f'Error sending notification {notification.get("id")}: {str(e)}')
-                current_app.logger.exception(f'Notification send error for {notification}')
+    @staticmethod
+    def _enqueue_email(user, category, message, urgence):
+        """
+        Délègue l'envoi de l'email au worker background.
+        """
+        try:
+            # On utilise le système de tâches déjà en place (RQ ou Celery supposé)
+            # Pour l'instant, on simule l'appel ou on utilise flask-mail directement si configuré
+            from app.utils.notifications import send_email_notification_task
+            send_email_notification_task(
+                email=user.email,
+                name=f"{user.prenom} {user.nom}",
+                category=category,
+                message=message,
+                urgence=urgence
+            )
+        except ImportError:
+            current_app.logger.warning("NotificationService: utils.notifications non trouvé, email non envoyé.")
+        except Exception as e:
+            current_app.logger.error(f"Erreur envoi email: {str(e)}")
 
-    except Exception as e:
-        stats['errors'].append(f'Notification batch failed: {str(e)}')
-        current_app.logger.exception('Notification batch error')
+    @staticmethod
+    def get_unread_count(utilisateur_id):
+        return Notification.query.filter_by(utilisateur_id=utilisateur_id, lu=False).count()
 
-    return stats
-
-
-def _fetch_notifications(notification_ids):
-    """
-    Placeholder: fetch Notification objects from database.
-    In real implementation, query using SQLAlchemy.
-    Returns list of notification dicts with required fields.
-    """
-    # Example structure:
-    notifications = []
-    for nid in notification_ids:
-        notifications.append({
-            'id': nid,
-            'recipient_email': f'user{nid}@example.com',
-            'recipient_name': f'User {nid}',
-            'subject': f'Notification {nid}',
-            'message': f'This is notification {nid}',
-            'type': 'email',  # or 'sms', 'in_app'
-            'created_at': datetime.utcnow().isoformat(),
-        })
-    return notifications
-
-
-def _validate_notification(notification):
-    """
-    Validate notification has required fields for delivery.
-    Returns (is_valid, error_messages).
-    """
-    errors = []
-
-    required_fields = ['id', 'recipient_email', 'type', 'subject', 'message']
-    for field in required_fields:
-        if field not in notification or notification[field] is None:
-            errors.append(f'Notification missing required field: {field}')
-
-    # Validate recipient email if type is email
-    if notification.get('type') == 'email':
-        email = notification.get('recipient_email', '')
-        import re
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(pattern, email):
-            errors.append(f'Invalid recipient email: {email}')
-
-    return len(errors) == 0, errors
-
-
-def _send_single_notification(notification):
-    """
-    Send a single notification based on its type (email, sms, in_app).
-    Returns dict with success flag and optional error message.
-    """
-    try:
-        ntype = notification.get('type', 'email')
-
-        if ntype == 'email':
-            return _send_email_notification(notification)
-        elif ntype == 'sms':
-            return _send_sms_notification(notification)
-        elif ntype == 'in_app':
-            return _send_in_app_notification(notification)
-        else:
-            return {'success': False, 'error': f'Unknown notification type: {ntype}'}
-
-    except Exception as e:
-        current_app.logger.exception("Erreur envoi notification")
-        return {'success': False, 'error': 'Erreur interne lors de l\'envoi de la notification'}
-
-
-def _send_email_notification(notification):
-    """Send notification via email."""
-    try:
-        from flask_mail import Message, mail
-
-        msg = Message(
-            subject=notification.get('subject', 'Notification'),
-            recipients=[notification.get('recipient_email')],
-            body=notification.get('message', ''),
-            html=f"<p>{notification.get('message', '')}</p>",
-        )
-        mail.send(msg)
-        return {'success': True}
-
-    except Exception as e:
-        return {'success': False, 'error': f'Email send failed: {e}'}
-
-
-def _send_sms_notification(notification):
-    """
-    Placeholder: send notification via SMS (e.g. using Twilio).
-    In real implementation, integrate with SMS provider.
-    """
-    # Example: would use Twilio or similar
-    return {'success': True}  # Placeholder
-
-
-def _send_in_app_notification(notification):
-    """
-    Store in-app notification in database for user dashboard.
-    Placeholder: would create Notification record in DB.
-    """
-    return {'success': True}  # Placeholder
-
-
-def _mark_notification_sent(notification_id):
-    """
-    Update notification record to mark as sent.
-    Placeholder: would update DB record with sent_at timestamp.
-    """
-    # In real implementation, query DB and update sent_at
-    current_app.logger.debug(f'Marked notification {notification_id} as sent')
+    @staticmethod
+    def mark_as_read(notification_id, utilisateur_id):
+        notif = Notification.query.filter_by(id=notification_id, utilisateur_id=utilisateur_id).first()
+        if notif:
+            notif.lu = True
+            db.session.commit()
+            return True
+        return False

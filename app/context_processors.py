@@ -78,10 +78,13 @@ def _build_sidebar(current_user, modules_actifs):
     from app.core import plugin_manager
     is_systeme = (current_user.is_authenticated and
                  current_user.role and current_user.role.est_systeme)
+    is_manager = (current_user.is_authenticated and 
+                 current_user.has_permission('entreprises.modifier'))
     eid = current_user.entreprise_id if current_user.is_authenticated else None
     return plugin_manager.get_sidebar_sections(
         entreprise_id=eid or 0,
-        is_systeme=is_systeme
+        is_systeme=is_systeme,
+        is_manager=is_manager
     )
 
 

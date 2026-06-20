@@ -1,12 +1,9 @@
-from app import db
-from datetime import datetime
+from app.extensions import db
+from .base import BaseModel, TimestampMixin
 
 
-class ProofMaster(db.Model):
+class ProofMaster(BaseModel):
     __tablename__ = 'proof_master'
-
-    id = db.Column(db.Integer, primary_key=True)
-    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'), nullable=False)
     domaine = db.Column(db.String(20), default='hse', nullable=False, index=True)
 
     nom_fichier = db.Column(db.String(255), nullable=False)
@@ -21,8 +18,6 @@ class ProofMaster(db.Model):
     statut = db.Column(db.String(50), default='ACTIF')
 
     upload_par = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-    date_modification = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     remplace_preuve_id = db.Column(db.Integer, db.ForeignKey('proof_master.id'))
     extra_metadata = db.Column(db.JSON, default=dict)
     reference_count = db.Column(db.Integer, default=0)
@@ -49,20 +44,17 @@ class ProofMaster(db.Model):
     )
 
     __table_args__ = (
-        db.Index('idx_proof_entreprise_statut', 'entreprise_id', 'statut'),
         db.Index('idx_proof_hash', 'hash_fichier'),
         db.UniqueConstraint('entreprise_id', 'hash_fichier', name='uq_entreprise_hash'),
     )
 
 
-class ProofReference(db.Model):
+class ProofReference(db.Model, TimestampMixin):
     __tablename__ = 'proof_reference'
-
-    id = db.Column(db.Integer, primary_key=True)
     proof_master_id = db.Column(db.Integer, db.ForeignKey('proof_master.id'), nullable=False)
     entity_type = db.Column(db.String(50), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)
-    date_attached = db.Column(db.DateTime, default=datetime.utcnow)
+    date_attached = db.Column(db.DateTime, default=db.func.now())
     attached_by = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
     validite_override = db.Column(db.Date)
     description_override = db.Column(db.Text)

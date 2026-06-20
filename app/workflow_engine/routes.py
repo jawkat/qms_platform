@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.utils.permissions import has_permission
 from app import db
 from app.workflow_engine import blueprint
-from app.workflow_engine.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
+from app.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
 from app.models.systeme import Notification
 from datetime import datetime
 

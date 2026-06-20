@@ -1,4 +1,4 @@
-from flask import render_template, request, jsonify
+from flask import render_template, request
 from flask_login import login_required, current_user
 from app.utils.permissions import module_access_required
 from app import db
@@ -6,6 +6,7 @@ from app.models.hse import Incident
 from app.models.auth import Utilisateur
 from app.utils.notifications import create_notification
 from app.hse import blueprint
+from app.schemas.hse import IncidentSchema
 from datetime import date, datetime
 
 
@@ -23,10 +24,12 @@ def incidents():
     return render_template('hse/incidents.html')
 
 
-@blueprint.route('/api/incidents')
+@blueprint.get('/api/incidents')
 @login_required
 @module_access_required('hse', 'hse.voir_incidents')
+@blueprint.response(200, IncidentSchema(many=True))
 def api_incidents():
+    """Liste des incidents HSE"""
     eid = current_user.entreprise_id
     q = Incident.query.filter_by(entreprise_id=eid)
     type_f = request.args.get('type')
@@ -35,30 +38,18 @@ def api_incidents():
     statut = request.args.get('statut')
     if statut:
         q = q.filter_by(statut=statut)
-    items = q.order_by(Incident.date_creation.desc()).all()
-    return jsonify([_serialize_incident(r) for r in items])
+    return q.order_by(Incident.date_creation.desc()).all()
 
 
-@blueprint.route('/api/incidents/create', methods=['POST'])
+@blueprint.post('/api/incidents/create')
 @login_required
 @module_access_required('hse', 'hse.voir_incidents')
-def api_incidents_create():
-    data = request.get_json()
-    item = Incident(
-        entreprise_id=current_user.entreprise_id,
-        type_incident=data.get('type_incident', 'incident'),
-        date_incident=datetime.strptime(data['date_incident'], '%Y-%m-%d').date() if data.get('date_incident') else date.today(),
-        lieu=data.get('lieu'), zone=data.get('zone'),
-        description=data.get('description', ''),
-        victimes=data.get('victimes'), type_blessure=data.get('type_blessure'),
-        jours_arret=data.get('jours_arret', 0),
-        temoins=data.get('temoins'),
-        declarant_id=data.get('declarant_id'),
-        cause_initiale=data.get('cause_initiale'),
-        statut=data.get('statut', 'ouvert'),
-        gravite=data.get('gravite', 'majeur'),
-    )
-    db.session.add(item)
+@blueprint.arguments(IncidentSchema)
+@blueprint.response(201, IncidentSchema)
+def api_incidents_create(data):
+    """Créer un incident HSE"""
+    data.entreprise_id = current_user.entreprise_id
+    db.session.add(data)
     db.session.commit()
 
     # Notifier les admins système
@@ -70,67 +61,46 @@ def api_incidents_create():
         ).all()
         type_label = {'accident': 'Accident', 'presqu_accident': 'Presqu\'accident', 'incident': 'Incident'}
         gravite_label = {'critique': 'Critique', 'majeur': 'Majeur', 'mineur': 'Mineur'}
-        msg = f"{type_label.get(data.get('type_incident','incident'), 'Incident')} ({gravite_label.get(data.get('gravite',''), '')}) : {data.get('description','')[:80]} [INCIDENT:{item.id}]"
+        msg = f"{type_label.get(data.type_incident, 'Incident')} ({gravite_label.get(data.gravite, '')}) : {data.description[:80]} [INCIDENT:{data.id}]"
         for admin in admins:
             create_notification(admin.id, msg, type='incident')
 
-    return jsonify({'success': True, 'id': item.id})
+    return data
 
 
-@blueprint.route('/api/incidents/<int:item_id>/update', methods=['POST'])
+@blueprint.post('/api/incidents/<int:item_id>/update')
 @login_required
 @module_access_required('hse', 'hse.voir_incidents')
-def api_incidents_update(item_id):
+@blueprint.arguments(IncidentSchema(partial=True))
+@blueprint.response(200, IncidentSchema)
+def api_incidents_update(data, item_id):
+    """Mettre à jour un incident HSE"""
     item = Incident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    data = request.get_json()
-    for f in ('type_incident', 'lieu', 'zone', 'description', 'victimes', 'type_blessure',
-              'jours_arret', 'temoins', 'declarant_id', 'cause_initiale', 'analyse_racine',
-              'statut', 'gravite'):
-        if f in data:
-            setattr(item, f, data[f])
-    if data.get('date_incident'):
-        item.date_incident = datetime.strptime(data['date_incident'], '%Y-%m-%d').date()
-    if data.get('date_cloture'):
-        item.date_cloture = datetime.strptime(data['date_cloture'], '%Y-%m-%d').date()
-    if data.get('action_corrective_id'):
-        item.action_corrective_id = data['action_corrective_id']
+    for field, value in request.get_json().items():
+        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
+            setattr(item, field, value)
     db.session.commit()
 
     # Notifier les admins si changement de statut
-    if 'statut' in data:
+    if 'statut' in request.get_json():
         from app.models.auth import Role
         role_admin = Role.query.filter_by(nom='Administrateur').first()
         if role_admin:
             admins = Utilisateur.query.filter_by(role_id=role_admin.id, actif=True).all()
             type_label = {'accident': 'Accident', 'presqu_accident': 'Presqu\'accident', 'incident': 'Incident'}
-            msg = f"{type_label.get(item.type_incident, 'Incident')} → {data['statut']} : {item.description[:80]} [INCIDENT:{item.id}]"
+            msg = f"{type_label.get(item.type_incident, 'Incident')} → {item.statut} : {item.description[:80]} [INCIDENT:{item.id}]"
             for admin in admins:
                 create_notification(admin.id, msg, type='incident')
 
-    return jsonify({'success': True})
+    return item
 
 
-@blueprint.route('/api/incidents/<int:item_id>/delete', methods=['POST'])
+@blueprint.post('/api/incidents/<int:item_id>/delete')
 @login_required
 @module_access_required('hse', 'hse.voir_incidents')
 def api_incidents_delete(item_id):
+    """Supprimer un incident HSE"""
     item = Incident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'success': True})
-
-
-def _serialize_incident(r):
-    return {
-        'id': r.id, 'type_incident': r.type_incident,
-        'date_incident': r.date_incident.isoformat() if r.date_incident else None,
-        'lieu': r.lieu, 'zone': r.zone, 'description': r.description,
-        'victimes': r.victimes, 'type_blessure': r.type_blessure,
-        'jours_arret': r.jours_arret, 'temoins': r.temoins,
-        'declarant': f'{r.declarant.prenom} {r.declarant.nom}' if r.declarant else '',
-        'declarant_id': r.declarant_id,
-        'cause_initiale': r.cause_initiale, 'analyse_racine': r.analyse_racine,
-        'statut': r.statut, 'gravite': r.gravite,
-        'date_cloture': r.date_cloture.isoformat() if r.date_cloture else None,
-        'date_creation': r.date_creation.isoformat() if r.date_creation else None,
-    }
+    return {'success': True}

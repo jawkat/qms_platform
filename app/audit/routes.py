@@ -1,8 +1,9 @@
-from flask import render_template, request, jsonify, redirect, url_for, flash, Response
+from flask import render_template, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
 from app import db
 from app.models import Audit, AuditObservation, Utilisateur, TexteReglementaire, Article
 from app.audit import blueprint
+from app.schemas.audit import AuditSchema, AuditObservationSchema
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
 from datetime import datetime
@@ -39,43 +40,31 @@ def creer():
     return redirect(url_for('audit.index'))
 
 
-@blueprint.route('/creer', methods=['POST'])
+@blueprint.post('/creer')
 @login_required
 @has_permission('audit.cree')
-def api_creer():
+@blueprint.arguments(AuditSchema)
+@blueprint.response(201, AuditSchema)
+def api_creer(data):
+    """Créer un nouvel audit"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    data = request.get_json()
-    audit = Audit(
-        entreprise_id=current_user.entreprise_id, domaine=domaine,
-        type=data.get('type'),
-        date_audit=datetime.strptime(data['date_audit'], '%Y-%m-%d').date()
-        if data.get('date_audit') else None,
-        auditeur_id=data.get('auditeur_id'),
-        commentaire=data.get('commentaire'),
-    )
-    db.session.add(audit)
+    data.entreprise_id = current_user.entreprise_id
+    data.domaine = domaine
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': audit.id})
+    return data
 
 
-@blueprint.route('/api/liste')
+@blueprint.get('/api/liste')
 @login_required
 @has_permission('audit.voir')
+@blueprint.response(200, AuditSchema(many=True))
 def api_liste():
+    """Liste des audits"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    audits = Audit.query.filter_by(
+    return Audit.query.filter_by(
         entreprise_id=current_user.entreprise_id, domaine=domaine
     ).order_by(Audit.date_creation.desc()).all()
-    return jsonify([{
-        'id': a.id,
-        'type': a.type,
-        'date_audit': a.date_audit.isoformat() if a.date_audit else None,
-        'date_creation': a.date_creation.isoformat() if a.date_creation else None,
-        'auditeur': f'{a.auditeur.prenom} {a.auditeur.nom}' if a.auditeur else None,
-        'auditeur_id': a.auditeur_id,
-        'resultat_global': a.resultat_global,
-        'commentaire': a.commentaire,
-    } for a in audits])
 
 
 @blueprint.route('/<int:audit_id>', methods=['GET'])
@@ -90,27 +79,26 @@ def detail(audit_id):
                            textes=textes, articles=articles)
 
 
-@blueprint.route('/<int:audit_id>/update', methods=['POST'])
+@blueprint.post('/<int:audit_id>/update')
 @login_required
 @has_permission('audit.modifier')
-def update(audit_id):
+@blueprint.arguments(AuditSchema(partial=True))
+@blueprint.response(200, AuditSchema)
+def update(data, audit_id):
+    """Mettre à jour un audit"""
     audit = tenant_get_or_404(Audit, audit_id)
-    data = request.get_json() if request.is_json else request.form
-    if data.get('resultat_global') is not None:
-        audit.resultat_global = data['resultat_global']
-    if data.get('commentaire') is not None:
-        audit.commentaire = data['commentaire']
+    for field, value in request.get_json().items():
+        if hasattr(audit, field) and field not in ('id', 'entreprise_id', 'date_creation'):
+            setattr(audit, field, value)
     db.session.commit()
-    if request.is_json:
-        return jsonify({'success': True})
-    flash('Audit mis à jour.', 'success')
-    return redirect(url_for('audit.detail', audit_id=audit.id))
+    return audit
 
 
-@blueprint.route('/<int:audit_id>/delete', methods=['POST'])
+@blueprint.post('/<int:audit_id>/delete')
 @login_required
 @has_permission('audit.modifier')
 def delete(audit_id):
+    """Supprimer un audit"""
     audit = tenant_get_or_404(Audit, audit_id)
     db.session.delete(audit)
     db.session.commit()
@@ -118,29 +106,25 @@ def delete(audit_id):
     return redirect(url_for('audit.index'))
 
 
-@blueprint.route('/<int:audit_id>/observation/add', methods=['POST'])
+@blueprint.post('/<int:audit_id>/observation/add')
 @login_required
 @has_permission('audit.modifier')
-def add_observation(audit_id):
+@blueprint.arguments(AuditObservationSchema)
+@blueprint.response(201, AuditObservationSchema)
+def add_observation(data, audit_id):
+    """Ajouter une observation à un audit"""
     audit = tenant_get_or_404(Audit, audit_id)
-    data = request.get_json()
-    obs = AuditObservation(
-        audit_id=audit.id,
-        texte_id=data.get('texte_id'),
-        article_id=data.get('article_id'),
-        constat=data.get('constat'),
-        niveau_conformite=data.get('niveau_conformite'),
-        action_recommandee=data.get('action_recommandee'),
-    )
-    db.session.add(obs)
+    data.audit_id = audit.id
+    db.session.add(data)
     db.session.commit()
-    return jsonify({'success': True, 'id': obs.id})
+    return data
 
 
-@blueprint.route('/<int:audit_id>/observation/<int:obs_id>/delete', methods=['POST'])
+@blueprint.post('/<int:audit_id>/observation/<int:obs_id>/delete')
 @login_required
 @has_permission('audit.modifier')
 def delete_observation(audit_id, obs_id):
+    """Supprimer une observation"""
     tenant_get_or_404(Audit, audit_id)
     obs = AuditObservation.query.get_or_404(obs_id)
     if obs.audit_id != audit_id:
@@ -148,7 +132,7 @@ def delete_observation(audit_id, obs_id):
         abort(404)
     db.session.delete(obs)
     db.session.commit()
-    return jsonify({'success': True})
+    return {'success': True}
 
 
 @blueprint.route('/api/export')

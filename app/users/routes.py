@@ -248,3 +248,50 @@ def reset_password_token(token):
             flash('Mot de passe réinitialisé avec succès. Connectez-vous.', 'success')
             return redirect(url_for('users.login'))
     return render_template('users/reset_password.html')
+@users.route('/notifications/preferences', methods=['GET', 'POST'])
+@login_required
+def notification_preferences():
+    from app.models.systeme import NotificationPreference
+    from app.core import plugin_manager
+    
+    # Récupérer les modules actifs pour l'entreprise (filtre)
+    eid = current_user.entreprise_id
+    if eid:
+        active_manifests = plugin_manager.get_active_modules(eid)
+        categories = [{'id': m.name, 'label': m.display_name} for m in active_manifests]
+    else:
+        # Si pas d'entreprise (Admin global), on montre tous les modules ou une liste vide
+        categories = []
+    # Ajouter les catégories système toujours présentes
+    categories.insert(0, {'id': 'systeme', 'label': 'Système & Sécurité'})
+    categories.insert(1, {'id': 'general', 'label': 'Général'})
+    if current_user.role and current_user.role.est_systeme:
+        categories.append({'id': 'technique', 'label': 'Maintenance & Bugs'})
+
+    if request.method == 'POST':
+        for cat in categories:
+            cat_id = cat['id']
+            pref = NotificationPreference.query.filter_by(
+                utilisateur_id=current_user.id, 
+                categorie=cat_id
+            ).first()
+            if not pref:
+                pref = NotificationPreference(utilisateur_id=current_user.id, categorie=cat_id)
+                db.session.add(pref)
+            
+            pref.app_enabled = request.form.get(f'app_{cat_id}') == 'on'
+            pref.email_enabled = request.form.get(f'email_{cat_id}') == 'on'
+        
+        db.session.commit()
+        flash('Préférences de notification mises à jour.', 'success')
+        return redirect(url_for('users.profile', tab='notifications'))
+
+    # Charger les préférences actuelles
+    prefs_db = NotificationPreference.query.filter_by(utilisateur_id=current_user.id).all()
+    prefs_map = {p.categorie: p for p in prefs_db}
+    
+    return render_template(
+        'users/notifications_prefs.html',
+        categories=categories,
+        prefs_map=prefs_map
+    )
