@@ -270,11 +270,13 @@ function saveNc() {
   }
   const url = id ? UPDATE_URL.replace('0', id) : CREATE_URL;
   fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
-    .then(r => r.json()).then(resp => {
-      if (resp.success) {
+    .then(r => {
+      if (r.ok) {
         bootstrap.Modal.getInstance(document.getElementById('ncModal')).hide();
         resetForm();
         loadNcs();
+      } else {
+        r.json().then(err => alert("Erreur lors de l'enregistrement : " + (err.message || JSON.stringify(err))));
       }
     });
 }

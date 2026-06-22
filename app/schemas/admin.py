@@ -1,5 +1,6 @@
 from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.extensions import db
 from app.models.entreprise import Entreprise, HistoriquePaiement
 
 class EntrepriseSchema(SQLAlchemyAutoSchema):
@@ -7,12 +8,19 @@ class EntrepriseSchema(SQLAlchemyAutoSchema):
         model = Entreprise
         load_instance = True
         include_fk = True
+        sqla_session = db.session
 
 class HistoriquePaiementSchema(SQLAlchemyAutoSchema):
+    entreprise_id = fields.Integer(required=False)
+    id = fields.Integer(dump_only=True)
+    date_creation = fields.DateTime(dump_only=True)
+    date_modification = fields.DateTime(dump_only=True)
+
     class Meta:
         model = HistoriquePaiement
         load_instance = True
         include_fk = True
+        sqla_session = db.session
 
 class QuotaSchema(SQLAlchemyAutoSchema):
     used_users = fields.Int()

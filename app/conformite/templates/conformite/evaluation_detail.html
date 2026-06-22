@@ -97,17 +97,23 @@
           </div>
           {% endif %}
 
-          <!-- Contenu HTML -->
-          {% if evaluation.article.explication_detaillee or evaluation.article.contenu %}
+          <!-- Contenu -->
+          {% if evaluation.article.contenu %}
+          <div class="mb-3">
+            <h6 class="text-muted mb-1"><i class="fas fa-paragraph me-1"></i>Contenu</h6>
+            <div class="p-3 bg-light rounded border" style="max-height:400px;overflow-y:auto">
+              {{ evaluation.article.contenu | safe }}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Détails de l'article -->
+          {% if evaluation.article.explication_detaillee %}
           <div class="mb-3">
             <h6 class="text-muted mb-1"><i class="fas fa-file-alt me-1"></i>Détails de l'article</h6>
-            <div class="bg-light p-3 rounded small" style="max-height:400px;overflow-y:auto">
-              {% if evaluation.article.explication_detaillee %}
+            <div class="bg-light p-3 rounded small" style="max-height:300px;overflow-y:auto">
               <div class="mb-2"><strong>Cet article dispose que :</strong></div>
               {{ evaluation.article.explication_detaillee | safe }}
-              {% elif evaluation.article.contenu %}
-              {{ evaluation.article.contenu | safe }}
-              {% endif %}
             </div>
           </div>
           {% endif %}

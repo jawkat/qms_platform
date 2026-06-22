@@ -13,7 +13,7 @@
   --ds-muted: #6b7280;
 }
 
-body { background: #f5f6fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
+body { background: #eef1f5; font-family: 'Segoe UI', Tahoma, sans-serif; }
 .app-layout { min-height: 100vh; }
 
 /* ===== Sidebar ===== */

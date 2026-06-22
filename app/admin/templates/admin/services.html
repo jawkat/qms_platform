@@ -1,0 +1,207 @@
+{% extends "layout.html" %}
+{% block title %}État des Services{% endblock %}
+{% block page_title %}État des Services{% endblock %}
+
+{% block extra_css %}
+<style>
+  .service-card {
+    border-radius: 16px;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,.08);
+  }
+  .service-icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center; justify-content: center;
+    font-size: 1.4rem; flex-shrink: 0;
+  }
+  .service-name {
+    font-size: 1.05rem; font-weight: 600;
+  }
+  .service-detail {
+    font-size: .82rem; color: #6b7280;
+  }
+  .service-hint {
+    font-size: .78rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+  }
+  .stat-label { font-size: .7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: .04em; }
+  .stat-value  { font-size: 1rem; font-weight: 600; }
+  .auto-refresh-badge {
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .5; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1 fw-bold"><i class="fas fa-heartbeat me-2 text-danger"></i>État des Services</h1>
+      <p class="text-muted small mb-0">Vue d'ensemble de l'infrastructure QMS Platform</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-light text-muted border px-3 py-2 auto-refresh-badge">
+        <i class="fas fa-sync-alt me-1"></i>Direct
+      </span>
+      <a href="{{ url_for('admin.services') }}" class="btn btn-outline-secondary btn-sm" title="Rafraîchir">
+        <i class="fas fa-redo-alt"></i>
+      </a>
+    </div>
+  </div>
+
+  {# ── Grille des services ── #}
+  <div class="row g-3 mb-5">
+    {% for s in checks %}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm service-card h-100 {{ 'border-start border-4 border-success' if s.ok else 'border-start border-4 border-danger' }}">
+        <div class="card-body p-4 d-flex align-items-start gap-3">
+          <div class="service-icon {{ 'bg-success bg-opacity-10' if s.ok else 'bg-danger bg-opacity-10' }}">
+            {% if 'PostgreSQL' in s.name or 'postgres' in s.name.lower() %}
+              <i class="fas fa-database {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Redis' in s.name %}
+              <i class="fas fa-bolt {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Worker' in s.name %}
+              <i class="fas fa-cogs {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'MinIO' in s.name or 'S3' in s.name %}
+              <i class="fas fa-boxes {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'SMTP' in s.name or 'Mail' in s.name %}
+              <i class="fas fa-envelope {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Stockage' in s.name or 'Disque' in s.name %}
+              <i class="fas fa-hdd {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Modules' in s.name or 'Plugins' in s.name %}
+              <i class="fas fa-puzzle-piece {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Pool' in s.name %}
+              <i class="fas fa-plug {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Utilisateurs' in s.name %}
+              <i class="fas fa-users {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Environnement' in s.name %}
+              <i class="fas fa-server {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'Health' in s.name %}
+              <i class="fas fa-stethoscope {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'CPU' in s.name %}
+              <i class="fas fa-microchip {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'RAM' in s.name %}
+              <i class="fas fa-memory {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% elif 'latency' in s.name.lower() %}
+              <i class="fas fa-clock {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% else %}
+              <i class="fas fa-cube {{ 'text-success' if s.ok else 'text-danger' }}"></i>
+            {% endif %}
+          </div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="service-name">{{ s.name }}
+                  {% if 'production' in s.detail %}
+                  <span class="badge bg-warning text-dark ms-2" style="font-size:.6rem;">PROD</span>
+                  {% elif 'development' in s.detail %}
+                  <span class="badge bg-info text-dark ms-2" style="font-size:.6rem;">DEV</span>
+                  {% endif %}
+                </div>
+                <div class="service-detail mt-1">{{ s.detail }}</div>
+              </div>
+              <span class="badge {{ 'bg-success' if s.ok else 'bg-danger' }} bg-opacity-10 {{ 'text-success' if s.ok else 'text-danger' }} border {{ 'border-success' if s.ok else 'border-danger' }} ms-2" style="font-size:.7rem;white-space:nowrap;">
+                {{ '● En ligne' if s.ok else '● Hors ligne' }}
+              </span>
+            </div>
+            {% if s.hint %}
+            <div class="service-hint mt-2">
+              <i class="fas fa-exclamation-triangle me-1"></i>{{ s.hint }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Files d'attente RQ ── #}
+  {% if queues_info %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h5 class="mb-0 fw-bold"><i class="fas fa-tasks me-2 text-muted"></i>Files d'attente RQ</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-4">File</th>
+              <th class="text-center">En attente</th>
+              <th class="text-center">En cours</th>
+              <th class="text-center">Terminés</th>
+              <th class="text-center pe-4">Échoués</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for qname, qi in queues_info.items() %}
+            <tr>
+              <td class="ps-4 fw-semibold">{{ qname }}</td>
+              {% if qi %}
+              <td class="text-center">{{ qi.queued }}</td>
+              <td class="text-center">{{ qi.started }}</td>
+              <td class="text-center">{{ qi.finished }}</td>
+              <td class="text-center pe-4">{{ qi.failed }}</td>
+              {% else %}
+              <td colspan="4" class="text-muted text-center">Injoignable</td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Versions ── #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h5 class="mb-0 fw-bold"><i class="fas fa-code-branch me-2 text-muted"></i>Versions</h5>
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-3">
+        {% for name, ver in versions.items() %}
+        <div class="col-6 col-md-3">
+          <div class="stat-label">{{ name }}</div>
+          <div class="stat-value">{{ ver or '—' }}</div>
+        </div>
+        {% endfor %}
+        <div class="col-6 col-md-3">
+          <div class="stat-label">Conteneurs Docker</div>
+          <div class="stat-value">
+            {{ checks|selectattr('ok')|list|length }}/{{ checks|length }} opérationnels
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Health Endpoint JSON ── #}
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+      <h5 class="mb-0 fw-bold"><i class="fas fa-code me-2 text-muted"></i>Health Endpoint <code>GET /health</code></h5>
+      <a href="{{ url_for('main.health') }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-external-link-alt me-1"></i>Ouvrir
+      </a>
+    </div>
+    <div class="card-body p-0">
+      <pre class="json-display m-0 p-4" style="background:#f8f9fa;font-size:.82rem;overflow-x:auto;">{{ health_api | tojson(indent=2) }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -336,6 +336,8 @@ def management():
     Permet de gérer les informations de la société, voir les modules actifs
     et superviser l'équipe sans avoir accès à l'administration globale.
     """
+    from app.models import SubscriptionPlan, ActionCorrective
+
     entreprise_id = current_user.entreprise_id
     if not entreprise_id:
         abort(403)
@@ -347,6 +349,18 @@ def management():
     # Statistiques de l'équipe
     users_count = Utilisateur.query.filter_by(entreprise_id=entreprise.id).count()
     users_actifs = Utilisateur.query.filter_by(entreprise_id=entreprise.id, actif=True).count()
+
+    # Quotas du plan d'abonnement
+    plan = SubscriptionPlan.query.filter_by(plan_key=entreprise.abonnement_type).first()
+    max_users = plan.max_users if plan else None
+    max_documents = plan.max_documents if plan else None
+    max_actions = plan.max_open_actions if plan else None
+    
+    # Usage
+    open_actions = ActionCorrective.query.filter(
+        ActionCorrective.entreprise_id == entreprise.id,
+        ActionCorrective.statut.in_(['ouverte', 'en_cours'])
+    ).count() if max_actions else None
     
     # Modules
     from app.core import plugin_manager
@@ -359,5 +373,9 @@ def management():
         users_count=users_count,
         users_actifs=users_actifs,
         active_manifests=active_manifests,
-        all_manifests=[m for m in all_manifests if m.visible]
+        all_manifests=[m for m in all_manifests if m.visible],
+        plan=plan,
+        max_users=max_users,
+        max_actions=max_actions,
+        open_actions=open_actions,
     )

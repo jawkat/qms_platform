@@ -32,7 +32,9 @@
           </thead>
           <tbody>
             {% set lc_badge = {'trial': 'warning', 'active': 'success', 'suspended': 'danger', 'cancelled': 'secondary', 'archived': 'dark'} %}
+            {% set lc_label = {'trial': 'Trial', 'active': 'Actif', 'suspended': 'Suspendu', 'cancelled': 'Annulé', 'archived': 'Archivé'} %}
             {% set pay_badge = {'paid': 'success', 'unpaid': 'warning', 'expired': 'danger'} %}
+            {% set pay_label = {'paid': 'Payé', 'unpaid': 'Impayé', 'expired': 'Expiré'} %}
             {% for item in data %}
             {% set e = item.entreprise %}
             <tr>
@@ -40,13 +42,13 @@
                 <a href="{{ url_for('admin.entreprise_detail', eid=e.id) }}" class="text-decoration-none">{{ e.nom }}</a>
               </td>
               <td>
-                <span class="badge bg-{{ lc_badge.get(item.lifecycle, 'secondary') }} text-capitalize">{{ item.lifecycle }}</span>
+                <span class="badge bg-{{ lc_badge.get(item.lifecycle, 'secondary') }}">{{ lc_label.get(item.lifecycle, item.lifecycle) }}</span>
               </td>
               <td>
                 <span class="badge bg-info">{{ item.plan_obj.label if item.plan_obj else (e.abonnement_type or '-') }}</span>
               </td>
               <td>
-                <span class="badge bg-{{ pay_badge.get(item.pay_status, 'secondary') }} text-capitalize">{{ item.pay_status }}</span>
+                <span class="badge bg-{{ pay_badge.get(item.pay_status, 'secondary') }}">{{ pay_label.get(item.pay_status, item.pay_status) }}</span>
               </td>
               <td class="text-nowrap small">
                 {% if item.days_remaining is not none %}

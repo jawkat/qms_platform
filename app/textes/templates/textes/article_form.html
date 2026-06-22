@@ -55,7 +55,7 @@
           </div>
           <div class="col-12">
             <label class="form-label">Contenu</label>
-            <textarea name="contenu" class="form-control" rows="8">{{ article.contenu if article else '' }}</textarea>
+            <textarea name="contenu" id="contenu" class="form-control" rows="8">{{ article.contenu if article else '' }}</textarea>
           </div>
           <div class="col-md-6">
             <label class="form-label">Acteur</label>
@@ -72,4 +72,34 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trumbowyg@2.28.0/dist/ui/trumbowyg.min.css">
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/trumbowyg@2.28.0/dist/trumbowyg.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/trumbowyg@2.28.0/dist/langs/fr.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    $('#contenu').trumbowyg({
+      lang: 'fr',
+      btns: [
+        ['viewHTML'],
+        ['undo', 'redo'],
+        ['formatting'],
+        ['strong', 'em', 'del'],
+        ['superscript', 'subscript'],
+        ['link'],
+        ['justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'],
+        ['unorderedList', 'orderedList'],
+        ['horizontalRule'],
+        ['removeformat'],
+        ['fullscreen'],
+      ],
+    });
+  });
+</script>
 {% endblock %}

@@ -122,15 +122,17 @@ def bootstrap():
         # 7. Admin utilisateur
         print('Création de l\'utilisateur admin...')
         admin_role = roles.get('System Admin')
-        if not Utilisateur.query.filter_by(email='admin@qmsplatform.ma').first():
+        admin_email = os.getenv('ADMIN_EMAIL', 'admin@qmsplatform.ma')
+        admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
+        if not Utilisateur.query.filter_by(email=admin_email).first():
             admin = Utilisateur(
                 nom='Admin', prenom='System',
-                email='admin@qmsplatform.ma', actif=True,
+                email=admin_email, actif=True,
                 role_id=admin_role.id,
             )
-            admin.set_password('admin123')
+            admin.set_password(admin_password)
             db.session.add(admin)
-            print('  + Utilisateur admin@qmsplatform.ma créé')
+            print(f'  + Utilisateur {admin_email} créé')
         else:
             print('  ~ Utilisateur admin déjà existant')
         db.session.commit()

@@ -1,126 +1,161 @@
 {% extends "layout.html" %}
 
 {% block title %}Mes Préférences de Notification{% endblock %}
-
 {% block page_title %}Réglages des Notifications{% endblock %}
+
+{% block extra_css %}
+<style>
+  .pref-icon-wrap {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .form-check-input:checked {
+    background-color: #e63946;
+    border-color: #e63946;
+  }
+  .table-info-subtle { background-color: #eff6ff; }
+  .table-danger-subtle { background-color: #fef2f2; }
+  .table > :not(caption) > * > * { padding: 1rem 1.25rem; }
+
+  .pref-toggle-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .pref-toggle-label { font-size: .68rem; color: #6b7280; font-weight: 500; }
+
+  .save-btn-wrap {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    z-index: 10;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <nav aria-label="breadcrumb" class="mb-4">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('users.profile') }}">Mon Profil</a></li>
-                    <li class="breadcrumb-item active">Notifications</li>
-                </ol>
-            </nav>
+  <div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-10">
 
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3 border-bottom d-flex align-items-center">
-                    <h5 class="mb-0 fw-bold"><i class="fas fa-bell me-2 text-danger"></i>Gérer vos alertes</h5>
-                </div>
-                <div class="card-body p-0">
-                    <form method="POST">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-4 py-3" style="width: 50%;">Catégorie / Module</th>
-                                        <th class="text-center py-3">Application</th>
-                                        <th class="text-center py-3">Email</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for cat in categories %}
-                                    {% set pref = prefs_map.get(cat.id) %}
-                                    <tr>
-                                        <td class="ps-4 py-4">
-                                            <div class="d-flex align-items-center">
-                                                <div class="bg-light p-2 rounded-3 me-3">
-                                                    {% if cat.id == 'systeme' %}
-                                                    <i class="fas fa-shield-alt text-dark"></i>
-                                                    {% elif cat.id == 'technique' %}
-                                                    <i class="fas fa-bug text-danger"></i>
-                                                    {% else %}
-                                                    <i class="fas fa-layer-group text-muted"></i>
-                                                    {% endif %}
-                                                </div>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">{{ cat.label }}</h6>
-                                                    <p class="mb-0 text-muted small">Alertes relatives au module {{
-                                                        cat.id }}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="form-check form-switch d-inline-block">
-                                                <input class="form-check-input" type="checkbox" name="app_{{ cat.id }}"
-                                                    {{ 'checked' if not pref or pref.app_enabled }}>
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="form-check form-switch d-inline-block">
-                                                <input class="form-check-input" type="checkbox"
-                                                    name="email_{{ cat.id }}" {{ 'checked' if pref and
-                                                    pref.email_enabled }}>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
+      {# Breadcrumb #}
+      <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{{ url_for('users.profile') }}">Mon Profil</a></li>
+          <li class="breadcrumb-item active">Notifications</li>
+        </ol>
+      </nav>
 
-                                    {% if current_user.role and current_user.role.est_systeme %}
-                                    <tr class="table-info-subtle">
-                                        <td class="ps-4 py-4">
-                                            <div class="d-flex align-items-center">
-                                                <div class="bg-info-subtle p-2 rounded-3 me-3">
-                                                    <i class="fas fa-microchip text-info"></i>
-                                                </div>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Monitoring Technique (Bugs/404)</h6>
-                                                    <p class="mb-0 text-muted small">Notifications en temps réel des
-                                                        erreurs serveur</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="form-check form-switch d-inline-block">
-                                                <input class="form-check-input" type="checkbox" name="app_technique"
-                                                    {{ 'checked' if not prefs_map.get('technique') or
-                                                    prefs_map.get('technique').app_enabled }}>
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="form-check form-switch d-inline-block">
-                                                <input class="form-check-input" type="checkbox" name="email_technique"
-                                                    {{ 'checked' if prefs_map.get('technique') and
-                                                    prefs_map.get('technique').email_enabled }}>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="card-footer bg-white border-top-0 py-4 text-end">
-                            <button type="submit" class="btn btn-danger px-4 shadow-sm">
-                                <i class="fas fa-save me-2"></i>Enregistrer mes choix
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+      {# Hero card #}
+      <div class="card border-0 shadow-sm overflow-hidden mb-0">
+
+        {# Header #}
+        <div class="card-header border-bottom py-3 px-4 d-flex align-items-center justify-content-between bg-white">
+          <div>
+            <h5 class="mb-0 fw-bold"><i class="fas fa-bell me-2 text-danger"></i>Gérer vos alertes</h5>
+            <p class="mb-0 text-muted small mt-1">Choisissez comment vous souhaitez être notifié pour chaque module.</p>
+          </div>
+          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger" style="font-size:.75rem">
+            {{ categories | length }} catégorie(s)
+          </span>
         </div>
+
+        <div class="card-body p-0">
+          <form method="POST" id="prefForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-4" style="width:55%">Catégorie / Module</th>
+                    <th class="text-center" style="width:22.5%">
+                      <i class="fas fa-mobile-alt me-1 text-muted"></i>Application
+                    </th>
+                    <th class="text-center" style="width:22.5%">
+                      <i class="fas fa-envelope me-1 text-muted"></i>Email
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for cat in categories %}
+                  {% set pref = prefs_map.get(cat.id) %}
+                  <tr class="{{ cat.row_class or '' }}">
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="pref-icon-wrap {{ cat.bg_class or 'bg-light' }}">
+                          {% if cat.id == 'systeme' %}
+                            <i class="fas fa-shield-alt text-dark"></i>
+                          {% elif cat.id == 'technique' %}
+                            <i class="fas fa-microchip text-info"></i>
+                          {% elif cat.id == 'hse' %}
+                            <i class="fas fa-hard-hat text-warning"></i>
+                          {% elif cat.id in ['qualite', 'nc_capa', 'audits'] %}
+                            <i class="fas fa-certificate text-primary"></i>
+                          {% elif cat.id == 'general' %}
+                            <i class="fas fa-bell text-danger"></i>
+                          {% elif cat.id == 'veille' %}
+                            <i class="fas fa-satellite-dish text-cyan"></i>
+                          {% elif cat.id == 'support' %}
+                            <i class="fas fa-headset text-success"></i>
+                          {% else %}
+                            <i class="fas fa-layer-group text-muted"></i>
+                          {% endif %}
+                        </div>
+                        <div>
+                          <h6 class="mb-0 fw-semibold">{{ cat.label }}</h6>
+                          <p class="mb-0 text-muted small" style="font-size:.78rem">{{ cat.description }}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <div class="pref-toggle-wrap">
+                        <div class="form-check form-switch d-inline-block">
+                          <input class="form-check-input" type="checkbox"
+                                 id="app_{{ cat.id }}"
+                                 name="app_{{ cat.id }}"
+                                 {{ 'checked' if not pref or pref.app_enabled }}>
+                        </div>
+                        <span class="pref-toggle-label">In-App</span>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <div class="pref-toggle-wrap">
+                        <div class="form-check form-switch d-inline-block">
+                          <input class="form-check-input" type="checkbox"
+                                 id="email_{{ cat.id }}"
+                                 name="email_{{ cat.id }}"
+                                                                   {{ 'checked' if not pref or pref.email_enabled }}>
+                        </div>
+                        <span class="pref-toggle-label">Email</span>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            {# Sticky save bar #}
+            <div class="save-btn-wrap d-flex justify-content-between align-items-center">
+              <span class="small text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Les préférences s'appliquent immédiatement après enregistrement.
+              </span>
+              <button type="submit" class="btn btn-danger px-5 shadow-sm">
+                <i class="fas fa-save me-2"></i>Enregistrer mes choix
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     </div>
+  </div>
 </div>
-
-<style>
-    .table-info-subtle {
-        background-color: #e3f2fd;
-    }
-
-    .form-check-input:checked {
-        background-color: #e63946;
-        border-color: #e63946;
-    }
-</style>
 {% endblock %}

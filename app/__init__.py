@@ -54,7 +54,12 @@ def create_app(config_object='config.Config'):
     register_error_handlers(app)
     register_hooks(app)
 
-    # 6. Context processor pour le sidebar et variables globales
+    # 6. Initialisation eager du stockage (MinIO bucket auto-créé)
+    with app.app_context():
+        from app.core.storage import get_storage
+        get_storage()
+
+    # 7. Context processor pour le sidebar et variables globales
     from app.context_processors import inject_globals
     app.context_processor(inject_globals)
 

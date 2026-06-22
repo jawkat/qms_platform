@@ -59,7 +59,7 @@ def _alert_overdue_actions():
                 f"Action en retard : {action.description[:80]} "
                 f"({jours_retard} jour(s) de retard, échéance {action.date_echeance.strftime('%d/%m/%Y')})"
             )
-            create_notification(action.responsable_id, msg, type='overdue')
+            create_notification(action.responsable_id, msg, type='overdue', entite_id=action.id, entite_type='action')
             _send_alert_email(action.responsable, 'Action en retard', msg)
             count += 1
 
@@ -85,7 +85,7 @@ def _alert_upcoming_action_deadlines():
                     msg = f"Échéance aujourd'hui : {action.description[:80]}"
                 else:
                     msg = f"Échéance dans {jours_restants} jour(s) : {action.description[:80]}"
-                create_notification(action.responsable_id, msg, type='echeance')
+                create_notification(action.responsable_id, msg, type='echeance', entite_id=action.id, entite_type='action')
                 _send_alert_email(action.responsable, 'Échéance action', msg)
                 count += 1
 
@@ -104,7 +104,7 @@ def _alert_overdue_nc():
     for nc in ncs:
         if nc.responsable_id:
             msg = f"NC non clôturée depuis > 30j : {nc.description[:80]}"
-            create_notification(nc.responsable_id, msg, type='overdue')
+            create_notification(nc.responsable_id, msg, type='overdue', entite_id=nc.id, entite_type='nonconformite')
             _send_alert_email(nc.responsable, 'NC en retard', msg)
             count += 1
 
@@ -124,7 +124,7 @@ def _alert_expired_documents():
     for doc in docs:
         if doc.upload_par:
             msg = f"Document expiré : {doc.nom_fichier} (validité {doc.validite.strftime('%d/%m/%Y')})"
-            create_notification(doc.upload_par, msg, type='alerte')
+            create_notification(doc.upload_par, msg, type='alerte', entite_id=doc.id, entite_type='document')
             user = Utilisateur.query.get(doc.upload_par)
             _send_alert_email(user, 'Document expiré', msg)
             count += 1
@@ -151,7 +151,7 @@ def _alert_expiring_documents():
                 f"Document expire dans {jours_restants}j : {doc.nom_fichier} "
                 f"(validité {doc.validite.strftime('%d/%m/%Y')})"
             )
-            create_notification(doc.upload_par, msg, type='echeance')
+            create_notification(doc.upload_par, msg, type='echeance', entite_id=doc.id, entite_type='document')
             user = Utilisateur.query.get(doc.upload_par)
             _send_alert_email(user, 'Document expire bientôt', msg)
             count += 1

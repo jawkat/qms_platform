@@ -335,6 +335,10 @@ class PluginManager:
                      'active_endpoints': ['admin.entreprises', 'admin.entreprise_detail', 'admin.entreprise_create']},
                     {'endpoint': 'admin.plans', 'icon': 'fa-crown', 'label': 'Plans',
                      'active_endpoints': ['admin.plans', 'plans.index']},
+                    {'endpoint': 'admin.mail_test', 'icon': 'fa-envelope', 'label': 'Diagnostic Email',
+                     'active_endpoints': ['admin.mail_test', 'admin.mail_test_send']},
+                    {'endpoint': 'admin.services', 'icon': 'fa-heartbeat', 'label': 'État des Services',
+                     'active_endpoints': ['admin.services']},
                 ]
             })
             sections.append({
@@ -364,15 +368,19 @@ class PluginManager:
             {'endpoint': 'main.tableau_de_bord', 'icon': 'fa-chart-line', 'label': 'Tableau de bord'},
             {'endpoint': 'main.search', 'icon': 'fa-search', 'label': 'Recherche'},
         ]
-        if 'ged' in active_names:
-            general_items.append({
-                'endpoint': 'documents.gestion', 'icon': 'fa-folder-open', 'label': 'Documents',
-                'active_prefix': 'documents.',
-            })
         sections.append({
             'id': 'general', 'title': 'Général', 'icon': 'fa-th-large',
             'items': general_items,
         })
+
+        # --- DOCUMENTS (menu à part) ---
+        if 'ged' in active_names:
+            sections.append({
+                'id': 'documents', 'title': 'Documents', 'icon': 'fa-folder-open', 'items': [
+                    {'endpoint': 'documents.gestion', 'icon': 'fa-folder-open', 'label': 'GED',
+                     'active_prefix': 'documents.'},
+                ]
+            })
 
         # --- QUALITÉ / ISO 9001 ---
         if 'qualite' in active_names:

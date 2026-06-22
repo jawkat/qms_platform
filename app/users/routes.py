@@ -248,6 +248,8 @@ def reset_password_token(token):
             flash('Mot de passe réinitialisé avec succès. Connectez-vous.', 'success')
             return redirect(url_for('users.login'))
     return render_template('users/reset_password.html')
+
+
 @users.route('/notifications/preferences', methods=['GET', 'POST'])
 @login_required
 def notification_preferences():
@@ -258,15 +260,34 @@ def notification_preferences():
     eid = current_user.entreprise_id
     if eid:
         active_manifests = plugin_manager.get_active_modules(eid)
-        categories = [{'id': m.name, 'label': m.display_name} for m in active_manifests]
+        categories = [{
+            'id': m.name,
+            'label': m.display_name,
+            'description': f'Alertes relatives au module {m.display_name}'
+        } for m in active_manifests]
     else:
-        # Si pas d'entreprise (Admin global), on montre tous les modules ou une liste vide
         categories = []
+        
     # Ajouter les catégories système toujours présentes
-    categories.insert(0, {'id': 'systeme', 'label': 'Système & Sécurité'})
-    categories.insert(1, {'id': 'general', 'label': 'Général'})
+    categories.insert(0, {
+        'id': 'systeme',
+        'label': 'Système & Sécurité',
+        'description': 'Alertes de sécurité, connexions suspectes et intégrité'
+    })
+    categories.insert(1, {
+        'id': 'general',
+        'label': 'Général',
+        'description': 'Notifications globales, messages système et alertes générales'
+    })
+
     if current_user.role and current_user.role.est_systeme:
-        categories.append({'id': 'technique', 'label': 'Maintenance & Bugs'})
+        categories.append({
+            'id': 'technique',
+            'label': 'Monitoring Technique (Bugs/404)',
+            'description': 'Notifications en temps réel des erreurs serveur',
+            'row_class': 'table-info-subtle',
+            'bg_class': 'bg-info-subtle'
+        })
 
     if request.method == 'POST':
         for cat in categories:

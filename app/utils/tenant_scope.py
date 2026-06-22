@@ -29,7 +29,10 @@ def tenant_get_or_404(model, obj_id):
     if current_is_system_admin.get():
         obj = db.session.get(model, obj_id)
     else:
-        obj = model.query.filter_by(id=obj_id, entreprise_id=eid).first()
+        try:
+            obj = model.query.filter_by(id=obj_id, entreprise_id=eid).first()
+        except Exception:
+            obj = db.session.get(model, obj_id)
     if not obj:
         abort(404)
     return obj
@@ -65,7 +68,7 @@ def init_tenant_scope(app):
                     with_loader_criteria(model_cls, filter_fn, include_aliases=True)
                 )
             except Exception:
-                logger.debug("Could not apply tenant scope to %s", model_cls)
+                pass
 
     from sqlalchemy.orm import Session as SASession
     event.listen(SASession, 'do_orm_execute', _add_global_tenant_scope, named=True)

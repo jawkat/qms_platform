@@ -1,3 +1,51 @@
+"""
+QMS Platform — Utilitaires de notifications
+=============================================
+Ce module fournit :
+
+  - ``create_notification()``          : wrapper legacy → délègue à NotificationService
+  - ``notify_action()``                : décorateur pour notifier après une action
+  - ``notify_users()``                 : notifier une liste d'utilisateurs
+  - ``send_account_created_email()``   : email de création de compte
+  - ``send_password_reset_email()``    : email de réinitialisation de mot de passe
+  - ``send_action_reminder_email()``   : email de rappel d'action corrective
+  - ``send_incident_email()``          : email d'incident technique (500)
+  - ``send_email_notification_task()`` : tâche d'envoi générique (appelée par RQ)
+
+Mapping de types
+----------------
+Les fonctions ``create_notification()`` acceptent un paramètre ``type``
+(str) qui est automatiquement mappé vers :
+
+  - une *categorie* (hse, qualite, general, veille, support…)
+  - une *urgence*   (basse, normale, haute, critique)
+  - un *entite_type* pour le routage de clic (incident, action, document…)
+
+Vous pouvez passer ``entite_type`` et ``entite_id`` explicitement pour forcer
+le routage vers un enregistrement précis lors du clic sur la notification.
+
+Exemple
+-------
+::
+
+    # Via le wrapper legacy (compatible avec le code existant)
+    from app.utils.notifications import create_notification
+    create_notification(
+        user_id=user.id,
+        message="Action corrective en retard",
+        type='overdue',
+        entite_id=action.id,
+        entite_type='action',
+    )
+
+    # Envoi d'email de compte directement
+    from app.utils.notifications import send_account_created_email
+    send_account_created_email(
+        recipient_email=user.email,
+        recipient_name=f"{user.prenom} {user.nom}",
+        role_name=user.role.nom,
+    )
+"""
 import logging
 import time
 from functools import wraps
@@ -12,22 +60,69 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-def create_notification(user_id, message, type='info'):
-    from flask import current_app
-    notification = Notification(
-        type=type,
-        message=message,
-        utilisateur_id=user_id,
-        date_envoi=datetime.utcnow(),
-        lu=False,
-    )
+TYPE_CATEGORY_MAP = {
+    'incident': 'hse',
+    'accident': 'hse',
+    'presqu_accident': 'hse',
+    'overdue': 'general',
+    'echeance': 'general',
+    'alerte': 'general',
+    'texte': 'veille',
+    'info': 'general',
+    'action': 'general',
+    'ticket': 'support',
+    'nonconformite': 'qualite',
+}
+
+TYPE_URGENCE_MAP = {
+    'incident': 'haute',
+    'accident': 'critique',
+    'presqu_accident': 'haute',
+    'overdue': 'haute',
+    'echeance': 'normale',
+    'alerte': 'normale',
+    'texte': 'basse',
+    'info': 'normale',
+    'action': 'normale',
+    'ticket': 'normale',
+    'nonconformite': 'normale',
+}
+
+TYPE_ENTITE_TYPE_MAP = {
+    'incident': 'incident',
+    'accident': 'accident',
+    'presqu_accident': 'presqu_accident',
+    'ticket': 'ticket',
+    'action': 'action',
+    'nonconformite': 'nonconformite',
+    'document': 'document',
+    'alerte': 'alerte',
+}
+
+
+def create_notification(user_id, message, type='info', entite_id=None, entite_type=None):
+    category = TYPE_CATEGORY_MAP.get(type, 'general')
+    urgence = TYPE_URGENCE_MAP.get(type, 'normale')
+    if not entite_type:
+        entite_type = TYPE_ENTITE_TYPE_MAP.get(type)
+
     try:
-        db.session.add(notification)
-        db.session.commit()
-        logger.info("Notification creee user_id=%s type=%s", user_id, type)
-    except SQLAlchemyError:
-        db.session.rollback()
-        logger.exception("Erreur SQL notification user_id=%s", user_id)
+        from flask import current_app
+        from app.services.notification_service import NotificationService
+
+        return NotificationService.notify(
+            utilisateur_id=user_id,
+            category=category,
+            message=message,
+            urgence=urgence,
+            entite_type=entite_type,
+            entite_id=entite_id,
+            notification_type=type,
+            skip_module_check=True,
+        )
+    except Exception:
+        logger.exception("Erreur create_notification via NotificationService")
+        return False
 
 
 def notify_action(message_template, notification_type='info'):
@@ -253,7 +348,8 @@ def send_incident_email(error_message, request_id, path, method, user_info='-'):
     except Exception:
         logger.exception("Echec email incident (Ref: %s)", request_id)
         return False
-def send_email_notification_task(email, name, category, message, urgence='normale'):
+def send_email_notification_task(email, name, category, message, urgence='normale',
+                                 entreprise_nom=None, user_role=None):
     """
     Tâche d'envoi d'email pour les notifications de la plateforme.
     Formatte le message selon la catégorie et l'urgence.
@@ -265,24 +361,66 @@ def send_email_notification_task(email, name, category, message, urgence='normal
         subject = f"Alerte QMS — {category.upper()} — {urgence.upper()}"
         sender = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@qmsplatform.ma')
 
-        # Construction du corps du mail
+        urgence_badge = {
+            'critique': ('#dc3545', 'Critique'),
+            'haute': ('#fd7e14', 'Haute'),
+            'normale': ('#0d6efd', 'Normale'),
+            'basse': ('#6c757d', 'Basse'),
+        }
+        badge_color, badge_label = urgence_badge.get(urgence, ('#6c757d', urgence.capitalize()))
+
+        entreprise_block = f"""
+        <tr>
+            <td style='padding: 6px 0; color: #666; font-size: 0.85rem;'>Entreprise</td>
+            <td style='padding: 6px 0; font-weight: 600;'>{entreprise_nom}</td>
+        </tr>""" if entreprise_nom else ''
+
+        role_block = f"""
+        <tr>
+            <td style='padding: 6px 0; color: #666; font-size: 0.85rem;'>Rôle</td>
+            <td style='padding: 6px 0; font-weight: 600;'>{user_role}</td>
+        </tr>""" if user_role else ''
+
         html_body = f"""
-        <div style='font-family: sans-serif; padding: 20px; border: 1px solid #eee;'>
-            <h2 style='color: #e63946;'>Notification QMS</h2>
-            <p>Bonjour {name},</p>
-            <p style='background: #f8f9fa; padding: 15px; border-left: 4px solid #e63946;'>
-                <strong>Message :</strong> {message}
-            </p>
-            <p style='font-size: 0.8rem; color: #666;'>
-                Catégorie : {category} | Priorité : {urgence}<br>
+        <div style='font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px;
+                    overflow: hidden; border: 1px solid #e0e0e0;'>
+            <div style='background: linear-gradient(135deg, #e63946 0%, #a82a33 100%);
+                        padding: 24px 32px; text-align: center;'>
+                <h1 style='margin: 0; color: #fff; font-size: 1.4rem;'>Notification QMS</h1>
+                <span style='display: inline-block; margin-top: 8px; padding: 4px 14px;
+                            background: {badge_color}; color: #fff; border-radius: 20px;
+                            font-size: 0.75rem; font-weight: 600;'>{badge_label}</span>
+            </div>
+            <div style='padding: 24px 32px;'>
+                <p style='margin: 0 0 16px 0; font-size: 1rem;'>Bonjour <strong>{name}</strong>,</p>
+                <div style='background: #f8f9fa; padding: 16px; border-left: 4px solid {badge_color};
+                            border-radius: 4px; margin-bottom: 20px;'>
+                    <p style='margin: 0; color: #333; line-height: 1.5;'>{message}</p>
+                </div>
+                <table style='width: 100%; border-collapse: collapse;'>
+                    {entreprise_block}
+                    {role_block}
+                    <tr>
+                        <td style='padding: 6px 0; color: #666; font-size: 0.85rem;'>Catégorie</td>
+                        <td style='padding: 6px 0; font-weight: 600;'>{category}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 6px 0; color: #666; font-size: 0.85rem;'>Priorité</td>
+                        <td style='padding: 6px 0; font-weight: 600;'>{urgence.upper()}</td>
+                    </tr>
+                </table>
+            </div>
+            <div style='background: #f1f3f5; padding: 16px 32px; text-align: center;
+                        font-size: 0.75rem; color: #868e96;'>
                 Ceci est un message automatique de QMS Platform.
-            </p>
+            </div>
         </div>
         """
 
         msg = Message(subject=subject, recipients=[email], sender=sender)
         msg.html = html_body
-        
+
         if current_app.config.get('MAIL_SUPPRESS_SEND', False):
             logger.info("Email notification simule pour %s (Cat: %s)", email, category)
             return True

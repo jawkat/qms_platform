@@ -54,17 +54,17 @@ services:
   # -------------------------------------------------------------------------
   # MINIO — Stockage objet S3-compatible
   # -------------------------------------------------------------------------
-  # Console web : http://localhost:9001 (minioadmin/minioadmin)
+  # Console web : http://localhost:9001
   # API S3 : http://localhost:9000
   # Bucket par défaut : qms-platform
+  # Credentials définis dans .env (MINIO_ROOT_USER / MINIO_ROOT_PASSWORD)
   minio:
     image: minio/minio:latest
     container_name: qms_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+    env_file:
+      - .env
     volumes:
       - minio_data:/data
     ports:
@@ -115,6 +115,8 @@ services:
         condition: service_started
     env_file:
       - .env
+    volumes:
+      - .:/app
     command: python run_worker.py
 
 # =============================================================================

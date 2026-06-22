@@ -1,99 +1,368 @@
 {% extends 'layout.html' %}
-{% block title %}Administration - Notifications{% endblock %}
+{% block title %}Administration — Notifications{% endblock %}
+{% block page_title %}Gestion des Notifications{% endblock %}
+
+{% block extra_css %}
+<style>
+  .notif-stat-card {
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    transition: transform .18s;
+  }
+  .notif-stat-card:hover { transform: translateY(-2px); }
+  .notif-stat-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+  }
+  .notif-stat-number { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+  .notif-stat-label  { font-size: .78rem; color: #6b7280; margin-top: 2px; }
+
+  .badge-urgence-haute    { background: #dc2626; }
+  .badge-urgence-critique { background: #7f1d1d; }
+  .badge-urgence-normale  { background: #3b82f6; }
+  .badge-urgence-basse    { background: #9ca3af; color:#1f2937!important; }
+
+  .badge-type { font-size: .7rem; padding: .3em .65em; border-radius: 6px; }
+  .type-incident, .type-accident { background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; }
+  .type-overdue  { background:#fff7ed; color:#ea580c; border:1px solid #fdba74; }
+  .type-echeance { background:#fefce8; color:#ca8a04; border:1px solid #fde047; }
+  .type-alerte   { background:#eff6ff; color:#2563eb; border:1px solid #93c5fd; }
+  .type-info     { background:#f0fdf4; color:#16a34a; border:1px solid #86efac; }
+  .type-texte    { background:#f5f3ff; color:#7c3aed; border:1px solid #c4b5fd; }
+
+  .filter-bar { background:#fff; border-radius: 14px; padding: 1rem 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .table th { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; font-weight: 600; }
+  .table td { vertical-align: middle; }
+  .msg-cell { max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .unread-row { background: #fffbeb; }
+  .unread-indicator { width: 8px; height: 8px; border-radius: 50%; background:#ef4444; display:inline-block; margin-right:6px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0"><i class="fas fa-bell me-2"></i>Notifications système</h1>
-    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sendNotifModal">
-      <i class="fas fa-paper-plane me-1"></i>Envoyer une notification
-    </button>
+<div class="container-fluid pb-5">
+
+  {# ── Header ── #}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 fw-bold"><i class="fas fa-bell me-2 text-danger"></i>Notifications système</h1>
+      <p class="text-muted small mb-0">Vue globale de toutes les notifications de la plateforme</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <form method="POST" action="{{ url_for('admin.notifications_mark_all_read') }}"
+            onsubmit="return confirm('Marquer toutes comme lues ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-secondary">
+          <i class="fas fa-check-double me-1"></i>Tout marquer lu
+        </button>
+      </form>
+      <form method="POST" action="{{ url_for('admin.notifications_delete_all') }}"
+            onsubmit="return confirm('Supprimer TOUTES les notifications ? Cette action est irréversible.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-danger">
+          <i class="fas fa-trash-alt me-1"></i>Tout supprimer
+        </button>
+      </form>
+      <a href="{{ url_for('admin.mail_test') }}" class="btn btn-outline-info">
+        <i class="fas fa-envelope me-1"></i>Diagnostic Email
+      </a>
+      <button class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#sendNotifModal">
+        <i class="fas fa-paper-plane me-1"></i>Envoyer une notification
+      </button>
+    </div>
   </div>
 
+  {# ── Stats cards ── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="notif-stat-card bg-white">
+        <div class="notif-stat-icon" style="background:#fef2f2;">
+          <i class="fas fa-bell text-danger"></i>
+        </div>
+        <div>
+          <div class="notif-stat-number text-dark">{{ notifications | length }}</div>
+          <div class="notif-stat-label">Total</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="notif-stat-card bg-white">
+        <div class="notif-stat-icon" style="background:#fffbeb;">
+          <i class="fas fa-envelope text-warning"></i>
+        </div>
+        <div>
+          <div class="notif-stat-number text-warning">{{ notifications | selectattr('lu', 'equalto', false) | list | length }}</div>
+          <div class="notif-stat-label">Non lues</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="notif-stat-card bg-white">
+        <div class="notif-stat-icon" style="background:#f0fdf4;">
+          <i class="fas fa-envelope-open text-success"></i>
+        </div>
+        <div>
+          <div class="notif-stat-number text-success">{{ notifications | selectattr('lu', 'equalto', true) | list | length }}</div>
+          <div class="notif-stat-label">Lues</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="notif-stat-card bg-white">
+        <div class="notif-stat-icon" style="background:#fef2f2;">
+          <i class="fas fa-users text-danger"></i>
+        </div>
+        <div>
+          <div class="notif-stat-number text-dark">{{ utilisateurs | length }}</div>
+          <div class="notif-stat-label">Utilisateurs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Filters ── #}
+  <div class="filter-bar mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-lg-4">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+          <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Rechercher dans les messages...">
+        </div>
+      </div>
+      <div class="col-lg-2">
+        <select id="filterType" class="form-select form-select-sm">
+          <option value="">Tous les types</option>
+          <option value="incident">Incident</option>
+          <option value="accident">Accident</option>
+          <option value="overdue">En retard</option>
+          <option value="echeance">Échéance</option>
+          <option value="alerte">Alerte</option>
+          <option value="info">Info</option>
+          <option value="texte">Texte</option>
+        </select>
+      </div>
+      <div class="col-lg-2">
+        <select id="filterStatut" class="form-select form-select-sm">
+          <option value="">Tous les statuts</option>
+          <option value="non_lu">Non lues</option>
+          <option value="lu">Lues</option>
+        </select>
+      </div>
+      <div class="col-lg-2">
+        <select id="filterUser" class="form-select form-select-sm">
+          <option value="">Tous les utilisateurs</option>
+          {% for u in utilisateurs %}
+          <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-lg-2">
+        <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetFilters()">
+          <i class="fas fa-undo me-1"></i>Réinitialiser
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Table ── #}
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0 align-middle" id="notifTable">
           <thead class="table-light">
             <tr>
-              <th>Date</th>
+              <th class="ps-3">Date</th>
               <th>Type</th>
+              <th>Urgence</th>
               <th>Message</th>
               <th>Destinataire</th>
-              <th>Lu</th>
+              <th>Catégorie</th>
+              <th>Statut</th>
+              <th class="text-end pe-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for n in notifications %}
-            <tr>
-              <td class="text-nowrap">{{ n.date_envoi.strftime('%d/%m/%Y %H:%M') if n.date_envoi else '-' }}</td>
-              <td><span class="badge bg-info">{{ n.type }}</span></td>
-              <td>{{ n.message }}</td>
+            <tr class="notif-row {% if not n.lu %}unread-row{% endif %}"
+                data-type="{{ n.type or '' }}"
+                data-lu="{{ 'lu' if n.lu else 'non_lu' }}"
+                data-user="{{ n.utilisateur_id or '' }}"
+                data-message="{{ (n.message or '') | lower }}">
+              <td class="ps-3 text-nowrap small">
+                {{ n.date_envoi.strftime('%d/%m/%Y') if n.date_envoi else '-' }}<br>
+                <span class="text-muted" style="font-size:.7rem">{{ n.date_envoi.strftime('%H:%M') if n.date_envoi else '' }}</span>
+              </td>
+              <td>
+                <span class="badge badge-type type-{{ n.type or 'info' }}">
+                  <i class="fas {% if n.type in ['incident','accident'] %}fa-bug{% elif n.type == 'overdue' %}fa-clock{% elif n.type == 'echeance' %}fa-calendar{% elif n.type == 'alerte' %}fa-exclamation-circle{% elif n.type == 'texte' %}fa-scroll{% else %}fa-info-circle{% endif %} me-1"></i>
+                  {{ n.type or 'info' }}
+                </span>
+              </td>
+              <td>
+                {% if n.urgence %}
+                <span class="badge badge-urgence-{{ n.urgence }} text-white" style="font-size:.68rem">
+                  {{ n.urgence }}
+                </span>
+                {% else %}<span class="text-muted small">—</span>{% endif %}
+              </td>
+              <td class="msg-cell" title="{{ n.message }}">
+                {% if not n.lu %}<span class="unread-indicator"></span>{% endif %}
+                <span class="small">{{ n.message | truncate(90) }}</span>
+              </td>
               <td>
                 {% set user = users_dict.get(n.utilisateur_id) %}
                 {% if user %}
-                {{ user.prenom }} {{ user.nom }}
+                <div class="d-flex align-items-center gap-1">
+                  <span class="badge bg-secondary bg-opacity-10 text-dark" style="font-size:.72rem; font-weight:500;">
+                    {{ user.prenom[0] | upper }}{{ user.nom[0] | upper }}
+                  </span>
+                  <span class="small">{{ user.prenom }} {{ user.nom }}</span>
+                </div>
                 {% else %}
-                <span class="text-muted">Tous</span>
+                <span class="badge bg-light text-muted border small">Broadcast</span>
                 {% endif %}
               </td>
               <td>
+                <span class="small text-muted">{{ n.categorie or '—' }}</span>
+              </td>
+              <td>
                 {% if n.lu %}
-                <span class="badge bg-success">Lu</span>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success" style="font-size:.7rem">
+                  <i class="fas fa-check me-1"></i>Lu
+                </span>
                 {% else %}
-                <span class="badge bg-warning text-dark">Non lu</span>
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning" style="font-size:.7rem">
+                  <i class="fas fa-dot-circle me-1"></i>Non lu
+                </span>
                 {% endif %}
+              </td>
+              <td class="text-end pe-3">
+                <form method="POST" action="{{ url_for('admin.notification_delete', id=n.id) }}"
+                      style="display:inline;"
+                      onsubmit="return confirm('Supprimer cette notification ?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger px-2" title="Supprimer">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">Aucune notification.</td></tr>
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="fas fa-bell-slash fa-2x mb-2 d-block opacity-25"></i>
+                Aucune notification enregistrée.
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+    <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-2 px-3">
+      <span class="small text-muted" id="rowCount"></span>
+      <span class="small text-muted">{{ notifications | length }} notification(s) au total</span>
+    </div>
   </div>
 </div>
 
-<!-- Send Modal -->
+{# ── Send Modal ── #}
 <div class="modal fade" id="sendNotifModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
       <form method="POST" action="{{ url_for('admin.notification_send') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="modal-header">
-          <h5 class="modal-title">Envoyer une notification</h5>
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold">
+            <i class="fas fa-paper-plane me-2 text-danger"></i>Envoyer une notification
+          </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Type</label>
-            <select name="type" class="form-select">
-              <option value="info">Information</option>
-              <option value="warning">Avertissement</option>
-              <option value="danger">Urgent</option>
-              <option value="success">Succès</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Destinataire</label>
-            <select name="utilisateur_id" class="form-select">
-              <option value="">Tous les utilisateurs</option>
-              {% for u in utilisateurs %}
-              <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }} ({{ u.email }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Message <span class="text-danger">*</span></label>
-            <textarea name="message" class="form-control" rows="4" required></textarea>
+        <div class="modal-body pt-3">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Type de notification</label>
+              <select name="type" class="form-select">
+                <option value="info">ℹ️ Information</option>
+                <option value="alerte">⚠️ Avertissement</option>
+                <option value="overdue">🔴 Urgent / En retard</option>
+                <option value="echeance">📅 Échéance</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Destinataire</label>
+              <select name="utilisateur_id" class="form-select">
+                <option value="">📢 Tous les utilisateurs (broadcast)</option>
+                {% for u in utilisateurs %}
+                <option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }} — {{ u.email }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Message <span class="text-danger">*</span></label>
+              <textarea name="message" class="form-control" rows="4" required
+                        placeholder="Saisissez votre message de notification..."></textarea>
+            </div>
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-danger">Envoyer</button>
+          <button type="submit" class="btn btn-danger px-4">
+            <i class="fas fa-paper-plane me-1"></i>Envoyer
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const search  = document.getElementById('searchInput').value.toLowerCase();
+  const type    = document.getElementById('filterType').value;
+  const statut  = document.getElementById('filterStatut').value;
+  const userId  = document.getElementById('filterUser').value;
+  const rows    = document.querySelectorAll('#notifTable tbody .notif-row');
+  let visible   = 0;
+
+  rows.forEach(row => {
+    const matchSearch = !search || row.dataset.message.includes(search);
+    const matchType   = !type   || row.dataset.type === type;
+    const matchStatut = !statut || row.dataset.lu === statut;
+    const matchUser   = !userId || row.dataset.user === userId;
+    const show = matchSearch && matchType && matchStatut && matchUser;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  const countEl = document.getElementById('rowCount');
+  if (countEl) countEl.textContent = visible + ' notification(s) affichée(s)';
+}
+
+function resetFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterType').value  = '';
+  document.getElementById('filterStatut').value = '';
+  document.getElementById('filterUser').value  = '';
+  applyFilters();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  ['searchInput','filterType','filterStatut','filterUser'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', applyFilters);
+    if (el) el.addEventListener('change', applyFilters);
+  });
+  applyFilters();
+});
+</script>
 {% endblock %}

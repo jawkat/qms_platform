@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}Accès bloqué{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm text-center">
+        <div class="card-body py-5 px-4">
+          <div class="mb-4">
+            <span class="display-1 text-danger">
+              <i class="fas fa-ban"></i>
+            </span>
+          </div>
+          <h2 class="fw-bold mb-2">Accès bloqué</h2>
+          <p class="text-muted mb-1">Votre entreprise <strong>{{ entreprise.nom if entreprise else '—' }}</strong> est actuellement <span class="badge bg-danger">{{ lifecycle }}</span>.</p>
+          {% if entreprise and entreprise.motif_suspension %}
+          <p class="text-muted mb-3"><small>Motif : {{ entreprise.motif_suspension }}</small></p>
+          {% endif %}
+          <hr class="my-4">
+          <p class="text-muted small">Pour plus d'informations, contactez l'administrateur de la plateforme.</p>
+          <a href="{{ url_for('users.logout') }}" class="btn btn-outline-secondary mt-3">
+            <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

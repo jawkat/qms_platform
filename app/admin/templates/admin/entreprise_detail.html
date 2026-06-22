@@ -592,11 +592,11 @@ document.addEventListener('DOMContentLoaded', function() {
           notes: document.getElementById('pay_notes').value,
         }),
       });
-      const data = await r.json();
-      if (data.success) {
+      if (r.ok) {
         bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
         location.reload();
       } else {
+        const data = await r.json().catch(() => ({}));
         alert('Erreur : ' + (data.error || 'Inconnue'));
       }
     } catch(e) {

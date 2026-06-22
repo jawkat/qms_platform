@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block title %}Diagnostic Email{% endblock %}
+{% block page_title %}Diagnostic de la Configuration Email{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administration</a></li>
+      <li class="breadcrumb-item active">Diagnostic Email</li>
+    </ol>
+  </nav>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom">
+          <h5 class="mb-0 fw-bold"><i class="fas fa-envelope me-2 text-danger"></i>Configuration SMTP</h5>
+        </div>
+        <div class="card-body p-4">
+          <table class="table table-sm">
+            <thead class="table-light">
+              <tr><th style="width:40%">Paramètre</th><th>Valeur</th><th style="width:15%">Statut</th></tr>
+            </thead>
+            <tbody>
+              {% set checks = {
+                'MAIL_SERVER': (config.MAIL_SERVER, 'Le serveur SMTP est requis'),
+                'MAIL_PORT': (config.MAIL_PORT, 'Un port est requis (587 TLS ou 465 SSL)'),
+                'MAIL_USE_TLS': (config.MAIL_USE_TLS, 'TLS doit être activé pour le port 587'),
+                'MAIL_USE_SSL': (config.MAIL_USE_SSL, 'SSL doit être activé pour le port 465'),
+                'MAIL_DEFAULT_SENDER': (config.MAIL_DEFAULT_SENDER, 'L\'expéditeur est requis'),
+                'MAIL_USERNAME': (config.MAIL_USERNAME, 'Le nom d\'utilisateur SMTP est requis' if config.MAIL_SERVER else ''),
+              } %}
+              {% for key, (val, hint) in checks.items() %}
+              <tr>
+                <td><code>{{ key }}</code></td>
+                <td><code class="small">{{ val or '<non défini>' }}</code></td>
+                <td>
+                  {% if val %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">✓</span>
+                  {% else %}
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger" title="{{ hint }}">✗</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+              <tr class="{{ 'table-danger' if mismatch else 'table-success' }}">
+                <td><code>MAIL_DEFAULT_SENDER</code> vs <code>MAIL_USERNAME</code></td>
+                <td>
+                  <small>Sender: <code>{{ config.MAIL_DEFAULT_SENDER or '-' }}</code><br>
+                  Username: <code>{{ config.MAIL_USERNAME or '-' }}</code></small>
+                </td>
+                <td>
+                  {% if mismatch %}
+                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning" title="Certains SMTP rejettent les emails si sender ≠ username">⚠</span>
+                  {% else %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">✓</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td><code>MAIL_SUPPRESS_SEND</code></td>
+                <td><code>{{ config.MAIL_SUPPRESS_SEND }}</code></td>
+                <td>
+                  {% if config.MAIL_SUPPRESS_SEND == 'False' or config.MAIL_SUPPRESS_SEND == '0' or not config.MAIL_SUPPRESS_SEND %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">✓</span>
+                  {% else %}
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger" title="Les emails sont supprimés (mode dev)">✗</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td><code>REDIS_URL</code></td>
+                <td><code>{{ config.REDIS_URL or 'redis://localhost:6379/0' }}</code></td>
+                <td><span class="badge bg-secondary">Info</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+          <h5 class="mb-0 fw-bold"><i class="fas fa-paper-plane me-2 text-danger"></i>Test d'envoi</h5>
+        </div>
+        <div class="card-body p-4">
+          <p class="text-muted small">Un email de test sera envoyé à <strong>{{ current_user.email }}</strong>.</p>
+          <form method="POST" action="{{ url_for('admin.mail_test_send') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger px-4 w-100">
+              <i class="fas fa-paper-plane me-2"></i>Envoyer un email de test
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom">
+          <h5 class="mb-0 fw-bold"><i class="fas fa-lightbulb me-2 text-warning"></i>Vérifications</h5>
+        </div>
+        <div class="card-body p-4 small">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2">✓ Vérifiez que le <strong>worker</strong> Docker tourne : <code>docker ps | grep worker</code></li>
+            <li class="mb-2">✓ Vérifiez que <strong>Redis</strong> est accessible : <code>docker ps | grep redis</code></li>
+            <li class="mb-2">✓ Consultez les logs du worker : <code>docker logs qms_worker --tail 50</code></li>
+            <li class="mb-2">✓ Vérifiez vos <strong>préférences</strong> de notification dans Mon Profil → Notifications</li>
+            <li class="mb-0">✓ Vérifiez que vos emails ne sont pas dans les <strong>spams</strong></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

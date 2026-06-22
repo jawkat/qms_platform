@@ -4,6 +4,7 @@ from app import db
 from app.models import Domaine, TexteReglementaire, TexteVersion, Article
 from app.textes import textes
 from app.utils.permissions import system_admin_required
+from app.utils.permissions import has_permission
 from sqlalchemy import func
 
 
@@ -43,9 +44,15 @@ def index():
 
 @textes.route('/<int:texte_id>')
 @login_required
-@system_admin_required
+@has_permission('textes.voir')
 def detail(texte_id):
+    from flask_login import current_user
     texte = TexteReglementaire.query.get_or_404(texte_id)
+    # Lecteurs → redirect direct à la version active
+    if not (current_user.role and current_user.role.est_systeme):
+        if texte.version_active_id:
+            return redirect(url_for('textes.version_detail', version_id=texte.version_active_id))
+        return redirect(url_for('textes.library_all'))
     versions = TexteVersion.query.filter_by(texte_id=texte_id).order_by(TexteVersion.numero_version.desc()).all()
     articles = []
     if texte.version_active_id:
@@ -55,11 +62,19 @@ def detail(texte_id):
 
 @textes.route('/version/<int:version_id>')
 @login_required
-@system_admin_required
+@has_permission('textes.voir')
 def version_detail(version_id):
+    from flask_login import current_user
+    from app.models.conformite import EntrepriseTexte
     version = TexteVersion.query.get_or_404(version_id)
     articles = Article.query.filter_by(texte_version_id=version_id).order_by(Article.numero_article).all()
-    return render_template('textes/version_detail.html', version=version, articles=articles)
+    linked = False
+    if current_user.entreprise_id:
+        linked = EntrepriseTexte.query.filter_by(
+            entreprise_id=current_user.entreprise_id,
+            texte_version_id=version_id
+        ).first() is not None
+    return render_template('textes/version_detail.html', version=version, articles=articles, linked=linked)
 
 
 @textes.route('/api/liste')

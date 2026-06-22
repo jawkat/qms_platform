@@ -299,7 +299,7 @@ def upload():
 def detail(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     refs = ProofReference.query.filter_by(proof_master_id=proof.id).all()
-    workflow_logs = WorkflowLog.query.filter_by(proof_master_id=proof.id).order_by(WorkflowLog.date_action.desc()).all()
+    workflow_logs = WorkflowLog.query.filter_by(proof_master_id=proof.id).order_by(WorkflowLog.date_creation.desc()).all()
     approbateurs = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id, actif=True).all()
     types_doc = TypeDocument.query.filter_by(entreprise_id=current_user.entreprise_id).all()
     dossiers = Dossier.query.filter_by(entreprise_id=current_user.entreprise_id).order_by(Dossier.nom).all()
@@ -356,7 +356,7 @@ def soumettre(proof_id):
     approbateur_id = request.form.get('approbateur_id', type=int) or proof.workflow_approbateur_id
 
     if workflow_modele_id:
-        from app.workflow_engine.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
+        from app.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
         modele = WorkflowModele.query.filter_by(id=workflow_modele_id, entreprise_id=current_user.entreprise_id).first()
         if modele:
             etapes = list(modele.etapes.order_by(WorkflowEtape.ordre).all())
@@ -422,7 +422,7 @@ def approuver(proof_id):
         flash('Vous n\'êtes pas l\'approbateur de ce document.', 'warning')
         return redirect(url_for('documents.detail', proof_id=proof_id))
 
-    from app.workflow_engine.models import WorkflowInstance as WFInstance, WorkflowHistorique as WFHistorique, WorkflowEtape as WFEtape
+    from app.models import WorkflowInstance as WFInstance, WorkflowHistorique as WFHistorique, WorkflowEtape as WFEtape
     wf_instances = WFInstance.query.filter_by(entity_type='documents', entity_id=proof.id, statut='en_cours').all()
     for wf_inst in wf_instances:
         h = WFHistorique(

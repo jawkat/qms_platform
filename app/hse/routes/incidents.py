@@ -63,7 +63,7 @@ def api_incidents_create(data):
         gravite_label = {'critique': 'Critique', 'majeur': 'Majeur', 'mineur': 'Mineur'}
         msg = f"{type_label.get(data.type_incident, 'Incident')} ({gravite_label.get(data.gravite, '')}) : {data.description[:80]} [INCIDENT:{data.id}]"
         for admin in admins:
-            create_notification(admin.id, msg, type='incident')
+            create_notification(admin.id, msg, type='incident', entite_id=data.id)
 
     return data
 
@@ -90,7 +90,7 @@ def api_incidents_update(data, item_id):
             type_label = {'accident': 'Accident', 'presqu_accident': 'Presqu\'accident', 'incident': 'Incident'}
             msg = f"{type_label.get(item.type_incident, 'Incident')} → {item.statut} : {item.description[:80]} [INCIDENT:{item.id}]"
             for admin in admins:
-                create_notification(admin.id, msg, type='incident')
+                create_notification(admin.id, msg, type='incident', entite_id=item.id)
 
     return item
 

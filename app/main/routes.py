@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, session, request, abort, jsonify, Response
+from flask import render_template, redirect, url_for, session, request, abort, jsonify, Response, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models import Entreprise, ActionCorrective, ProofMaster, Audit, Utilisateur, Indicateur, Ticket, SubscriptionPlan
@@ -18,9 +18,27 @@ def health():
         db_status = 'ok'
     except Exception:
         db_status = 'error'
+
+    # Diagnostic mail
+    mail_config = {
+        'server': current_app.config.get('MAIL_SERVER', ''),
+        'port': current_app.config.get('MAIL_PORT', ''),
+        'sender': current_app.config.get('MAIL_DEFAULT_SENDER', ''),
+        'suppress': current_app.config.get('MAIL_SUPPRESS_SEND', False),
+    }
+    try:
+        from redis import Redis
+        r = Redis.from_url(current_app.config.get('REDIS_URL', 'redis://localhost:6379/0'))
+        r.ping()
+        redis_status = 'ok'
+    except Exception:
+        redis_status = 'error'
+
     return jsonify({
         'status': 'ok',
         'database': db_status,
+        'redis': redis_status,
+        'mail': mail_config,
         'python': platform.python_version(),
         'flask': '2.3.3',
     })
@@ -209,6 +227,16 @@ def api_notification_read_all():
     return {'success': True}
 
 
+ENTITY_ROUTE_MAP = {
+    'ticket':          ('support.detail_ticket',        'ticket_id'),
+    'incident':        ('hse.incidents',                None),
+    'accident':        ('hse.incidents',                None),
+    'presqu_accident': ('hse.incidents',                None),
+    'action':          ('actions.detail_action',         'action_id'),
+    'document':        ('documents.detail',              'proof_id'),
+    'nonconformite':   ('nonconformites.index',          None),
+}
+
 @main.route('/notifications/<int:id>/open')
 @login_required
 def notification_open(id):
@@ -216,6 +244,15 @@ def notification_open(id):
     notif.lu = True
     db.session.commit()
 
+    # 1. Routing via entite_type / entite_id
+    if notif.entite_type and notif.entite_id:
+        route = ENTITY_ROUTE_MAP.get(notif.entite_type)
+        if route:
+            endpoint, param = route
+            kwargs = {param: notif.entite_id} if param else {}
+            return redirect(url_for(endpoint, **kwargs))
+
+    # 2. Fallback par regex dans le message (rétrocompatibilité)
     import re
     m = re.search(r'\[TICKET:(\d+)\]', notif.message or '')
     if m:
@@ -224,6 +261,11 @@ def notification_open(id):
     if m:
         return redirect(url_for('hse.incidents'))
 
+    # 3. Notifications "Bug applicatif" → journal de sécurité
+    if notif.message and 'Bug applicatif' in notif.message:
+        return redirect(url_for('admin.securite'))
+
+    # 4. Dernier recours : tableau de bord
     return redirect(url_for('main.index'))
 
 
@@ -261,7 +303,7 @@ def search():
 
         tickets = Ticket.query.filter(
             Ticket.entreprise_id == eid,
-            Ticket.description.ilike(pattern)
+            Ticket.sujet.ilike(pattern)
         ).limit(10).all()
         if tickets:
             results['Tickets'] = [{'id': t.id, 'title': t.sujet or t.description[:80], 'url': url_for('support.detail_ticket', ticket_id=t.id)} for t in tickets]
@@ -299,3 +341,13 @@ def export_module(module):
     if module not in exporters:
         abort(404)
     return exporters[module]()
+
+
+@main.route('/suspended')
+@login_required
+def suspended():
+    from app.models import Entreprise
+    from app.services.subscription_service import get_enterprise_lifecycle_status
+    entreprise = db.session.get(Entreprise, current_user.entreprise_id)
+    lifecycle = get_enterprise_lifecycle_status(entreprise) if entreprise else 'inconnu'
+    return render_template('main/suspended.html', entreprise=entreprise, lifecycle=lifecycle), 403

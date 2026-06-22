@@ -55,6 +55,8 @@ class Utilisateur(UserMixin, db.Model, TimestampMixin):
         self.mot_de_passe = generate_password_hash(password)
 
     def check_password(self, password):
+        if not self.mot_de_passe:
+            return False
         return check_password_hash(self.mot_de_passe, password)
 
     def has_permission(self, permission_code, entreprise_id=None):

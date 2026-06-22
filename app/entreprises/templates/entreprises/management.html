@@ -26,7 +26,7 @@
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
                             <a href="{{ url_for('entreprises.edit', entreprise_id=entreprise.id) }}"
-                                class="btn btn-light btn-sm px-3 rounded-pill shadow-sm">
+                                class="btn btn-warning px-4 rounded-pill shadow-lg fw-semibold" style="z-index: 2; position: relative;">
                                 <i class="fas fa-edit me-2"></i>Modifier les infos
                             </a>
                         </div>
@@ -85,16 +85,19 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-info-subtle p-3 rounded-3 me-3">
-                            <i class="fas fa-crown text-info"></i>
+                            <i class="fas fa-calendar-check text-info"></i>
                         </div>
                         <div>
-                            <h6 class="text-muted mb-0 small">Plan Actuel</h6>
-                            <h4 class="fw-bold mb-0 text-capitalize">{{ entreprise.abonnement_type }}</h4>
+                            <h6 class="text-muted mb-0 small">Abonnement</h6>
+                            <h4 class="fw-bold mb-0 text-capitalize">{{ plan.label if plan else entreprise.abonnement_type }}</h4>
                         </div>
                     </div>
                     {% if entreprise.abonnement_prochaine_echeance %}
                     <p class="small text-muted mb-0 text-truncate">Échéance : {{
                         entreprise.abonnement_prochaine_echeance.strftime('%d/%m/%y') }}</p>
+                    {% endif %}
+                    {% if entreprise.periode_essai_jours and entreprise.date_debut_essai %}
+                    <p class="small text-muted mb-0">Essai : {{ entreprise.periode_essai_jours }} jours</p>
                     {% endif %}
                 </div>
             </div>
@@ -102,10 +105,40 @@
 
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100">
-                <div
-                    class="card-body text-center d-flex flex-column justify-content-center border-dashed border-2 rounded-3">
-                    <h6 class="fw-bold mb-1 d-block text-muted">Support Dédié</h6>
-                    <a href="{{ url_for('support.index') }}" class="btn btn-outline-brand btn-sm">Ouvrir un ticket</a>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-warning-subtle p-3 rounded-3 me-3">
+                            <i class="fas fa-gauge-high text-warning"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-0 small">Quota du Plan</h6>
+                            <h4 class="fw-bold mb-0 text-capitalize">{{ plan.label if plan else entreprise.abonnement_type }}</h4>
+                        </div>
+                    </div>
+                    {% if plan %}
+                    <ul class="list-unstyled small mb-0" style="font-size: 0.78rem;">
+                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
+                            <span class="text-muted">Prix (MAD)</span>
+                            <span class="fw-semibold">{{ plan.price_mad }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
+                            <span class="text-muted">Utilisateurs max</span>
+                            <span class="fw-semibold">{{ users_count }} / {{ plan.max_users }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
+                            <span class="text-muted">Documents max</span>
+                            <span class="fw-semibold">{{ plan.max_documents }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
+                            <span class="text-muted">Actions ouvertes max</span>
+                            <span class="fw-semibold">{{ open_actions }}{% if max_actions %} / {{ max_actions }}{% endif %}</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Stockage max (MB)</span>
+                            <span class="fw-semibold">{{ plan.max_storage_mb }}</span>
+                        </li>
+                    </ul>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -178,6 +211,7 @@
                     <h5 class="fw-bold mb-3">Besoin d'aide ?</h5>
                     <p class="small opacity-75 mb-3">Notre équipe d'ingénieurs qualité est là pour vous accompagner dans
                         le paramétrage de vos processus.</p>
+                    <a href="{{ url_for('support.mes_tickets') }}" class="btn btn-outline-light btn-sm w-100 mb-2">Ouvrir un ticket</a>
                     <a href="mailto:support@qmsplatform.com" class="btn btn-outline-light btn-sm w-100">Contacter un
                         expert</a>
                     <i class="fas fa-headset position-absolute opacity-10"
