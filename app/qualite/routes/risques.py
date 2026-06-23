@@ -1,56 +1,55 @@
-from flask import render_template, request, Response
-from flask_login import login_required, current_user
-from app.utils.permissions import module_access_required
-from app import db
+from flask import render_template, Response
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app.models import Risque
 from app.qualite import blueprint
 from app.schemas.qualite import RisqueSchema
-from datetime import date, datetime
 import csv
 import io
 
 
+class RisqueResource(BaseResource):
+    model = Risque
+    schema = RisqueSchema
+    search_fields = ['designation', 'cause', 'effet']
+    filter_fields = {'statut': 'statut', 'domaine': 'domaine'}
+
+
 @blueprint.route('/')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def tableau_de_bord():
     return render_template('qualite/tableau_de_bord.html')
 
 
 @blueprint.route('/risques')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def risques():
     return render_template('qualite/risques.html')
 
 
 @blueprint.route('/clients')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def clients():
     from flask import redirect, url_for
     return redirect(url_for('reclamations.index'))
 
 
 @blueprint.route('/fournisseurs')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def fournisseurs():
     from flask import redirect, url_for
     return redirect(url_for('fournisseurs.index'))
 
 
 @blueprint.route('/formations')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def formations():
     from flask import redirect, url_for
     return redirect(url_for('formations.index'))
 
 
 @blueprint.get('/api/stats')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_stats():
     """Statistiques globales qualité"""
     from app.models import Reclamation, Fournisseur, Formation, Equipement, ControleQualite, RevueDirection
@@ -68,57 +67,39 @@ def api_stats():
 
 
 @blueprint.get('/api/risques')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 @blueprint.response(200, RisqueSchema(many=True))
 def api_risques():
     """Liste des risques qualité"""
-    return Risque.query\
-        .order_by(Risque.date_creation.desc()).all()
+    return RisqueResource.list_resources()
 
 
 @blueprint.post('/api/risques/create')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 @blueprint.arguments(RisqueSchema)
 @blueprint.response(201, RisqueSchema)
 def api_risques_create(data):
     """Créer un nouveau risque"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return RisqueResource.create_resource(data)
 
 
 @blueprint.post('/api/risques/<int:item_id>/update')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
-@blueprint.arguments(RisqueSchema(partial=True))
+@access_required(module='qualite', permission='qualite.voir')
 @blueprint.response(200, RisqueSchema)
-def api_risques_update(data, item_id):
+def api_risques_update(item_id):
     """Mettre à jour un risque"""
-    item = Risque.query.filter_by(id=item_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+    return RisqueResource.update_resource(item_id)
 
 
 @blueprint.post('/api/risques/<int:item_id>/delete')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_risques_delete(item_id):
     """Supprimer un risque"""
-    item = Risque.query.filter_by(id=item_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return RisqueResource.delete_resource(item_id)
 
 
 @blueprint.get('/api/risques/heatmap')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_risques_heatmap():
     """Matrice de criticité des risques"""
     items = Risque.query.all()
@@ -131,8 +112,7 @@ def api_risques_heatmap():
 
 
 @blueprint.get('/api/risques/stats')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_risques_stats():
     """Statistiques par niveau et statut"""
     items = Risque.query.all()
@@ -150,8 +130,7 @@ def api_risques_stats():
 
 
 @blueprint.get('/api/risques/export')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def export_risques():
     """Export des risques en CSV"""
     risques_list = Risque.query\

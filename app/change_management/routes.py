@@ -1,6 +1,7 @@
 from flask import render_template, request, jsonify
-from flask_login import login_required, current_user
-from app.utils.permissions import has_permission
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.change_management import blueprint
 from app.models import ChangeRequest
@@ -8,9 +9,13 @@ from app.models.auth import Utilisateur
 from datetime import date, datetime
 
 
+class ChangeRequestResource(BaseResource):
+    model = ChangeRequest
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation', 'reference', 'date_approbation'})
+
+
 @blueprint.route('/')
-@login_required
-@has_permission('change_management.voir')
+@access_required(permission='change_management.voir')
 def index():
     utilisateurs = Utilisateur.query.filter_by(
         actif=True
@@ -19,8 +24,7 @@ def index():
 
 
 @blueprint.route('/api/liste')
-@login_required
-@has_permission('change_management.voir')
+@access_required(permission='change_management.voir')
 def api_liste():
     items = ChangeRequest.query.order_by(ChangeRequest.date_creation.desc()).all()
     return jsonify([{
@@ -42,8 +46,7 @@ def api_liste():
 
 
 @blueprint.route('/api/stats')
-@login_required
-@has_permission('change_management.voir')
+@access_required(permission='change_management.voir')
 def api_stats():
     base = ChangeRequest.query
     return jsonify({
@@ -58,8 +61,7 @@ def api_stats():
 
 
 @blueprint.route('/api/creer', methods=['POST'])
-@login_required
-@has_permission('change_management.gerer')
+@access_required(permission='change_management.gerer')
 def api_creer():
     data = request.get_json()
     item = ChangeRequest(
@@ -85,8 +87,7 @@ def api_creer():
 
 
 @blueprint.route('/api/<int:item_id>/modifier', methods=['POST'])
-@login_required
-@has_permission('change_management.gerer')
+@access_required(permission='change_management.gerer')
 def api_modifier(item_id):
     item = ChangeRequest.query.filter_by(
         id=item_id
@@ -110,12 +111,6 @@ def api_modifier(item_id):
 
 
 @blueprint.route('/api/<int:item_id>/supprimer', methods=['POST'])
-@login_required
-@has_permission('change_management.gerer')
+@access_required(permission='change_management.gerer')
 def api_supprimer(item_id):
-    item = ChangeRequest.query.filter_by(
-        id=item_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
+    return jsonify(ChangeRequestResource.delete_resource(item_id))

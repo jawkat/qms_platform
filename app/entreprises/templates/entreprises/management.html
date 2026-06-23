@@ -112,32 +112,60 @@
                         </div>
                         <div>
                             <h6 class="text-muted mb-0 small">Quota du Plan</h6>
-                            <h4 class="fw-bold mb-0 text-capitalize">{{ plan.label if plan else entreprise.abonnement_type }}</h4>
+                            <h4 class="fw-bold mb-0 text-capitalize">{{ plan.label if plan else (entreprise.abonnement_type or 'Aucun') }}</h4>
                         </div>
                     </div>
                     {% if plan %}
                     <ul class="list-unstyled small mb-0" style="font-size: 0.78rem;">
-                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
-                            <span class="text-muted">Prix (MAD)</span>
-                            <span class="fw-semibold">{{ plan.price_mad }}</span>
+                        <li class="py-1 border-bottom border-light">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="fas fa-users me-1"></i>Utilisateurs</span>
+                                <span class="fw-semibold">{{ users_actifs }} / {{ plan.max_users }}</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                {% set u_pct = ((users_actifs / plan.max_users * 100) if plan.max_users else 0) | int %}
+                                <div class="progress-bar {{ 'bg-danger' if u_pct >= 90 else ('bg-warning' if u_pct >= 70 else 'bg-primary') }}" style="width: {{ u_pct }}%"></div>
+                            </div>
                         </li>
-                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
-                            <span class="text-muted">Utilisateurs max</span>
-                            <span class="fw-semibold">{{ users_count }} / {{ plan.max_users }}</span>
+                        {% if max_documents %}
+                        <li class="py-1 border-bottom border-light">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="fas fa-file me-1"></i>Documents</span>
+                                <span class="fw-semibold">{{ used_documents or 0 }} / {{ plan.max_documents }}</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                {% set d_pct = ((used_documents / plan.max_documents * 100) if plan.max_documents and used_documents else 0) | int %}
+                                <div class="progress-bar {{ 'bg-danger' if d_pct >= 90 else ('bg-warning' if d_pct >= 70 else 'bg-success') }}" style="width: {{ d_pct }}%"></div>
+                            </div>
                         </li>
-                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
-                            <span class="text-muted">Documents max</span>
-                            <span class="fw-semibold">{{ plan.max_documents }}</span>
+                        {% endif %}
+                        {% if max_actions %}
+                        <li class="py-1 border-bottom border-light">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="fas fa-tasks me-1"></i>Actions ouvertes</span>
+                                <span class="fw-semibold">{{ open_actions or 0 }} / {{ plan.max_open_actions }}</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                {% set a_pct = ((open_actions / plan.max_open_actions * 100) if plan.max_open_actions and open_actions else 0) | int %}
+                                <div class="progress-bar {{ 'bg-danger' if a_pct >= 90 else ('bg-warning' if a_pct >= 70 else 'bg-info') }}" style="width: {{ a_pct }}%"></div>
+                            </div>
                         </li>
-                        <li class="d-flex justify-content-between py-1 border-bottom border-light">
-                            <span class="text-muted">Actions ouvertes max</span>
-                            <span class="fw-semibold">{{ open_actions }}{% if max_actions %} / {{ max_actions }}{% endif %}</span>
+                        {% endif %}
+                        {% if max_storage_mb %}
+                        <li class="py-1">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted"><i class="fas fa-hdd me-1"></i>Stockage</span>
+                                <span class="fw-semibold">{{ used_storage_mb or 0 }} / {{ plan.max_storage_mb }} MB</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                {% set s_pct = ((used_storage_mb / plan.max_storage_mb * 100) if plan.max_storage_mb and used_storage_mb else 0) | int %}
+                                <div class="progress-bar {{ 'bg-danger' if s_pct >= 90 else ('bg-warning' if s_pct >= 70 else 'bg-secondary') }}" style="width: {{ s_pct }}%"></div>
+                            </div>
                         </li>
-                        <li class="d-flex justify-content-between py-1">
-                            <span class="text-muted">Stockage max (MB)</span>
-                            <span class="fw-semibold">{{ plan.max_storage_mb }}</span>
-                        </li>
+                        {% endif %}
                     </ul>
+                    {% else %}
+                    <p class="small text-muted mb-0">Aucun plan d'abonnement actif.</p>
                     {% endif %}
                 </div>
             </div>

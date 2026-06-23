@@ -4,6 +4,7 @@ from flask_smorest import Blueprint
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 
 import os
@@ -22,18 +23,14 @@ class EmployeResource(BaseResource):
     search_fields = ['matricule', 'poste', 'department']
 
 
+auto_register_crud(blueprint, EmployeQHSE, EmployeQHSESchema,
+                   module='rh_qhse', flat=True)
+
+
 @blueprint.route('/')
 @access_required(module='rh_qhse', permission='rh.voir')
 def index():
     return render_template('rh_qhse/index.html')
-
-
-@blueprint.get('/api/liste')
-@access_required(module='rh_qhse', permission='rh.voir')
-@blueprint.response(200, EmployeQHSESchema(many=True))
-def api_liste():
-    """Liste des employés QHSE"""
-    return EmployeResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -46,28 +43,3 @@ def api_stats():
         'actifs': base.filter_by(statut='actif').count(),
         'visites_a_faire': base.filter(EmployeQHSE.date_prochaine_visite <= date.today()).count(),
     }
-
-
-@blueprint.post('/api/creer')
-@access_required(module='rh_qhse', permission='rh.gerer')
-@blueprint.arguments(EmployeQHSESchema)
-@blueprint.response(201, EmployeQHSESchema)
-def api_creer(data):
-    """Ajouter un nouvel employé QHSE"""
-    return EmployeResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(module='rh_qhse', permission='rh.gerer')
-@blueprint.arguments(EmployeQHSESchema(partial=True))
-@blueprint.response(200, EmployeQHSESchema)
-def api_modifier(data, item_id):
-    """Modifier un employé QHSE"""
-    return EmployeResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(module='rh_qhse', permission='rh.gerer')
-def api_supprimer(item_id):
-    """Supprimer un employé QHSE"""
-    return EmployeResource.delete_resource(item_id)

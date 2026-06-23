@@ -1,10 +1,10 @@
 from flask import render_template, redirect, url_for, session, request, abort, jsonify, Response, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Entreprise, ActionCorrective, ProofMaster, Audit, Utilisateur, Indicateur, Ticket, SubscriptionPlan
 from app.main import main
 from app.utils.domaine_switch import set_domaine_actif
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
 from app.models import Notification
 from app.schemas.users import NotificationSchema
 from datetime import date
@@ -45,7 +45,7 @@ def health():
 
 
 @main.route('/force-error')
-@login_required
+@access_required()
 def force_error():
     """Route de test pour simulate une erreur 500."""
     raise Exception("Test de remontée d'incident technique (Bug Bug !)")
@@ -123,8 +123,7 @@ def index():
 
 
 @main.route('/tableau-de-bord')
-@login_required
-@has_permission('actions.voir')
+@access_required(permission='actions.voir')
 def tableau_de_bord():
     entreprise = db.session.get(Entreprise, current_user.entreprise_id)
     domaine = session.get('domaine_actif', 'hse')
@@ -132,8 +131,7 @@ def tableau_de_bord():
 
 
 @main.get('/api/dashboard/alerts')
-@login_required
-@has_permission('actions.voir')
+@access_required(permission='actions.voir')
 def api_dashboard_alerts():
     """Alertes agrégées pour le tableau de bord : notifications, échéances, approbations, expirations."""
     from datetime import date, timedelta
@@ -223,8 +221,7 @@ def api_dashboard_alerts():
 
 
 @main.get('/api/stats')
-@login_required
-@has_permission('actions.voir')
+@access_required(permission='actions.voir')
 def api_stats():
     """Statistiques globales du tableau de bord"""
     domaine = session.get('domaine_actif', 'hse')
@@ -264,7 +261,7 @@ def api_stats():
 
 
 @main.route('/switch-domaine/<domaine>')
-@login_required
+@access_required()
 def switch_domaine(domaine):
     if domaine not in ('hse', 'qualite'):
         abort(400)
@@ -277,7 +274,7 @@ def switch_domaine(domaine):
 
 
 @main.get('/api/notifications')
-@login_required
+@access_required()
 @main.response(200, NotificationSchema(many=True))
 def api_notifications():
     """Liste de vos notifications les plus récentes (filtrées par rôle)."""
@@ -288,7 +285,7 @@ def api_notifications():
 
 
 @main.get('/api/notifications/unread-count')
-@login_required
+@access_required()
 def api_notifications_unread_count():
     """Nombre de notifications non lues (filtré par rôle)."""
     q = Notification.query.filter_by(utilisateur_id=current_user.id, lu=False)
@@ -298,7 +295,7 @@ def api_notifications_unread_count():
 
 
 @main.post('/api/notifications/<int:id>/read')
-@login_required
+@access_required()
 def api_notification_read(id):
     """Marquer une notification comme lue"""
     notif = Notification.query.filter_by(id=id, utilisateur_id=current_user.id).first_or_404()
@@ -308,7 +305,7 @@ def api_notification_read(id):
 
 
 @main.post('/api/notifications/read-all')
-@login_required
+@access_required()
 def api_notification_read_all():
     """Marquer toutes les notifications comme lues"""
     Notification.query.filter_by(utilisateur_id=current_user.id, lu=False).update({'lu': True})
@@ -327,7 +324,7 @@ ENTITY_ROUTE_MAP = {
 }
 
 @main.route('/notifications/<int:id>/open')
-@login_required
+@access_required()
 def notification_open(id):
     notif = Notification.query.filter_by(id=id, utilisateur_id=current_user.id).first_or_404()
     notif.lu = True
@@ -369,7 +366,7 @@ def notification_open(id):
 
 
 @main.route('/notifications')
-@login_required
+@access_required()
 def notifications():
     q = Notification.query.filter_by(utilisateur_id=current_user.id)
     if not current_user.role or not current_user.role.est_systeme:
@@ -379,7 +376,7 @@ def notifications():
 
 
 @main.route('/search')
-@login_required
+@access_required()
 def search():
     q = request.args.get('q', '').strip()
     results = {}
@@ -416,7 +413,7 @@ def search():
 
 
 @main.route('/api/alerts/trigger', methods=['POST'])
-@login_required
+@access_required()
 def api_trigger_alerts():
     """Déclenche manuellement les alertes (admin only)."""
     if not current_user.role or not current_user.role.est_systeme:
@@ -427,7 +424,7 @@ def api_trigger_alerts():
 
 
 @main.route('/export/<module>')
-@login_required
+@access_required()
 def export_module(module):
     """Export Excel pour un module donné."""
     from app.services.report_service import (
@@ -436,10 +433,10 @@ def export_module(module):
     domaine = session.get('domaine_actif', 'hse')
 
     exporters = {
-        'actions': lambda: export_actions_excel(eid, domaine),
-        'audits': lambda: export_audits_excel(eid, domaine),
-        'nc': lambda: export_nc_excel(eid, domaine),
-        'risques': lambda: export_risques_excel(eid),
+        'actions': lambda: export_actions_excel(current_user.entreprise_id, domaine),
+        'audits': lambda: export_audits_excel(current_user.entreprise_id, domaine),
+        'nc': lambda: export_nc_excel(current_user.entreprise_id, domaine),
+        'risques': lambda: export_risques_excel(current_user.entreprise_id),
     }
     if module not in exporters:
         abort(404)
@@ -447,7 +444,7 @@ def export_module(module):
 
 
 @main.route('/suspended')
-@login_required
+@access_required()
 def suspended():
     from app.models import Entreprise
     from app.services.subscription_service import get_enterprise_lifecycle_status

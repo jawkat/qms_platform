@@ -1,9 +1,10 @@
 from flask import render_template, redirect, url_for, request, flash, current_app
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import login_user, logout_user, current_user
 from app import db
-from app.models import Utilisateur, Role, Permission
+from app.models import Utilisateur, Role, Permission, Entreprise
 from app.users import users
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
+from app.utils.observability import log_business_event
 from app.services.quota_middleware import check_quota
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
@@ -102,23 +103,21 @@ def register():
 
 
 @users.route('/logout')
-@login_required
+@access_required()
 def logout():
     logout_user()
     return redirect(url_for('users.login'))
 
 
 @users.route('/')
-@login_required
-@has_permission('users.voir')
+@access_required(permission='users.voir')
 def list_users():
     users_list = Utilisateur.query.all()
     return render_template('users/list.html', users=users_list)
 
 
 @users.route('/create', methods=['GET', 'POST'])
-@login_required
-@has_permission('users.cree')
+@access_required(permission='users.cree')
 @check_quota('users')
 def create():
     if request.method == 'POST':
@@ -152,7 +151,7 @@ def create():
 
 
 @users.route('/profile', methods=['GET', 'POST'])
-@login_required
+@access_required()
 def profile():
     if request.method == 'POST':
         current_user.nom = request.form['nom']
@@ -164,7 +163,7 @@ def profile():
 
 
 @users.route('/change-password', methods=['GET', 'POST'])
-@login_required
+@access_required()
 def change_password():
     if request.method == 'POST':
         current_password = request.form.get('current_password')
@@ -186,8 +185,7 @@ def change_password():
 
 
 @users.route('/<int:user_id>/toggle-status', methods=['POST'])
-@login_required
-@has_permission('users.modifier')
+@access_required(permission='users.modifier')
 def toggle_status(user_id):
     user = Utilisateur.query.get_or_404(user_id)
     if user.entreprise_id != current_user.entreprise_id:
@@ -200,8 +198,7 @@ def toggle_status(user_id):
 
 
 @users.route('/<int:user_id>/reset-password', methods=['POST'])
-@login_required
-@has_permission('users.modifier')
+@access_required(permission='users.modifier')
 def reset_password(user_id):
     user = Utilisateur.query.get_or_404(user_id)
     if user.entreprise_id != current_user.entreprise_id:
@@ -249,7 +246,7 @@ def reset_password_token(token):
 
 
 @users.route('/notifications/preferences', methods=['GET', 'POST'])
-@login_required
+@access_required()
 def notification_preferences():
     from app.models.systeme import NotificationPreference
     from app.core import plugin_manager

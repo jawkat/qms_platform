@@ -1,25 +1,30 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, abort
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Entreprise, SubscriptionPlan
 from app.plans import plans
 from app.utils.subscriptions import get_subscription_plan
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from datetime import datetime
+
+
+class SubscriptionPlanResource(BaseResource):
+    model = SubscriptionPlan
+    protected_fields = frozenset({'id', 'date_creation'})
 
 
 # --- Pages ---
 
 @plans.route('/')
-@login_required
+@access_required()
 def index():
     plans_list = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
     return render_template('plans/index.html', plans=plans_list)
 
 
 @plans.route('/create', methods=['GET', 'POST'])
-@login_required
-@has_permission('plans.gerer')
+@access_required(permission='plans.gerer')
 def create():
     if request.method == 'POST':
         p = SubscriptionPlan(
@@ -42,8 +47,7 @@ def create():
 
 
 @plans.route('/<int:plan_id>/edit', methods=['GET', 'POST'])
-@login_required
-@has_permission('plans.gerer')
+@access_required(permission='plans.gerer')
 def edit(plan_id):
     p = db.session.get(SubscriptionPlan, plan_id)
     if not p:
@@ -68,7 +72,7 @@ def edit(plan_id):
 # --- API ---
 
 @plans.route('/api/plans')
-@login_required
+@access_required()
 def api_plans():
     plans_list = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
     return jsonify([{
@@ -87,7 +91,7 @@ def api_plans():
 
 
 @plans.route('/api/<int:item_id>/detail')
-@login_required
+@access_required()
 def api_detail(item_id):
     p = db.session.get(SubscriptionPlan, item_id)
     if not p:
@@ -108,8 +112,7 @@ def api_detail(item_id):
 
 
 @plans.route('/api/current')
-@login_required
-@has_permission('plans.voir')
+@access_required(permission='plans.voir')
 def api_current():
     e = db.session.get(Entreprise, current_user.entreprise_id)
     if not e:
@@ -135,8 +138,7 @@ def api_current():
 
 
 @plans.route('/api/create', methods=['POST'])
-@login_required
-@has_permission('plans.gerer')
+@access_required(permission='plans.gerer')
 def api_create():
     data = request.get_json()
     p = SubscriptionPlan(
@@ -157,8 +159,7 @@ def api_create():
 
 
 @plans.route('/api/<int:id>/update', methods=['POST'])
-@login_required
-@has_permission('plans.gerer')
+@access_required(permission='plans.gerer')
 def api_update(id):
     p = SubscriptionPlan.query.get_or_404(id)
     data = request.get_json()
@@ -183,10 +184,6 @@ def api_update(id):
 
 
 @plans.route('/api/<int:id>/delete', methods=['POST'])
-@login_required
-@has_permission('plans.gerer')
+@access_required(permission='plans.gerer')
 def api_delete(id):
-    p = SubscriptionPlan.query.get_or_404(id)
-    db.session.delete(p)
-    db.session.commit()
-    return jsonify({'success': True})
+    return jsonify(SubscriptionPlanResource.delete_resource(id))

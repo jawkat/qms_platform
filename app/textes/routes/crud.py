@@ -1,16 +1,32 @@
 from datetime import datetime
 from flask import render_template, request, jsonify, redirect, url_for, flash
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Domaine, TexteReglementaire, TexteVersion, Article, ExigenceType, NiveauRisqueType, Secteur
 from app.textes import textes
-from app.utils.permissions import has_permission, system_admin_required
+from app.utils.permissions import system_admin_required, access_required
+from app.utils.base_resource import BaseResource
+
+
+class TexteResource(BaseResource):
+    model = TexteReglementaire
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation', 'version_active_id'})
+
+
+class TexteVersionResource(BaseResource):
+    model = TexteVersion
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation', 'texte_id'})
+
+
+class ArticleResource(BaseResource):
+    model = Article
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation', 'texte_version_id'})
 
 
 # --- API CRUD routes ---
 
 @textes.route('/api/create', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_create():
     data = request.get_json()
@@ -33,22 +49,18 @@ def api_create():
 
 
 @textes.route('/api/<int:texte_id>/update', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_update(texte_id):
-    texte = TexteReglementaire.query.get_or_404(texte_id)
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Données JSON requises'}), 400
-    for field in ('code', 'titre', 'description', 'type', 'domaine', 'domaine_id', 'referentiel'):
-        if field in data:
-            setattr(texte, field, data[field])
-    db.session.commit()
+    TexteResource.update_resource(texte_id)
     return jsonify({'success': True})
 
 
 @textes.route('/api/<int:texte_id>/delete', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_delete(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
@@ -59,7 +71,7 @@ def api_delete(texte_id):
 
 
 @textes.route('/api/<int:texte_id>/version/create', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_version_create(texte_id):
     TexteReglementaire.query.get_or_404(texte_id)
@@ -78,25 +90,18 @@ def api_version_create(texte_id):
 
 
 @textes.route('/api/version/<int:version_id>/update', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_version_update(version_id):
-    version = TexteVersion.query.get_or_404(version_id)
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Données JSON requises'}), 400
-    if 'numero_version' in data:
-        version.numero_version = data['numero_version']
-    if 'date_publication' in data and data['date_publication']:
-        version.date_publication = datetime.strptime(data['date_publication'], '%Y-%m-%d').date()
-    if 'preambule' in data:
-        version.preambule = data['preambule']
-    db.session.commit()
+    TexteVersionResource.update_resource(version_id)
     return jsonify({'success': True})
 
 
 @textes.route('/api/version/<int:version_id>/delete', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_version_delete(version_id):
     version = TexteVersion.query.get_or_404(version_id)
@@ -108,7 +113,7 @@ def api_version_delete(version_id):
 
 
 @textes.route('/api/version/<int:version_id>/article/create', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_article_create(version_id):
     TexteVersion.query.get_or_404(version_id)
@@ -132,7 +137,7 @@ def api_article_create(version_id):
 
 
 @textes.route('/api/article/<int:article_id>/update', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_article_update(article_id):
     article = Article.query.get_or_404(article_id)
@@ -151,21 +156,18 @@ def api_article_update(article_id):
 
 
 @textes.route('/api/article/<int:article_id>/delete', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 def api_article_delete(article_id):
-    article = Article.query.get_or_404(article_id)
-    db.session.delete(article)
-    db.session.commit()
+    ArticleResource.delete_resource(article_id)
     return jsonify({'success': True})
 
 
 # --- Admin UI form routes (HTML, not JSON) ---
 
 @textes.route('/create', methods=['GET', 'POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def create_texte():
     if request.method == 'POST':
         texte = TexteReglementaire(
@@ -194,9 +196,8 @@ def create_texte():
 
 
 @textes.route('/<int:texte_id>/edit', methods=['GET', 'POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def edit_texte(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     if request.method == 'POST':
@@ -222,9 +223,8 @@ def edit_texte(texte_id):
 
 
 @textes.route('/<int:texte_id>/delete', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def delete_texte(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     TexteVersion.query.filter_by(texte_id=texte_id).delete()
@@ -235,9 +235,8 @@ def delete_texte(texte_id):
 
 
 @textes.route('/<int:texte_id>/version/create', methods=['GET', 'POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def create_version(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     if request.method == 'POST':
@@ -266,9 +265,8 @@ def create_version(texte_id):
 
 
 @textes.route('/version/<int:version_id>/edit', methods=['GET', 'POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def edit_version(version_id):
     version = TexteVersion.query.get_or_404(version_id)
     if request.method == 'POST':
@@ -296,9 +294,8 @@ def edit_version(version_id):
 
 
 @textes.route('/version/<int:version_id>/delete', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def delete_version(version_id):
     version = TexteVersion.query.get_or_404(version_id)
     texte_id = version.texte_id
@@ -312,9 +309,8 @@ def delete_version(version_id):
 
 
 @textes.route('/version/<int:version_id>/article/create', methods=['GET', 'POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def create_article(version_id):
     version = TexteVersion.query.get_or_404(version_id)
     if request.method == 'POST':
@@ -339,9 +335,8 @@ def create_article(version_id):
 
 
 @textes.route('/article/<int:article_id>/edit', methods=['GET', 'POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def edit_article(article_id):
     article = Article.query.get_or_404(article_id)
     if request.method == 'POST':
@@ -362,9 +357,8 @@ def edit_article(article_id):
 
 
 @textes.route('/article/<int:article_id>/delete', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def delete_article(article_id):
     article = Article.query.get_or_404(article_id)
     version_id = article.texte_version_id

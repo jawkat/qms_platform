@@ -1,17 +1,22 @@
 from flask import render_template, request, jsonify, redirect, url_for, flash
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import EvaluationArticle, EntrepriseTexte, ConformiteEnum, Article, TexteVersion, TexteReglementaire
 from app.conformite import blueprint
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from datetime import datetime, date
 from sqlalchemy import or_
 
 
+class EntrepriseTexteResource(BaseResource):
+    model = EntrepriseTexte
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_attribution', 'derniere_mise_a_jour'})
+
+
 @blueprint.route('/')
 @blueprint.route('/index')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def index():
     textes = EntrepriseTexte.query.all()
 
@@ -64,8 +69,7 @@ def index():
 
 
 @blueprint.route('/attribuer', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def attribuer():
     texte_version_id = request.form.get('texte_version_id', type=int)
     responsable_id = request.form.get('responsable_id', type=int)
@@ -97,8 +101,7 @@ def attribuer():
 
 
 @blueprint.route('/<int:id>/update', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def update(id):
     et = EntrepriseTexte.query.filter_by(id=id).first_or_404()
     if 'statut_evaluation' in request.form:
@@ -114,8 +117,7 @@ def update(id):
 
 
 @blueprint.route('/<int:id>/delete', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def delete(id):
     et = EntrepriseTexte.query.filter_by(id=id).first_or_404()
     db.session.delete(et)
@@ -125,8 +127,7 @@ def delete(id):
 
 
 @blueprint.route('/api/liste')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def api_liste():
     textes = EntrepriseTexte.query.all()
     data = []
@@ -160,8 +161,7 @@ def api_liste():
 
 
 @blueprint.route('/search')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def search():
     query = request.args.get('q', '').strip()
     results = []

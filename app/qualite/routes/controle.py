@@ -1,25 +1,30 @@
 from flask import render_template, request, jsonify
-from flask_login import login_required, current_user
-from app.utils.permissions import module_access_required
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.models import ControleQualite
 from app.qualite import blueprint
+from app.schemas.qualite import ControleQualiteSchema
 from datetime import date, datetime
 
 
+class ControleQualiteResource(BaseResource):
+    model = ControleQualite
+    schema = ControleQualiteSchema
+    search_fields = ['produit', 'lot', 'type_controle', 'inspecteur']
+    filter_fields = {'resultat': 'resultat', 'type_controle': 'type_controle'}
+
+
 @blueprint.route('/controle')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def controle():
     return render_template('qualite/controle.html')
 
 
 @blueprint.route('/api/controle')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_controle():
-    items = ControleQualite.query\
-        .order_by(ControleQualite.date_creation.desc()).all()
+    items = ControleQualiteResource.list_resources()
     return jsonify([{
         'id': r.id,
         'date_controle': r.date_controle.isoformat() if r.date_controle else None,
@@ -35,13 +40,11 @@ def api_controle():
 
 
 @blueprint.route('/api/controle/create', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_controle_create():
     data = request.get_json()
     date_val = datetime.strptime(data['date_controle'], '%Y-%m-%d').date() if data.get('date_controle') else date.today()
     item = ControleQualite(
-        entreprise_id=current_user.entreprise_id,
         date_controle=date_val,
         produit=data.get('produit'),
         lot=data.get('lot'),
@@ -51,16 +54,14 @@ def api_controle_create():
         specification=data.get('specification'),
         inspecteur=data.get('inspecteur'),
     )
-    db.session.add(item)
-    db.session.commit()
+    ControleQualiteResource.create_resource(item)
     return jsonify({'success': True, 'id': item.id})
 
 
 @blueprint.route('/api/controle/<int:item_id>/update', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_controle_update(item_id):
-    item = ControleQualite.query.filter_by(id=item_id).first_or_404()
+    item = ControleQualiteResource.get_resource(item_id)
     data = request.get_json()
     if data.get('date_controle'):
         item.date_controle = datetime.strptime(data['date_controle'], '%Y-%m-%d').date()
@@ -76,10 +77,7 @@ def api_controle_update(item_id):
 
 
 @blueprint.route('/api/controle/<int:item_id>/delete', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_controle_delete(item_id):
-    item = ControleQualite.query.filter_by(id=item_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
+    ControleQualiteResource.delete_resource(item_id)
     return jsonify({'success': True})

@@ -1,15 +1,19 @@
 {% extends 'layout.html' %}
-{% block title %}Tableau de bord - {{ entreprise.nom if entreprise else 'QMS' }}{% endblock %}
+{% set is_admin = current_user.is_authenticated and current_user.role and current_user.role.est_systeme %}
+{% set is_manager = current_user.is_authenticated and current_user.is_manager %}
+{% block title %}Tableau de bord{% endblock %}
 {% block content %}
 <div class="container-fluid">
   <div class="page-header mb-4">
     <h1 class="h3 mb-1">Tableau de bord</h1>
+    {% if is_admin %}
     <p class="text-muted mb-0">
       {{ entreprise.nom if entreprise else 'QMS Platform' }}
       <span class="badge bg-{{ 'danger' if domaine == 'hse' else 'primary' }} ms-2">
         {{ domaine|upper }}
       </span>
     </p>
+    {% endif %}
   </div>
 
   <div class="row g-3 mb-4">
@@ -43,6 +47,7 @@
         </div>
       </a>
     </div>
+    {% if 'ged' in modules_actifs %}
     <div class="col-md-4 col-lg-2">
       <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('documents.gestion') }}">
         <div class="card-body">
@@ -58,6 +63,8 @@
         </div>
       </a>
     </div>
+    {% endif %}
+    {% if 'audits' in modules_actifs %}
     <div class="col-md-4 col-lg-2">
       <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('audit.index') }}">
         <div class="card-body">
@@ -73,6 +80,8 @@
         </div>
       </a>
     </div>
+    {% endif %}
+    {% if is_admin %}
     <div class="col-md-4 col-lg-2">
       <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('users.list_users') }}">
         <div class="card-body">
@@ -88,6 +97,8 @@
         </div>
       </a>
     </div>
+    {% endif %}
+    {% if 'nc_capa' in modules_actifs %}
     <div class="col-md-4 col-lg-2">
       <a class="card border-0 shadow-sm h-100 stat-card text-decoration-none" href="{{ url_for('conformite.index') }}">
         <div class="card-body">
@@ -103,6 +114,7 @@
         </div>
       </a>
     </div>
+    {% endif %}
   </div>
 
   <div class="row g-3 mb-4">
@@ -144,7 +156,7 @@
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-lg-5">
+    <div class="{{ 'col-lg-7' if 'ged' in modules_actifs else 'col-12' }}">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom py-3">
           <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Actions en retard par priorité</h5>
@@ -154,7 +166,8 @@
         </div>
       </div>
     </div>
-    <div class="col-lg-7">
+    {% if 'ged' in modules_actifs %}
+    <div class="col-lg-5">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
           <h5 class="mb-0"><i class="fas fa-folder-open me-2 text-warning"></i>Documents récents</h5>
@@ -167,6 +180,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <div class="row g-3 mb-4">
@@ -198,9 +212,15 @@
           <h6 class="text-muted text-uppercase small mb-3"><i class="fas fa-file-export me-1"></i>Exporter les données</h6>
           <div class="d-flex flex-wrap gap-2">
             <a href="{{ url_for('main.export_module', module='actions') }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-excel me-1"></i>Actions (Excel)</a>
+            {% if 'audits' in modules_actifs %}
             <a href="{{ url_for('main.export_module', module='audits') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Audits (Excel)</a>
+            {% endif %}
+            {% if 'nc_capa' in modules_actifs %}
             <a href="{{ url_for('main.export_module', module='nc') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-excel me-1"></i>Non-conformités (Excel)</a>
+            {% endif %}
+            {% if 'qualite' in modules_actifs %}
             <a href="{{ url_for('main.export_module', module='risques') }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-file-excel me-1"></i>Risques (Excel)</a>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -216,24 +236,34 @@
             <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-primary btn-sm">
               <i class="fas fa-tasks me-1"></i>Actions
             </a>
+            {% if 'ged' in modules_actifs %}
             <a href="{{ url_for('documents.gestion') }}" class="btn btn-outline-warning btn-sm">
               <i class="fas fa-folder-open me-1"></i>Documents
             </a>
+            {% endif %}
+            {% if 'audits' in modules_actifs %}
             <a href="{{ url_for('audit.index') }}" class="btn btn-outline-success btn-sm">
               <i class="fas fa-clipboard-check me-1"></i>Audits
             </a>
+            {% endif %}
+            {% if 'veille' in modules_actifs %}
             <a href="{{ url_for('textes.library_all') }}" class="btn btn-outline-info btn-sm">
               <i class="fas fa-scroll me-1"></i>Textes
             </a>
+            {% endif %}
+            {% if 'nc_capa' in modules_actifs %}
             <a href="{{ url_for('conformite.index') }}" class="btn btn-outline-secondary btn-sm">
               <i class="fas fa-shield-alt me-1"></i>Conformité
             </a>
+            {% endif %}
+            {% if is_admin %}
             <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-primary btn-sm">
               <i class="fas fa-building me-1"></i>Entreprises
             </a>
             <a href="{{ url_for('admin.plans') }}" class="btn btn-outline-info btn-sm">
               <i class="fas fa-box me-1"></i>Abonnement
             </a>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -310,31 +340,35 @@ fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function
     '<tr><td colspan="4" class="text-center text-danger py-3">Erreur de chargement</td></tr>';
 });
 
-fetch('/documents/api/liste').then(function(r) { return r.json(); }).then(function(docs) {
-  var list = document.getElementById('recent-documents-list');
-  var recent = docs.slice(0, 5);
-  if (recent.length === 0) {
-    list.innerHTML = '<li class="list-group-item text-center text-muted py-3">Aucun document récent</li>';
-    return;
-  }
-  list.innerHTML = recent.map(function(d) {
-    var icon = 'fa-file';
-    if (d.type === 'pdf') icon = 'fa-file-pdf';
-    else if (d.type === 'image') icon = 'fa-file-image';
-    else if (d.type === 'word') icon = 'fa-file-word';
-    else if (d.type === 'excel') icon = 'fa-file-excel';
-    return '<li class="list-group-item d-flex align-items-center py-2" onclick="window.location.href=\'{{ url_for('documents.gestion') }}\'" style="cursor:pointer">' +
-      '<i class="fas ' + icon + ' me-3 text-muted"></i>' +
-      '<div class="flex-grow-1 text-truncate">' +
-        '<div class="text-truncate small">' + (d.nom_fichier || '--') + '</div>' +
-        '<small class="text-muted">' + (d.categorie || '') + (d.categorie && d.validite ? ' &middot; ' : '') + (d.validite ? 'Validité: ' + formatDate(d.validite) : '') + '</small>' +
-      '</div>' +
-    '</li>';
-  }).join('');
-}).catch(function() {
-  document.getElementById('recent-documents-list').innerHTML =
-    '<li class="list-group-item text-center text-danger py-3">Erreur de chargement</li>';
-});
+var modulesActifs = {{ modules_actifs|tojson }};
+if (modulesActifs.indexOf('ged') !== -1) {
+  fetch('/documents/api/liste').then(function(r) { return r.json(); }).then(function(docs) {
+    var list = document.getElementById('recent-documents-list');
+    if (!list) return;
+    var recent = docs.slice(0, 5);
+    if (recent.length === 0) {
+      list.innerHTML = '<li class="list-group-item text-center text-muted py-3">Aucun document récent</li>';
+      return;
+    }
+    list.innerHTML = recent.map(function(d) {
+      var icon = 'fa-file';
+      if (d.type === 'pdf') icon = 'fa-file-pdf';
+      else if (d.type === 'image') icon = 'fa-file-image';
+      else if (d.type === 'word') icon = 'fa-file-word';
+      else if (d.type === 'excel') icon = 'fa-file-excel';
+      return '<li class="list-group-item d-flex align-items-center py-2" onclick="window.location.href=\'{{ url_for('documents.gestion') }}\'" style="cursor:pointer">' +
+        '<i class="fas ' + icon + ' me-3 text-muted"></i>' +
+        '<div class="flex-grow-1 text-truncate">' +
+          '<div class="text-truncate small">' + (d.nom_fichier || '--') + '</div>' +
+          '<small class="text-muted">' + (d.categorie || '') + (d.categorie && d.validite ? ' &middot; ' : '') + (d.validite ? 'Validité: ' + formatDate(d.validite) : '') + '</small>' +
+        '</div>' +
+      '</li>';
+    }).join('');
+  }).catch(function() {
+    var list = document.getElementById('recent-documents-list');
+    if (list) list.innerHTML = '<li class="list-group-item text-center text-danger py-3">Erreur de chargement</li>';
+  });
+}
 
 fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function(actions) {
   var statuts = {};
@@ -384,10 +418,14 @@ fetch('/api/dashboard/alerts').then(function(r) { return r.json(); }).then(funct
   var alertItems = [
     { count: data.overdue_actions, label: 'Actions en retard', icon: 'fa-exclamation-triangle', color: '#dc3545', url: '/actions/' },
     { count: data.upcoming_actions, label: 'Échéances imminentes (7j)', icon: 'fa-clock', color: '#fd7e14', url: '/actions/' },
-    { count: data.pending_approvals, label: 'Validations en attente', icon: 'fa-file-signature', color: '#0d6efd', url: '/documents/' },
-    { count: data.expired_docs, label: 'Documents expirés', icon: 'fa-ban', color: '#dc3545', url: '/documents/' },
-    { count: data.expiring_docs, label: 'Documents en expiration', icon: 'fa-hourglass-half', color: '#ffc107', url: '/documents/' },
   ];
+  if (modulesActifs.indexOf('ged') !== -1) {
+    alertItems.push(
+      { count: data.pending_approvals, label: 'Validations en attente', icon: 'fa-file-signature', color: '#0d6efd', url: '/documents/' },
+      { count: data.expired_docs, label: 'Documents expirés', icon: 'fa-ban', color: '#dc3545', url: '/documents/' },
+      { count: data.expiring_docs, label: 'Documents en expiration', icon: 'fa-hourglass-half', color: '#ffc107', url: '/documents/' }
+    );
+  }
   alertItems.forEach(function(item) {
     var badge = item.count > 0 ? '<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem">' + item.count + '</span>' : '';
     alertsHtml += '<div class="col-md">' +

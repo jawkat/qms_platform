@@ -1,12 +1,12 @@
 import secrets
 from datetime import datetime
 from flask import render_template, request, jsonify, redirect, url_for, flash, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Ticket, MessageTicket, Utilisateur, Role
 from app.support import support
 from app.utils.tenant_scope import tenant_get_or_404
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
 from app.schemas.support import TicketSchema
 
 
@@ -37,8 +37,7 @@ def _notifier_client(ticket, message):
 
 @support.route('/')
 @support.route('/mes-tickets')
-@login_required
-@has_permission('support.voir')
+@access_required(permission='support.voir')
 def mes_tickets():
     q = Ticket.query
     statut = request.args.get('statut')
@@ -70,8 +69,7 @@ def mes_tickets():
 
 
 @support.route('/creer', methods=['GET', 'POST'])
-@login_required
-@has_permission('support.cree')
+@access_required(permission='support.cree')
 def creer_ticket():
     if request.method == 'POST':
         reference = Ticket.generer_reference()
@@ -107,8 +105,7 @@ def creer_ticket():
 
 
 @support.route('/<int:ticket_id>')
-@login_required
-@has_permission('support.voir')
+@access_required(permission='support.voir')
 def detail_ticket(ticket_id):
     ticket = tenant_get_or_404(Ticket, ticket_id)
     messages = MessageTicket.query.filter_by(ticket_id=ticket.id) \
@@ -119,8 +116,7 @@ def detail_ticket(ticket_id):
 
 
 @support.route('/<int:ticket_id>/message', methods=['POST'])
-@login_required
-@has_permission('support.voir')
+@access_required(permission='support.voir')
 def ajouter_message(ticket_id):
     ticket = tenant_get_or_404(Ticket, ticket_id)
     if ticket.statut == 'FERME':
@@ -149,8 +145,7 @@ def ajouter_message(ticket_id):
 
 
 @support.route('/<int:ticket_id>/fermer', methods=['POST'])
-@login_required
-@has_permission('support.fermer')
+@access_required(permission='support.fermer')
 def fermer_ticket(ticket_id):
     ticket = tenant_get_or_404(Ticket, ticket_id)
     if ticket.statut != 'FERME':
@@ -164,8 +159,7 @@ def fermer_ticket(ticket_id):
 
 
 @support.get('/api/liste')
-@login_required
-@has_permission('support.voir')
+@access_required(permission='support.voir')
 @support.response(200, TicketSchema(many=True))
 def api_liste():
     """Liste de vos tickets support"""

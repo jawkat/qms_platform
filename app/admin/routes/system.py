@@ -1,6 +1,7 @@
 import os
 from flask import render_template, request, redirect, url_for, flash, abort, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.permissions import access_required
 from app.admin import admin
 from app import db, mail
 from app.models import (
@@ -29,7 +30,7 @@ def admin_required(f):
 
 
 @admin.route('/securite')
-@login_required
+@access_required()
 @admin_required
 def securite():
     type_action = request.args.get('type_action')
@@ -43,7 +44,7 @@ def securite():
 
 
 @admin.route('/securite/<int:incident_id>/resolve', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def resolve_incident(incident_id):
     try:
@@ -61,7 +62,7 @@ def resolve_incident(incident_id):
 
 
 @admin.route('/securite/resolve-all', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def resolve_all_incidents():
     try:
@@ -78,7 +79,7 @@ def resolve_all_incidents():
 
 
 @admin.route('/securite/delete-all', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def delete_all_incidents():
     try:
@@ -91,7 +92,7 @@ def delete_all_incidents():
 
 
 @admin.route('/securite/<int:incident_id>/delete', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def delete_incident(incident_id):
     try:
@@ -107,7 +108,7 @@ def delete_incident(incident_id):
 
 
 @admin.route('/securite/<int:incident_id>/detail')
-@login_required
+@access_required()
 @admin_required
 def incident_detail(incident_id):
     incident = db.session.get(JournalSecurite, incident_id)
@@ -128,7 +129,7 @@ def incident_detail(incident_id):
 
 
 @admin.route('/notifications')
-@login_required
+@access_required()
 @admin_required
 def notifications():
     """
@@ -171,7 +172,7 @@ def notifications():
 
 
 @admin.route('/notifications/send', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def notification_send():
     type_notif = request.form.get('type', 'info')
@@ -211,7 +212,7 @@ def notification_send():
 
 
 @admin.route('/notifications/<int:id>/delete', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def notification_delete(id):
     notif = db.session.get(Notification, id)
@@ -225,7 +226,7 @@ def notification_delete(id):
 
 
 @admin.route('/notifications/delete-all', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def notifications_delete_all():
     try:
@@ -239,7 +240,7 @@ def notifications_delete_all():
 
 
 @admin.route('/notifications/mark-all-read', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def notifications_mark_all_read():
     try:
@@ -253,7 +254,7 @@ def notifications_mark_all_read():
 
 
 @admin.route('/mail-test')
-@login_required
+@access_required()
 @admin_required
 def mail_test():
     """Page de diagnostic de la configuration mail."""
@@ -275,7 +276,7 @@ def mail_test():
 
 
 @admin.route('/mail-test/send', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def mail_test_send():
     """Envoie un email de test pour vérifier la configuration."""
@@ -304,7 +305,7 @@ def mail_test_send():
 
 
 @admin.route('/plans')
-@login_required
+@access_required()
 @admin_required
 def plans():
     import json
@@ -337,7 +338,7 @@ def plans():
 
 
 @admin.route('/plans/seed', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def plans_seed():
     _seed_default_plans()
@@ -346,7 +347,7 @@ def plans_seed():
 
 
 @admin.route('/plans/<int:plan_id>/delete', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def plans_delete(plan_id):
     p = db.session.get(SubscriptionPlan, plan_id)
@@ -359,7 +360,7 @@ def plans_delete(plan_id):
 
 
 @admin.route('/plans/api/<int:plan_id>/update', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def plans_api_update(plan_id):
     p = db.session.get(SubscriptionPlan, plan_id)
@@ -411,14 +412,14 @@ def plans_api_update(plan_id):
 
 
 @admin.route('/plans/entreprises')
-@login_required
+@access_required()
 @admin_required
 def plans_entreprises():
     return redirect(url_for('admin.entreprises'))
 
 
 @admin.route('/plans/entreprises/<int:eid>/update', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def plans_entreprises_update(eid):
     entreprise = db.session.get(Entreprise, eid)
@@ -434,7 +435,7 @@ def plans_entreprises_update(eid):
 
 
 @admin.route('/backups')
-@login_required
+@access_required()
 @admin_required
 def backups():
     service = BackupService()
@@ -443,7 +444,7 @@ def backups():
 
 
 @admin.route('/backups/create', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def backup_create():
     service = BackupService()
@@ -456,7 +457,7 @@ def backup_create():
 
 
 @admin.route('/backups/<filename>/restore', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def backup_restore(filename):
     service = BackupService()
@@ -469,7 +470,7 @@ def backup_restore(filename):
 
 
 @admin.route('/backups/<filename>/delete', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def backup_delete(filename):
     service = BackupService()
@@ -485,7 +486,7 @@ def _check_service(name, ok, detail='', hint=''):
 
 
 @admin.route('/services')
-@login_required
+@access_required()
 @admin_required
 def services():
     checks = []

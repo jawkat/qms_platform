@@ -1,9 +1,9 @@
 from flask import render_template, flash, redirect, url_for, request, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
 from . import entreprise_textes
 from app import db
 from app.models import EntrepriseTexte, Article, EvaluationArticle
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
 from app.utils.observability import log_business_event
 from app.conformite.routes.evaluation import _update_entreprise_texte_stats
 from datetime import datetime
@@ -86,8 +86,7 @@ def _normalize_link_metadata(form_or_json):
 
 
 @entreprise_textes.route('/link', methods=['POST'])
-@login_required
-@has_permission('entreprise_textes.lier')
+@access_required(permission='entreprise_textes.lier')
 def link_create():
     """Create a EntrepriseTexte linking current_user.entreprise to texte.version_active.
 
@@ -149,8 +148,7 @@ def link_create():
 
 
 @entreprise_textes.route('/toggle_link', methods=['GET', 'POST'])
-@login_required
-@has_permission('entreprise_textes.lier')
+@access_required(permission='entreprise_textes.lier')
 def toggle_link():
     if request.method == 'GET':
         return redirect(url_for('textes.library_all'))
@@ -268,8 +266,7 @@ def toggle_link():
 
 
 @entreprise_textes.route('/evaluate', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def evaluate_linked_text():
     """Declenche manuellement la creation des evaluations d'un texte lie."""
     version_id = request.form.get('version_id', type=int)

@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, abort
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.permissions import access_required
 from app.admin import admin
 from app import db
 from app.models import Utilisateur, Ticket, MessageTicket
@@ -20,7 +21,7 @@ def admin_required(f):
 
 
 @admin.route('/utilisateurs')
-@login_required
+@access_required()
 @admin_required
 def utilisateurs():
     users = Utilisateur.query.order_by(Utilisateur.nom).all()
@@ -28,7 +29,7 @@ def utilisateurs():
 
 
 @admin.route('/utilisateurs/<int:user_id>/toggle', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def admin_toggle_user(user_id):
     user = Utilisateur.query.get_or_404(user_id)
@@ -40,7 +41,7 @@ def admin_toggle_user(user_id):
 
 
 @admin.route('/utilisateurs/<int:user_id>/reset-password', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def admin_reset_user_password(user_id):
     user = Utilisateur.query.get_or_404(user_id)
@@ -55,7 +56,7 @@ def admin_reset_user_password(user_id):
 # ─── Tickets support ────────────────────────────────────────────
 
 @admin.route('/tickets')
-@login_required
+@access_required()
 @admin_required
 def admin_tickets():
     type_filter = request.args.get('type', '')
@@ -84,7 +85,7 @@ def admin_tickets():
 
 
 @admin.route('/tickets/<int:ticket_id>')
-@login_required
+@access_required()
 @admin_required
 def admin_ticket_detail(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
@@ -94,7 +95,7 @@ def admin_ticket_detail(ticket_id):
 
 
 @admin.route('/tickets/<int:ticket_id>/message', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def admin_ticket_repondre(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
@@ -128,7 +129,7 @@ def admin_ticket_repondre(ticket_id):
 
 
 @admin.route('/tickets/<int:ticket_id>/statut', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def admin_ticket_changer_statut(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)

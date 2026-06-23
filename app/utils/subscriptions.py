@@ -3,6 +3,16 @@ from app.models import SubscriptionPlan
 
 
 DEFAULT_SUBSCRIPTION_PLANS = {
+    'trial': {
+        'label': 'Essai',
+        'max_users': 3,
+        'price_mad': 0,
+        'max_documents': 50,
+        'max_open_actions': 20,
+        'max_storage_mb': 256,
+        'trial_days': 14,
+        'features': {'veille': 'de_base', 'email': True, 'export': False},
+    },
     'essential': {
         'label': 'Essential',
         'max_users': 2,

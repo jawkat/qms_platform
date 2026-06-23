@@ -1,6 +1,7 @@
 from flask import render_template, request
-from flask_login import login_required, current_user
-from app.utils.permissions import module_access_required
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.models.hse import Incident
 from app.models.auth import Utilisateur
@@ -10,46 +11,39 @@ from app.schemas.hse import IncidentSchema
 from datetime import date, datetime
 
 
+class IncidentResource(BaseResource):
+    model = Incident
+    schema = IncidentSchema
+    filter_fields = {'type': 'type_incident', 'statut': 'statut'}
+
+
 @blueprint.route('/')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 def tableau_de_bord():
     return render_template('hse/tableau_de_bord.html')
 
 
 @blueprint.route('/incidents')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 def incidents():
     return render_template('hse/incidents.html')
 
 
 @blueprint.get('/api/incidents')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 @blueprint.response(200, IncidentSchema(many=True))
 def api_incidents():
     """Liste des incidents HSE"""
-    q = Incident.query
-    type_f = request.args.get('type')
-    if type_f:
-        q = q.filter_by(type_incident=type_f)
-    statut = request.args.get('statut')
-    if statut:
-        q = q.filter_by(statut=statut)
-    return q.order_by(Incident.date_creation.desc()).all()
+    return IncidentResource.list_resources()
 
 
 @blueprint.post('/api/incidents/create')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 @blueprint.arguments(IncidentSchema)
 @blueprint.response(201, IncidentSchema)
 def api_incidents_create(data):
     """Créer un incident HSE"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
+    data = IncidentResource.create_resource(data)
 
     # Notifier les admins système
     from app.models.auth import Role
@@ -68,17 +62,12 @@ def api_incidents_create(data):
 
 
 @blueprint.post('/api/incidents/<int:item_id>/update')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 @blueprint.arguments(IncidentSchema(partial=True))
 @blueprint.response(200, IncidentSchema)
 def api_incidents_update(data, item_id):
     """Mettre à jour un incident HSE"""
-    item = Incident.query.filter_by(id=item_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
+    item = IncidentResource.update_resource(item_id)
 
     # Notifier les admins si changement de statut
     if 'statut' in request.get_json():
@@ -95,11 +84,7 @@ def api_incidents_update(data, item_id):
 
 
 @blueprint.post('/api/incidents/<int:item_id>/delete')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 def api_incidents_delete(item_id):
     """Supprimer un incident HSE"""
-    item = Incident.query.filter_by(id=item_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return IncidentResource.delete_resource(item_id)

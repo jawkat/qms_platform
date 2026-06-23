@@ -4,7 +4,7 @@ import secrets
 import hashlib
 from datetime import datetime, timedelta
 from flask import render_template, flash, redirect, url_for, request, current_app, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
 from markupsafe import Markup, escape
 from app import db, csrf
 from app.utils.text_renderer import render_article_content
@@ -13,7 +13,7 @@ from app.models import (
     ExigenceType, NiveauRisqueType,
 )
 from app.textes import textes
-from app.utils.permissions import system_admin_required
+from app.utils.permissions import system_admin_required, access_required
 
 
 REFERENTIEL_CHOICES = [
@@ -374,7 +374,7 @@ _pending_json_import_store = {}
 
 
 @textes.route('/import_json', methods=['GET', 'POST'])
-@login_required
+@access_required()
 @system_admin_required
 @csrf.exempt
 def import_json():
@@ -438,7 +438,7 @@ def import_json():
 
 
 @textes.route('/import_json/confirm', methods=['POST'])
-@login_required
+@access_required()
 @system_admin_required
 @csrf.exempt
 def confirm_import_json():
@@ -467,7 +467,7 @@ def confirm_import_json():
 
 
 @textes.route('/import_json/pending/<job_id>')
-@login_required
+@access_required()
 @system_admin_required
 def pending_import(job_id):
     from app.jobs.textes_import_jobs import get_job_status
@@ -476,7 +476,7 @@ def pending_import(job_id):
 
 
 @textes.route('/import_json/status/<job_id>')
-@login_required
+@access_required()
 @system_admin_required
 def import_status(job_id):
     from app.jobs.textes_import_jobs import get_job_status
@@ -485,7 +485,7 @@ def import_status(job_id):
 
 
 @textes.route('/import_json/template')
-@login_required
+@access_required()
 @system_admin_required
 def download_json_template():
     sample = {

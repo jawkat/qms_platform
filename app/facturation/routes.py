@@ -1,22 +1,20 @@
 from flask import render_template, request, jsonify, abort
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Entreprise, HistoriquePaiement, SubscriptionPlan
 from app.facturation import facturation
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
 from datetime import date, datetime
 
 
 @facturation.route('/')
-@login_required
-@has_permission('facturation.voir')
+@access_required(permission='facturation.voir')
 def index():
     return render_template('facturation/index.html', today=date.today().isoformat())
 
 
 @facturation.route('/api/infos')
-@login_required
-@has_permission('facturation.voir')
+@access_required(permission='facturation.voir')
 def api_infos():
     e = db.session.get(Entreprise, current_user.entreprise_id)
     if not e:
@@ -36,8 +34,7 @@ def api_infos():
 
 
 @facturation.route('/api/paiements')
-@login_required
-@has_permission('facturation.voir')
+@access_required(permission='facturation.voir')
 def api_paiements():
     items = HistoriquePaiement.query\
         .order_by(HistoriquePaiement.date_paiement.desc()).all()
@@ -54,8 +51,7 @@ def api_paiements():
 
 
 @facturation.route('/api/paiements/create', methods=['POST'])
-@login_required
-@has_permission('facturation.gerer')
+@access_required(permission='facturation.gerer')
 def api_paiements_create():
     e = db.session.get(Entreprise, current_user.entreprise_id)
     if not e:
@@ -80,8 +76,7 @@ def api_paiements_create():
 
 
 @facturation.route('/api/update', methods=['POST'])
-@login_required
-@has_permission('facturation.gerer')
+@access_required(permission='facturation.gerer')
 def api_update():
     e = db.session.get(Entreprise, current_user.entreprise_id)
     if not e:

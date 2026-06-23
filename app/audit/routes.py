@@ -2,11 +2,13 @@ from flask import render_template, request, redirect, url_for, flash, Response
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.services.audit_service import AuditService
 from app import db
 from app.models import Audit, AuditObservation, Utilisateur, TexteReglementaire, Article
 from app.audit import blueprint
 from app.schemas.audit import AuditSchema, AuditObservationSchema
 from datetime import datetime
+from flask import session
 import csv
 import io
 
@@ -14,12 +16,33 @@ import io
 class AuditResource(BaseResource):
     model = Audit
     schema = AuditSchema
+    service_class = AuditService
     search_fields = ['commentaire', 'type']
 
     @classmethod
     def create_resource(cls, data):
-        data.domaine = __import__('flask').session.get('domaine_actif', 'hse')
+        data.domaine = session.get('domaine_actif', 'hse')
         return super().create_resource(data)
+
+
+@blueprint.post('/creer')
+@access_required(permission='audit.modifier')
+@blueprint.arguments(AuditSchema)
+@blueprint.response(201, AuditSchema)
+def api_creer(data):
+    """Créer un nouvel audit"""
+    return AuditResource.create_resource(data)
+
+
+@blueprint.get('/api/liste')
+@access_required(permission='audit.voir')
+@blueprint.response(200, AuditSchema(many=True))
+def api_liste():
+    """Liste des audits"""
+    domaine = __import__('flask').session.get('domaine_actif', 'hse')
+    return Audit.query.filter_by(
+        domaine=domaine
+    ).order_by(Audit.date_creation.desc()).all()
 
 
 @blueprint.route('/')
@@ -48,26 +71,6 @@ def index():
 @access_required(permission='audit.voir')
 def creer():
     return redirect(url_for('audit.index'))
-
-
-@blueprint.post('/creer')
-@access_required(permission='audit.cree')
-@blueprint.arguments(AuditSchema)
-@blueprint.response(201, AuditSchema)
-def api_creer(data):
-    """Créer un nouvel audit"""
-    return AuditResource.create_resource(data)
-
-
-@blueprint.get('/api/liste')
-@access_required(permission='audit.voir')
-@blueprint.response(200, AuditSchema(many=True))
-def api_liste():
-    """Liste des audits"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    return Audit.query.filter_by(
-        domaine=domaine
-    ).order_by(Audit.date_creation.desc()).all()
 
 
 @blueprint.route('/<int:audit_id>', methods=['GET'])

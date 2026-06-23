@@ -53,6 +53,14 @@
       <button class="btn btn-sm btn-outline-secondary" onclick="new bootstrap.Modal(document.getElementById('folderModal')).show()">
         <i class="fas fa-folder-plus me-1"></i>Dossier
       </button>
+      <a href="{{ url_for('documents.gestion', statut='ARCHIVE') if not show_archives else url_for('documents.gestion') }}"
+         class="btn btn-sm {{ 'btn-outline-warning' if not show_archives else 'btn-outline-primary' }}">
+        <i class="fas {{ 'fa-archive' if not show_archives else 'fa-folder-open' }} me-1"></i>
+        {{ 'Archivés' if not show_archives else 'Actifs' }}
+        {% if not show_archives and archive_count > 0 %}
+        <span class="badge bg-warning text-dark ms-1">{{ archive_count }}</span>
+        {% endif %}
+      </a>
       <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#uploadModal">
         <i class="fas fa-upload me-1"></i>Uploader
       </button>
@@ -174,6 +182,15 @@
                           <li><a class="dropdown-item" href="{{ url_for('documents.detail', proof_id=p.id) }}#soumettre"><i class="fas fa-paper-plane me-2"></i>Soumettre</a></li>
                           {% endif %}
                           <li><hr class="dropdown-divider"></li>
+                          {% if show_archives %}
+                          <li>
+                            <form method="POST" action="{{ url_for('documents.restaurer', proof_id=p.id) }}" style="display:inline"
+                                  onsubmit="return confirm('Restaurer ce document ?')">
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                              <button class="dropdown-item"><i class="fas fa-undo me-2"></i>Restaurer</button>
+                            </form>
+                          </li>
+                          {% else %}
                           <li>
                             <form method="POST" action="{{ url_for('documents.archiver', proof_id=p.id) }}" style="display:inline"
                                   onsubmit="return confirm('Archiver ce document ?')">
@@ -181,6 +198,7 @@
                               <button class="dropdown-item"><i class="fas fa-archive me-2"></i>Archiver</button>
                             </form>
                           </li>
+                          {% endif %}
                           <li>
                             <form method="POST" action="{{ url_for('documents.supprimer', proof_id=p.id) }}" style="display:inline"
                                   onsubmit="return confirm('Supprimer définitivement ce document ?')">
@@ -195,8 +213,12 @@
                 </tr>
                 {% else %}
                 <tr><td colspan="7" class="text-center text-muted py-5">
-                  <i class="fas fa-folder-open fa-3x mb-3 d-block"></i>
+                  <i class="fas {{ 'fa-archive fa-3x' if show_archives else 'fa-folder-open fa-3x' }} mb-3 d-block"></i>
+                  {% if show_archives %}
+                  Aucun document archivé.
+                  {% else %}
                   Aucun document. Cliquez sur <strong>Uploader</strong> pour ajouter un fichier.
+                  {% endif %}
                 </td></tr>
                 {% endfor %}
               </tbody>

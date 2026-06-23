@@ -1,10 +1,21 @@
 from flask import render_template, request, jsonify
-from flask_login import login_required, current_user
-from app.utils.permissions import has_permission
+from flask_login import current_user
+from app.utils.permissions import access_required
 from app import db
 from app.workflow_engine import blueprint
 from app.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
 from datetime import datetime
+from app.utils.base_resource import BaseResource
+
+
+class WorkflowModeleResource(BaseResource):
+    model = WorkflowModele
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation'})
+
+
+class WorkflowInstanceResource(BaseResource):
+    model = WorkflowInstance
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation'})
 
 
 def _notify_workflow(user_id, message, wf_type='workflow'):
@@ -13,15 +24,13 @@ def _notify_workflow(user_id, message, wf_type='workflow'):
 
 
 @blueprint.route('/')
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def index():
     return render_template('workflow_engine/index.html')
 
 
 @blueprint.route('/api/modeles')
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def api_modeles():
     module = request.args.get('module')
     q = WorkflowModele.query.filter_by(statut='actif')
@@ -32,8 +41,7 @@ def api_modeles():
 
 
 @blueprint.route('/api/modeles/creer', methods=['POST'])
-@login_required
-@has_permission('workflow_engine.gerer')
+@access_required(permission='workflow_engine.gerer')
 def api_modeles_creer():
     data = request.get_json(silent=True)
     if not data:
@@ -68,8 +76,7 @@ def api_modeles_creer():
 
 
 @blueprint.route('/api/modeles/<int:item_id>', methods=['GET'])
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def api_modele_detail(item_id):
     modele = WorkflowModele.query.filter_by(
         id=item_id
@@ -80,20 +87,14 @@ def api_modele_detail(item_id):
 
 
 @blueprint.route('/api/modeles/<int:item_id>/supprimer', methods=['POST'])
-@login_required
-@has_permission('workflow_engine.gerer')
+@access_required(permission='workflow_engine.gerer')
 def api_modeles_supprimer(item_id):
-    item = WorkflowModele.query.filter_by(
-        id=item_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
+    WorkflowModeleResource.delete_resource(item_id)
     return jsonify({'success': True})
 
 
 @blueprint.route('/api/instances', methods=['GET'])
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def api_instances():
     statut = request.args.get('statut')
     module = request.args.get('module')
@@ -107,8 +108,7 @@ def api_instances():
 
 
 @blueprint.route('/api/instances/creer', methods=['POST'])
-@login_required
-@has_permission('workflow_engine.gerer')
+@access_required(permission='workflow_engine.gerer')
 def api_instances_creer():
     data = request.get_json()
     modele_id = data.get('modele_id')
@@ -152,8 +152,7 @@ def api_instances_creer():
 
 
 @blueprint.route('/api/instances/<int:item_id>', methods=['GET'])
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def api_instance_detail(item_id):
     instance = WorkflowInstance.query.filter_by(
         id=item_id
@@ -175,8 +174,7 @@ def api_instance_detail(item_id):
 
 
 @blueprint.route('/api/instances/<int:item_id>/valider', methods=['POST'])
-@login_required
-@has_permission('workflow_engine.gerer')
+@access_required(permission='workflow_engine.gerer')
 def api_instances_valider(item_id):
     instance = WorkflowInstance.query.filter_by(
         id=item_id
@@ -219,8 +217,7 @@ def api_instances_valider(item_id):
 
 
 @blueprint.route('/api/instances/<int:item_id>/rejeter', methods=['POST'])
-@login_required
-@has_permission('workflow_engine.gerer')
+@access_required(permission='workflow_engine.gerer')
 def api_instances_rejeter(item_id):
     instance = WorkflowInstance.query.filter_by(
         id=item_id
@@ -251,8 +248,7 @@ def api_instances_rejeter(item_id):
 
 
 @blueprint.route('/api/instances/<int:item_id>/annuler', methods=['POST'])
-@login_required
-@has_permission('workflow_engine.gerer')
+@access_required(permission='workflow_engine.gerer')
 def api_instances_annuler(item_id):
     instance = WorkflowInstance.query.filter_by(
         id=item_id
@@ -277,8 +273,7 @@ def api_instances_annuler(item_id):
 
 
 @blueprint.route('/api/stats')
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def api_stats():
     instances_actives = WorkflowInstance.query.filter_by(statut='en_cours')
     now = datetime.utcnow()
@@ -292,8 +287,7 @@ def api_stats():
 
 
 @blueprint.route('/api/retard')
-@login_required
-@has_permission('workflow_engine.voir')
+@access_required(permission='workflow_engine.voir')
 def api_retard():
     now = datetime.utcnow()
     items = WorkflowInstance.query.filter_by(statut='en_cours').all()

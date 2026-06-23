@@ -18,6 +18,7 @@ from flask import render_template, request, jsonify
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 from app.processus import blueprint
 from app.models import Processus, IndicateurProcessus
@@ -37,6 +38,11 @@ class ProcessusResource(BaseResource):
     sort_dir = 'asc'
 
 
+auto_register_crud(blueprint, Processus, ProcessusSchema,
+                   permission_voir='processus.voir', permission_gerer='processus.gerer',
+                   flat=True)
+
+
 @blueprint.route('/')
 @access_required(permission='processus.voir')
 def index():
@@ -44,14 +50,6 @@ def index():
         actif=True
     ).order_by(Utilisateur.nom).all()
     return render_template('processus/index.html', utilisateurs=utilisateurs)
-
-
-@blueprint.get('/api/liste')
-@access_required(permission='processus.voir')
-@blueprint.response(200, ProcessusSchema(many=True))
-def api_liste():
-    """Liste des processus"""
-    return ProcessusResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -69,31 +67,6 @@ def api_stats():
     }
 
 
-@blueprint.post('/api/creer')
-@access_required(permission='processus.gerer')
-@blueprint.arguments(ProcessusSchema)
-@blueprint.response(201, ProcessusSchema)
-def api_creer(data):
-    """Créer un nouveau processus"""
-    return ProcessusResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(permission='processus.gerer')
-@blueprint.arguments(ProcessusSchema(partial=True))
-@blueprint.response(200, ProcessusSchema)
-def api_modifier(data, item_id):
-    """Modifier un processus"""
-    return ProcessusResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(permission='processus.gerer')
-def api_supprimer(item_id):
-    """Supprimer un processus"""
-    return ProcessusResource.delete_resource(item_id)
-
-
 # =============================================================================
 # BPMN — Import / Export / Édition
 # =============================================================================
@@ -101,12 +74,6 @@ def api_supprimer(item_id):
 @blueprint.route('/<int:item_id>/bpmn')
 @access_required(permission='processus.voir')
 def bpmn_editor(item_id):
-    """
-    Affiche l'éditeur BPMN unifié pour un processus.
-
-    Interface combinée : éditeur BPMN + fiche processus + indicateurs.
-    L'utilisateur peut tout éditer depuis un seul écran.
-    """
     item = Processus.query.filter_by(
         id=item_id
     ).first_or_404()
@@ -130,12 +97,6 @@ def bpmn_editor(item_id):
 @blueprint.route('/api/<int:item_id>/bpmn', methods=['GET'])
 @access_required(permission='processus.voir')
 def api_bpmn_get(item_id):
-    """
-    Récupère le diagramme BPMN d'un processus.
-
-    Returns:
-        JSON avec bpmn_xml et les métadonnées extraites
-    """
     item = Processus.query.filter_by(
         id=item_id
     ).first_or_404()
@@ -146,7 +107,6 @@ def api_bpmn_get(item_id):
 
     result = {'bpmn_xml': bpmn_xml}
 
-    # Extraire les métadonnées si le XML existe
     if bpmn_xml:
         from app.core.bpmn import get_bpmn_service
         service = get_bpmn_service()
@@ -160,12 +120,6 @@ def api_bpmn_get(item_id):
 @blueprint.route('/api/<int:item_id>/bpmn', methods=['POST'])
 @access_required(permission='processus.gerer')
 def api_bpmn_save(item_id):
-    """
-    Sauvegarde le diagramme BPMN d'un processus.
-
-    Reçoit le XML BPMN édité via bpmn.io et le sauvegarde
-    dans les métadonnées du processus.
-    """
     from sqlalchemy.orm.attributes import flag_modified
 
     item = Processus.query.filter_by(
@@ -175,13 +129,10 @@ def api_bpmn_save(item_id):
     data = request.get_json()
     bpmn_xml = data.get('bpmn_xml', '')
 
-    # Valider le XML
     from app.core.bpmn import get_bpmn_service
     service = get_bpmn_service()
     metadata, issues = service.import_bpmn(bpmn_xml)
 
-    # Sauvegarder dans les métadonnées — assigner un NOUVEAU dict pour que
-    # SQLAlchemy détecte le changement sur la colonne JSON
     current = dict(item.extra_metadata or {})
     current['bpmn_xml'] = bpmn_xml
     current['bpmn_updated_at'] = datetime.utcnow().isoformat()
@@ -201,12 +152,6 @@ def api_bpmn_save(item_id):
 @blueprint.route('/api/<int:item_id>/bpmn/generate', methods=['POST'])
 @access_required(permission='processus.gerer')
 def api_bpmn_generate(item_id):
-    """
-    Génère un diagramme BPMN à partir des données du processus.
-
-    Crée un diagramme de base basé sur les champs du processus
-    (nom, entrée, sortie, objectifs).
-    """
     from sqlalchemy.orm.attributes import flag_modified
 
     item = Processus.query.filter_by(
@@ -227,7 +172,6 @@ def api_bpmn_generate(item_id):
 
     bpmn_xml = service.export_bpmn(processus_data)
 
-    # Sauvegarder — nouveau dict pour SQLAlchemy
     current = dict(item.extra_metadata or {})
     current['bpmn_xml'] = bpmn_xml
     current['bpmn_updated_at'] = datetime.utcnow().isoformat()
@@ -249,12 +193,6 @@ def api_bpmn_generate(item_id):
 @blueprint.route('/api/<int:item_id>/bpmn/import', methods=['POST'])
 @access_required(permission='processus.gerer')
 def api_bpmn_import(item_id):
-    """
-    Importe un fichier BPMN et le associe à un processus.
-
-    Accepte un fichier .bnm ou .xml contenant du BPMN 2.0.
-    Extrait les métadonnées et les sauvegarde.
-    """
     from sqlalchemy.orm.attributes import flag_modified
 
     item = Processus.query.filter_by(
@@ -274,7 +212,6 @@ def api_bpmn_import(item_id):
     service = get_bpmn_service()
     metadata, issues = service.import_bpmn(bpmn_xml)
 
-    # Sauvegarder — nouveau dict pour SQLAlchemy
     current = dict(item.extra_metadata or {})
     current['bpmn_xml'] = bpmn_xml
     current['bpmn_updated_at'] = datetime.utcnow().isoformat()
@@ -282,7 +219,6 @@ def api_bpmn_import(item_id):
     item.extra_metadata = current
     flag_modified(item, 'extra_metadata')
 
-    # Mettre à jour le nom du processus si le BPMN a un nom
     if metadata.process_name and not item.description:
         item.description = metadata.process_documentation
 

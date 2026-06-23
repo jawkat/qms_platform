@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, abort
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.permissions import access_required
 from app.admin import admin
 from app import db, mail
 from app.models import Disponibilite, CreneauDemo, Ticket, MessageTicket, Notification, Utilisateur, Role
@@ -20,7 +21,7 @@ def admin_required(f):
 
 
 @admin.route('/demo/creneaux')
-@login_required
+@access_required()
 @admin_required
 def demo_creneaux():
     aujourdhui = date.today()
@@ -33,7 +34,7 @@ def demo_creneaux():
 
 
 @admin.route('/demo/disponibilites', methods=['GET', 'POST'])
-@login_required
+@access_required()
 @admin_required
 def demo_disponibilites():
     if request.method == 'POST':
@@ -84,7 +85,7 @@ def demo_disponibilites():
 
 
 @admin.route('/demo/creneaux/<int:creneau_id>/annuler', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def demo_annuler_creneau(creneau_id):
     creneau = CreneauDemo.query.get_or_404(creneau_id)
@@ -95,7 +96,7 @@ def demo_annuler_creneau(creneau_id):
 
 
 @admin.route('/demo/creneaux/<int:creneau_id>/confirmer', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def demo_confirmer_creneau(creneau_id):
     creneau = CreneauDemo.query.get_or_404(creneau_id)
@@ -106,7 +107,7 @@ def demo_confirmer_creneau(creneau_id):
 
 
 @admin.route('/demo/creneaux/<int:creneau_id>/rappel', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def demo_rappel_creneau(creneau_id):
     creneau = CreneauDemo.query.get_or_404(creneau_id)

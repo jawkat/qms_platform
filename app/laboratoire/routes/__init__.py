@@ -4,6 +4,7 @@ from flask_smorest import Blueprint
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 
 import os
@@ -21,18 +22,14 @@ class PlanAnalyseResource(BaseResource):
     search_fields = ['nom', 'produit_concerne', 'parametre']
 
 
+auto_register_crud(blueprint, PlanAnalyse, PlanAnalyseSchema,
+                   module='laboratoire', flat=True)
+
+
 @blueprint.route('/')
 @access_required(module='laboratoire', permission='laboratoire.voir')
 def index():
     return render_template('laboratoire/index.html')
-
-
-@blueprint.get('/api/liste')
-@access_required(module='laboratoire', permission='laboratoire.voir')
-@blueprint.response(200, PlanAnalyseSchema(many=True))
-def api_liste():
-    """Liste des plans d'analyses"""
-    return PlanAnalyseResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -45,28 +42,3 @@ def api_stats():
         'resultats': ResultatAnalyse.query.count(),
         'non_conformes': ResultatAnalyse.query.filter_by(conforme=False).count(),
     }
-
-
-@blueprint.post('/api/creer')
-@access_required(module='laboratoire', permission='laboratoire.gerer')
-@blueprint.arguments(PlanAnalyseSchema)
-@blueprint.response(201, PlanAnalyseSchema)
-def api_creer(data):
-    """Créer un nouveau plan d'analyse"""
-    return PlanAnalyseResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(module='laboratoire', permission='laboratoire.gerer')
-@blueprint.arguments(PlanAnalyseSchema(partial=True))
-@blueprint.response(200, PlanAnalyseSchema)
-def api_modifier(data, item_id):
-    """Mettre à jour un plan d'analyse"""
-    return PlanAnalyseResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(module='laboratoire', permission='laboratoire.gerer')
-def api_supprimer(item_id):
-    """Supprimer un plan d'analyse"""
-    return PlanAnalyseResource.delete_resource(item_id)

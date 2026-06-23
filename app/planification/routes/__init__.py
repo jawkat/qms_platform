@@ -4,6 +4,7 @@ from flask_smorest import Blueprint
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 
 import os
@@ -11,29 +12,26 @@ blueprint = Blueprint('planification', __name__, template_folder='templates',
                       root_path=os.path.join(os.path.dirname(os.path.dirname(__file__))))
 
 
-@blueprint.route('/')
-@access_required(module='planification', permission='planification.voir')
-def index():
-    return render_template('planification/index.html')
-
-
 from app.schemas.planification import EvenementPlanificationSchema
 from app.models import EvenementPlanification
 from datetime import datetime, date
 
 
+class EvenementResource(BaseResource):
+    model = EvenementPlanification
+    schema = EvenementPlanificationSchema
+    search_fields = ['titre', 'type_evenement']
+    filter_fields = {'statut': 'statut', 'type': 'type_evenement'}
+
+
+auto_register_crud(blueprint, EvenementPlanification, EvenementPlanificationSchema,
+                   module='planification', flat=True)
+
+
 @blueprint.route('/')
 @access_required(module='planification', permission='planification.voir')
 def index():
     return render_template('planification/index.html')
-
-
-@blueprint.get('/api/liste')
-@access_required(module='planification', permission='planification.voir')
-@blueprint.response(200, EvenementPlanificationSchema(many=True))
-def api_liste():
-    """Liste des événements planifiés"""
-    return EvenementResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -46,24 +44,6 @@ def api_stats():
         'a_venir': base.filter(EvenementPlanification.date_debut >= datetime.utcnow()).count(),
         'terminees': base.filter_by(statut='termine').count(),
     }
-
-
-@blueprint.post('/api/creer')
-@access_required(module='planification', permission='planification.gerer')
-@blueprint.arguments(EvenementPlanificationSchema)
-@blueprint.response(201, EvenementPlanificationSchema)
-def api_creer(data):
-    """Créer un nouvel événement"""
-    return EvenementResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(module='planification', permission='planification.gerer')
-@blueprint.arguments(EvenementPlanificationSchema(partial=True))
-@blueprint.response(200, EvenementPlanificationSchema)
-def api_modifier(data, item_id):
-    """Mettre à jour un événement"""
-    return EvenementResource.update_resource(item_id)
 
 
 @blueprint.get('/api/calendrier')
@@ -87,10 +67,3 @@ def api_calendrier():
             'statut': i.statut,
         },
     } for i in items]
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(module='planification', permission='planification.gerer')
-def api_supprimer(item_id):
-    """Supprimer un événement"""
-    return EvenementResource.delete_resource(item_id)

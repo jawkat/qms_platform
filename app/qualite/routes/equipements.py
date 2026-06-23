@@ -1,25 +1,37 @@
 from flask import render_template, request, jsonify, redirect, url_for
-from flask_login import login_required, current_user
-from app.utils.permissions import module_access_required
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.models.qualite import Equipement, EnregistrementEtalonnage
 from app.qualite import blueprint
+from app.schemas.qualite import EquipementSchema, EnregistrementEtalonnageSchema
 from datetime import datetime
 
 
+class EquipementResource(BaseResource):
+    model = Equipement
+    schema = EquipementSchema
+    search_fields = ['nom', 'modele', 'numero_serie']
+    filter_fields = {'statut': 'statut', 'type_equipement': 'type_equipement', 'statut_metrologique': 'statut_metrologique'}
+
+
+class EnregistrementEtalonnageResource(BaseResource):
+    model = EnregistrementEtalonnage
+    schema = EnregistrementEtalonnageSchema
+    search_fields = ['operateur', 'certificat_id', 'notes']
+
+
 @blueprint.route('/equipements')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def equipements():
     return render_template('qualite/equipements.html')
 
 
 @blueprint.route('/api/equipements')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_equipements():
-    items = Equipement.query\
-        .order_by(Equipement.date_creation.desc()).all()
+    items = EquipementResource.list_resources()
     return jsonify([{
         'id': r.id,
         'nom': r.nom,
@@ -44,12 +56,10 @@ def api_equipements():
 
 
 @blueprint.route('/api/equipements/create', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_equipements_create():
     data = request.get_json()
     item = Equipement(
-        entreprise_id=current_user.entreprise_id,
         nom=data.get('nom'),
         modele=data.get('modele'),
         numero_serie=data.get('numero_serie'),
@@ -72,16 +82,14 @@ def api_equipements_create():
         statut_metrologique=data.get('statut_metrologique', 'en_cours'),
         statut=data.get('statut', 'actif'),
     )
-    db.session.add(item)
-    db.session.commit()
+    EquipementResource.create_resource(item)
     return jsonify({'success': True, 'id': item.id})
 
 
 @blueprint.route('/api/equipements/<int:item_id>/update', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_equipements_update(item_id):
-    item = Equipement.query.filter_by(id=item_id).first_or_404()
+    item = EquipementResource.get_resource(item_id)
     data = request.get_json()
     for f in ('nom', 'modele', 'numero_serie', 'type_equipement', 'statut',
               'precision', 'unite_mesure', 'organisme_etalonnage', 'certificat_etalonnage',
@@ -97,20 +105,16 @@ def api_equipements_update(item_id):
 
 
 @blueprint.route('/api/equipements/<int:item_id>/delete', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_equipements_delete(item_id):
-    item = Equipement.query.filter_by(id=item_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
+    EquipementResource.delete_resource(item_id)
     return jsonify({'success': True})
 
 
 # --- Métrologie : Enregistrements d'étalonnage ---
 
 @blueprint.route('/api/etalonnages/<int:equipement_id>')
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_etalonnages(equipement_id):
     items = EnregistrementEtalonnage.query.filter_by(
         equipement_id=equipement_id).order_by(EnregistrementEtalonnage.date_etalonnage.desc()).all()
@@ -129,8 +133,7 @@ def api_etalonnages(equipement_id):
 
 
 @blueprint.route('/api/etalonnages/create', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_etalonnages_create():
     data = request.get_json()
     ecart = None
@@ -162,12 +165,7 @@ def api_etalonnages_create():
 
 
 @blueprint.route('/api/etalonnages/<int:item_id>/delete', methods=['POST'])
-@login_required
-@module_access_required('qualite', 'qualite.voir')
+@access_required(module='qualite', permission='qualite.voir')
 def api_etalonnages_delete(item_id):
-    item = EnregistrementEtalonnage.query.filter_by(
-        id=item_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
+    EnregistrementEtalonnageResource.delete_resource(item_id)
     return jsonify({'success': True})

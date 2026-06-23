@@ -1,10 +1,11 @@
 from flask import render_template, request, jsonify, redirect, url_for
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import EvaluationArticle, EntrepriseTexte, ActionCorrective, Utilisateur, ProofReference, Article, TexteVersion, TexteReglementaire, ConformiteEnum
 from app.conformite import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app.services.proof_service import ProofService
 from datetime import datetime, date
 from sqlalchemy import or_
@@ -37,8 +38,7 @@ def _update_entreprise_texte_stats(entreprise_texte_id):
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>', methods=['GET', 'POST'])
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def evaluation_detail(evaluation_id):
     evaluation = tenant_get_or_404(EvaluationArticle, evaluation_id)
     responsables = Utilisateur.query.all()
@@ -100,8 +100,7 @@ def evaluation_detail(evaluation_id):
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>/action/add', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def add_action(evaluation_id):
     evaluation = tenant_get_or_404(EvaluationArticle, evaluation_id)
     action = ActionCorrective(
@@ -122,8 +121,7 @@ def add_action(evaluation_id):
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>/actions')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def list_actions(evaluation_id):
     evaluation = tenant_get_or_404(EvaluationArticle, evaluation_id)
     actions = ActionCorrective.query.filter_by(
@@ -139,8 +137,7 @@ def list_actions(evaluation_id):
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>/proof/attach', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def attach_proof(evaluation_id):
     evaluation = tenant_get_or_404(EvaluationArticle, evaluation_id)
     proof_id = request.json.get('proof_id') if request.is_json else request.form.get('proof_id')
@@ -157,8 +154,7 @@ def attach_proof(evaluation_id):
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>/proof/liste')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def list_proofs(evaluation_id):
     evaluation = tenant_get_or_404(EvaluationArticle, evaluation_id)
     refs = ProofReference.query.filter_by(
@@ -177,8 +173,7 @@ def list_proofs(evaluation_id):
 # ---------------------------------------------------------------------------
 
 @blueprint.route('/nonconformites')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def nonconformites():
     q = EvaluationArticle.query.join(EntrepriseTexte)
 
@@ -248,8 +243,7 @@ def nonconformites():
 
 
 @blueprint.route('/api/nonconformites')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def api_nonconformites():
     q = EvaluationArticle.query.join(EntrepriseTexte)
 
@@ -285,8 +279,7 @@ def api_nonconformites():
 # ---------------------------------------------------------------------------
 
 @blueprint.route('/preuves/gestion')
-@login_required
-@has_permission('conformite.voir')
+@access_required(permission='conformite.voir')
 def preuves_gestion():
     from app.models import ProofMaster, ProofReference
     from datetime import date, timedelta
@@ -325,8 +318,7 @@ def preuves_gestion():
 
 
 @blueprint.route('/preuves/<int:proof_id>/mettre_a_jour', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def preuve_mettre_a_jour(proof_id):
     from app.models import ProofMaster
     proof = tenant_get_or_404(ProofMaster, proof_id)
@@ -342,8 +334,7 @@ def preuve_mettre_a_jour(proof_id):
 
 
 @blueprint.route('/preuves/<int:proof_id>/archiver', methods=['POST'])
-@login_required
-@has_permission('documents.archiver')
+@access_required(permission='documents.archiver')
 def preuve_archiver(proof_id):
     ProofService.archive_proof(proof_id)
     db.session.commit()
@@ -352,8 +343,7 @@ def preuve_archiver(proof_id):
 
 
 @blueprint.route('/preuves/<int:proof_id>/supprimer', methods=['POST'])
-@login_required
-@has_permission('documents.archiver')
+@access_required(permission='documents.archiver')
 def preuve_supprimer(proof_id):
     ProofService.hard_delete_proof(proof_id)
     db.session.commit()
@@ -362,8 +352,7 @@ def preuve_supprimer(proof_id):
 
 
 @blueprint.route('/evaluation/<int:evaluation_id>/proof/<int:proof_id>/detach', methods=['POST'])
-@login_required
-@has_permission('conformite.modifier')
+@access_required(permission='conformite.modifier')
 def detach_proof(evaluation_id, proof_id):
     tenant_get_or_404(EvaluationArticle, evaluation_id)
     ref = ProofService.detach_proof(proof_id, 'evaluation_article', evaluation_id)

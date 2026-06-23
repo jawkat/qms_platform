@@ -1,17 +1,50 @@
 import os
 import uuid
 from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import ProofMaster, ProofReference, Dossier, TypeDocument, WorkflowLog, Utilisateur
 from app.documents import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app.services.quota_middleware import check_quota
 from app.services.proof_service import ProofService
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
+from app.schemas.documents import DossierSchema, TypeDocumentSchema, ProofMasterSchema
 from sqlalchemy import or_, func
+
+
+class ProofMasterResource(BaseResource):
+    model = ProofMaster
+    schema = ProofMasterSchema
+    search_fields = ['nom_fichier', 'description', 'numero_document', 'mots_cles', 'notes']
+    filter_fields = {
+        'statut': 'statut', 'domaine': 'domaine', 'dossier_id': 'dossier_id',
+        'type_document_id': 'type_document_id', 'workflow_statut': 'workflow_statut',
+        'categorie': 'categorie',
+    }
+    sort_field = 'date_creation'
+    sort_dir = 'desc'
+
+
+class DossierResource(BaseResource):
+    model = Dossier
+    schema = DossierSchema
+    search_fields = ['nom', 'description']
+    filter_fields = {'domaine': 'domaine'}
+    sort_field = 'nom'
+    sort_dir = 'asc'
+
+
+class TypeDocumentResource(BaseResource):
+    model = TypeDocument
+    schema = TypeDocumentSchema
+    search_fields = ['nom', 'description']
+    filter_fields = {'domaine': 'domaine'}
+    sort_field = 'nom'
+    sort_dir = 'asc'
 
 
 def _check_ged_access():
@@ -23,7 +56,7 @@ def _check_ged_access():
 
 
 @blueprint.before_request
-@login_required
+@access_required()
 def before_request_ged():
     if request.endpoint and request.endpoint in ('documents.api_actives',):
         return None
@@ -36,12 +69,15 @@ def before_request_ged():
 
 @blueprint.route('/')
 @blueprint.route('/gestion')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 def gestion():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    base = ProofMaster.query.filter_by(domaine=domaine, statut='ACTIF')
+    statut_filter = request.args.get('statut', 'ACTIF')
+    if statut_filter not in ('ACTIF', 'ARCHIVE'):
+        statut_filter = 'ACTIF'
+    base = ProofMaster.query.filter_by(domaine=domaine, statut=statut_filter)
     all_proofs = base.all()
+    archive_count = ProofMaster.query.filter_by(domaine=domaine, statut='ARCHIVE').count()
 
     q = base
 
@@ -110,7 +146,8 @@ def gestion():
         'documents/gestion.html',
         proofs=proofs, dossiers=dossiers, types_doc=types_doc,
         approbateurs=approbateurs, stats=stats, domaine=domaine,
-        today=date.today(),
+        today=date.today(), archive_count=archive_count,
+        show_archives=(statut_filter == 'ARCHIVE'),
     )
 
 
@@ -118,13 +155,8 @@ def gestion():
 # Folder management
 # ---------------------------------------------------------------------------
 
-from app.schemas.documents import DossierSchema, TypeDocumentSchema, ProofMasterSchema
-
-
 @blueprint.get('/api/dossiers')
-@login_required
-@has_permission('documents.voir')
-@blueprint.response(200, DossierSchema(many=True))
+@access_required(permission='documents.voir')
 def api_dossiers():
     """Arborescence des dossiers de la GED"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
@@ -153,8 +185,7 @@ def api_dossiers():
 
 
 @blueprint.route('/api/dossiers/create', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def dossier_create():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     nom = request.form.get('nom', '').strip()
@@ -175,8 +206,7 @@ def dossier_create():
 
 
 @blueprint.route('/api/dossiers/<int:dossier_id>/rename', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def dossier_rename(dossier_id):
     dossier = Dossier.query.filter_by(
         id=dossier_id
@@ -190,8 +220,7 @@ def dossier_rename(dossier_id):
 
 
 @blueprint.route('/api/dossiers/<int:dossier_id>/move', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def dossier_move(dossier_id):
     dossier = Dossier.query.filter_by(
         id=dossier_id
@@ -205,8 +234,7 @@ def dossier_move(dossier_id):
 
 
 @blueprint.route('/api/dossiers/<int:dossier_id>/delete', methods=['POST'])
-@login_required
-@has_permission('documents.archiver')
+@access_required(permission='documents.archiver')
 def dossier_delete(dossier_id):
     dossier = Dossier.query.filter_by(
         id=dossier_id
@@ -223,8 +251,7 @@ def dossier_delete(dossier_id):
 # ---------------------------------------------------------------------------
 
 @blueprint.route('/upload', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 @check_quota('documents')
 def upload():
     """
@@ -253,7 +280,7 @@ def upload():
 
     # Upload via ProofService (utilise StorageService en interne)
     proof = ProofService.create_or_reuse_proof(
-        entreprise_id=eid,
+        entreprise_id=current_user.entreprise_id,
         nom_fichier=original_filename,
         file_obj=file.stream,
         domaine=domaine,
@@ -289,8 +316,7 @@ def upload():
 # ---------------------------------------------------------------------------
 
 @blueprint.route('/<int:proof_id>/detail')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 def detail(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     refs = ProofReference.query.filter_by(proof_master_id=proof.id).all()
@@ -339,8 +365,7 @@ def _log_workflow(proof_id, action, commentaire, user_id):
 
 
 @blueprint.route('/<int:proof_id>/soumettre', methods=['POST'])
-@login_required
-@has_permission('documents.workflow')
+@access_required(permission='documents.workflow')
 def soumettre(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     if proof.workflow_statut != 'brouillon':
@@ -406,8 +431,7 @@ def soumettre(proof_id):
 
 
 @blueprint.route('/<int:proof_id>/approuver', methods=['POST'])
-@login_required
-@has_permission('documents.workflow')
+@access_required(permission='documents.workflow')
 def approuver(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     if proof.workflow_statut != 'soumis':
@@ -454,8 +478,7 @@ def approuver(proof_id):
 
 
 @blueprint.route('/<int:proof_id>/rejeter', methods=['POST'])
-@login_required
-@has_permission('documents.workflow')
+@access_required(permission='documents.workflow')
 def rejeter(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     if proof.workflow_statut != 'soumis':
@@ -493,8 +516,7 @@ def rejeter(proof_id):
 
 
 @blueprint.route('/<int:proof_id>/demander-revision', methods=['POST'])
-@login_required
-@has_permission('documents.workflow')
+@access_required(permission='documents.workflow')
 def demander_revision(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     commentaire = request.form.get('commentaire', '').strip()
@@ -514,8 +536,7 @@ def demander_revision(proof_id):
 # ---------------------------------------------------------------------------
 
 @blueprint.route('/<int:proof_id>/nouvelle-version', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 @check_quota('documents')
 def nouvelle_version(proof_id):
     """
@@ -544,7 +565,7 @@ def nouvelle_version(proof_id):
 
     # Upload via ProofService (utilise StorageService en interne)
     proof = ProofService.create_or_reuse_proof(
-        entreprise_id=eid,
+        entreprise_id=current_user.entreprise_id,
         nom_fichier=original_filename,
         file_obj=file.stream,
         domaine=domaine,
@@ -580,8 +601,7 @@ def nouvelle_version(proof_id):
 # ---------------------------------------------------------------------------
 
 @blueprint.get('/api/types')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 @blueprint.response(200, TypeDocumentSchema(many=True))
 def api_types():
     """Liste des types de documents disponibles"""
@@ -592,8 +612,7 @@ def api_types():
 
 
 @blueprint.route('/api/types/create', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def type_create():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     nom = request.form.get('nom', '').strip()
@@ -614,8 +633,7 @@ def type_create():
 
 
 @blueprint.route('/api/types/<int:type_id>/update', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def type_update(type_id):
     td = TypeDocument.query.filter_by(
         id=type_id
@@ -629,8 +647,7 @@ def type_update(type_id):
 
 
 @blueprint.route('/api/types/<int:type_id>/delete', methods=['POST'])
-@login_required
-@has_permission('documents.archiver')
+@access_required(permission='documents.archiver')
 def type_delete(type_id):
     td = TypeDocument.query.filter_by(
         id=type_id
@@ -646,8 +663,7 @@ def type_delete(type_id):
 # ---------------------------------------------------------------------------
 
 @blueprint.get('/api/recherche')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 @blueprint.response(200, ProofMasterSchema(many=True))
 def api_recherche():
     """Recherche avancée dans la GED"""
@@ -703,8 +719,7 @@ def api_recherche():
 # ---------------------------------------------------------------------------
 
 @blueprint.get('/api/liste')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 @blueprint.response(200, ProofMasterSchema(many=True))
 def api_liste():
     """Liste simple des documents actifs"""
@@ -715,8 +730,7 @@ def api_liste():
 
 
 @blueprint.route('/<int:proof_id>/download')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 def download(proof_id):
     """
     Télécharge un document depuis la GED.
@@ -742,8 +756,7 @@ def download(proof_id):
 
 
 @blueprint.route('/<int:proof_id>/archiver', methods=['POST'])
-@login_required
-@has_permission('documents.archiver')
+@access_required(permission='documents.archiver')
 def archiver(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     _log_workflow(proof_id, 'archive', 'Document archivé', current_user.id)
@@ -753,9 +766,18 @@ def archiver(proof_id):
     return redirect(url_for('documents.gestion'))
 
 
+@blueprint.route('/<int:proof_id>/restaurer', methods=['POST'])
+@access_required(permission='documents.archiver')
+def restaurer(proof_id):
+    proof = tenant_get_or_404(ProofMaster, proof_id)
+    proof.statut = 'ACTIF'
+    db.session.commit()
+    flash('Document restauré.', 'success')
+    return redirect(url_for('documents.gestion'))
+
+
 @blueprint.route('/<int:proof_id>/supprimer', methods=['POST'])
-@login_required
-@has_permission('documents.archiver')
+@access_required(permission='documents.archiver')
 def supprimer(proof_id):
     """
     Supprime définitivement un document.
@@ -771,8 +793,7 @@ def supprimer(proof_id):
 
 
 @blueprint.route('/<int:proof_id>/mettre_a_jour', methods=['POST'])
-@login_required
-@has_permission('documents.upload')
+@access_required(permission='documents.upload')
 def mettre_a_jour(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     proof.description = request.form.get('description', proof.description)
@@ -789,8 +810,7 @@ def mettre_a_jour(proof_id):
 
 
 @blueprint.route('/api/actives')
-@login_required
-@has_permission('documents.voir')
+@access_required(permission='documents.voir')
 def api_actives():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     proofs = ProofMaster.query.filter_by(

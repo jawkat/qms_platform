@@ -144,6 +144,16 @@
                       <option value="archived" {% if s == 'archived' %}selected{% endif %}>Archivé</option>
                     </select>
                   </div>
+                  <div class="col-3">
+                    <label class="form-label small">Plan d'abonnement</label>
+                    <select name="abonnement_type" class="form-select form-select-sm">
+                      <option value="">— Conserver —</option>
+                      <option value="trial" {% if entreprise.abonnement_type == 'trial' %}selected{% endif %}>Trial</option>
+                      {% for pk, pl in [('essential','Essential'),('professional','Professional'),('premium','Premium')] %}
+                      <option value="{{ pk }}" {% if entreprise.abonnement_type == pk %}selected{% endif %}>{{ pl }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
                 </div>
                 <div class="mb-3">
                   <label class="form-label small">Motif suspension</label>

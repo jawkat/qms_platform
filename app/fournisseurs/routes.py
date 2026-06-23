@@ -2,6 +2,8 @@ from flask import render_template, request, jsonify, session
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
+from app.services.fournisseur_service import FournisseurService
 from app import db
 from app.fournisseurs import blueprint
 from app.models.partages import Fournisseur
@@ -17,23 +19,18 @@ from app.schemas.partages import FournisseurSchema
 class FournisseurResource(BaseResource):
     model = Fournisseur
     schema = FournisseurSchema
+    service_class = FournisseurService
     search_fields = ['nom', 'contact', 'produit']
 
     @classmethod
     def create_resource(cls, data):
         data.domaine = session.get('domaine', 'hse')
-        data.calculer_score_global()
         return super().create_resource(data)
 
-    @classmethod
-    def update_resource(cls, item_id):
-        item = cls.get_resource(item_id)
-        for field, value in request.get_json().items():
-            if field not in cls.protected_fields and hasattr(item, field):
-                setattr(item, field, value)
-        item.calculer_score_global()
-        db.session.commit()
-        return item
+
+auto_register_crud(blueprint, Fournisseur, FournisseurSchema,
+                   permission_voir='fournisseurs.voir', permission_gerer='fournisseurs.gerer',
+                   flat=True)
 
 
 @blueprint.route('/')
@@ -43,15 +40,6 @@ def index():
         actif=True
     ).order_by(Utilisateur.nom).all()
     return render_template('fournisseurs/index.html', utilisateurs=utilisateurs)
-
-
-@blueprint.get('/api/liste')
-@access_required(permission='fournisseurs.voir')
-@blueprint.response(200, FournisseurSchema(many=True))
-def api_liste():
-    """Liste des fournisseurs"""
-    domaine = session.get('domaine', 'hse')
-    return FournisseurResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -65,31 +53,6 @@ def api_stats():
         'qualifies': base.filter_by(qualification='qualifie').count(),
         'audits_programmes': base.filter(Fournisseur.prochain_audit.isnot(None)).count(),
     }
-
-
-@blueprint.post('/api/creer')
-@access_required(permission='fournisseurs.gerer')
-@blueprint.arguments(FournisseurSchema)
-@blueprint.response(201, FournisseurSchema)
-def api_creer(data):
-    """Enregistrer un nouveau fournisseur"""
-    return FournisseurResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(permission='fournisseurs.gerer')
-@blueprint.arguments(FournisseurSchema(partial=True))
-@blueprint.response(200, FournisseurSchema)
-def api_modifier(data, item_id):
-    """Mettre à jour un fournisseur"""
-    return FournisseurResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(permission='fournisseurs.gerer')
-def api_supprimer(item_id):
-    """Supprimer un fournisseur"""
-    return FournisseurResource.delete_resource(item_id)
 
 
 @blueprint.post('/api/<int:item_id>/evaluer')

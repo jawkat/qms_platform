@@ -4,6 +4,7 @@ from flask_smorest import Blueprint
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 
 import os
@@ -21,18 +22,14 @@ class PlanUrgenceResource(BaseResource):
     search_fields = ['nom', 'description']
 
 
+auto_register_crud(blueprint, PlanUrgence, PlanUrgenceSchema,
+                   module='urgences', flat=True)
+
+
 @blueprint.route('/')
 @access_required(module='urgences', permission='urgences.voir')
 def index():
     return render_template('urgences/index.html')
-
-
-@blueprint.get('/api/liste')
-@access_required(module='urgences', permission='urgences.voir')
-@blueprint.response(200, PlanUrgenceSchema(many=True))
-def api_liste():
-    """Liste des plans d'urgence"""
-    return PlanUrgenceResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -44,28 +41,3 @@ def api_stats():
         'exercices': ExerciceEvacuation.query.count(),
         'incidents_ouverts': MainCourante.query.filter_by(statut='ouvert').count(),
     }
-
-
-@blueprint.post('/api/creer')
-@access_required(module='urgences', permission='urgences.gerer')
-@blueprint.arguments(PlanUrgenceSchema)
-@blueprint.response(201, PlanUrgenceSchema)
-def api_creer(data):
-    """Créer un nouveau plan d'urgence"""
-    return PlanUrgenceResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(module='urgences', permission='urgences.gerer')
-@blueprint.arguments(PlanUrgenceSchema(partial=True))
-@blueprint.response(200, PlanUrgenceSchema)
-def api_modifier(data, item_id):
-    """Mettre à jour un plan d'urgence"""
-    return PlanUrgenceResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(module='urgences', permission='urgences.gerer')
-def api_supprimer(item_id):
-    """Supprimer un plan d'urgence"""
-    return PlanUrgenceResource.delete_resource(item_id)

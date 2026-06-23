@@ -330,6 +330,8 @@ class PluginManager:
                 'id': 'admin', 'title': 'Administration', 'icon': 'fa-crown', 'items': [
                     {'endpoint': 'admin.dashboard', 'icon': 'fa-chart-pie', 'label': 'Dashboard'},
                     {'endpoint': 'admin.utilisateurs', 'icon': 'fa-users-cog', 'label': 'Utilisateurs'},
+                    {'endpoint': 'admin.roles', 'icon': 'fa-user-tag', 'label': 'Rôles & Permissions',
+                     'active_prefix': 'admin.role'},
                     {'endpoint': 'admin.admin_tickets', 'icon': 'fa-headset', 'label': 'Tickets'},
                     {'endpoint': 'admin.entreprises', 'icon': 'fa-building', 'label': 'Entreprises',
                      'active_endpoints': ['admin.entreprises', 'admin.entreprise_detail', 'admin.entreprise_create']},
@@ -339,6 +341,20 @@ class PluginManager:
                      'active_endpoints': ['admin.services']},
                     {'endpoint': 'admin.notifications', 'icon': 'fa-bell', 'label': 'Notifications',
                      'active_endpoints': ['admin.notifications']},
+                    {'endpoint': 'admin.securite', 'icon': 'fa-shield-alt', 'label': 'Sécurité',
+                     'active_prefix': 'admin.securite'},
+                    {'endpoint': 'admin.backups', 'icon': 'fa-database', 'label': 'Sauvegardes',
+                     'active_prefix': 'admin.backups'},
+                    {'endpoint': 'admin.mail_test', 'icon': 'fa-envelope', 'label': 'Test Mail',
+                     'active_prefix': 'admin.mail_test'},
+                ]
+            })
+            sections.append({
+                'id': 'demo_admin', 'title': 'Démo', 'icon': 'fa-desktop', 'items': [
+                    {'endpoint': 'admin.demo_disponibilites', 'icon': 'fa-clock', 'label': 'Disponibilités',
+                     'active_prefix': 'admin.demo_dispo'},
+                    {'endpoint': 'admin.demo_creneaux', 'icon': 'fa-calendar-check', 'label': 'Créneaux',
+                     'active_prefix': 'admin.demo_creneaux'},
                 ]
             })
             sections.append({
@@ -351,6 +367,8 @@ class PluginManager:
                      'active_prefix': 'veille.'},
                     {'endpoint': 'secteur.liste_secteurs', 'icon': 'fa-layer-group', 'label': 'Secteur',
                      'active_prefix': 'secteur.'},
+                    {'endpoint': 'secteur.admin_textes', 'icon': 'fa-link', 'label': 'Textes & Secteurs',
+                     'active_prefix': 'secteur.admin_textes'},
                 ]
             })
 
@@ -366,6 +384,8 @@ class PluginManager:
         # --- GÉNÉRAL (toujours visible) ---
         general_items = [
             {'endpoint': 'main.tableau_de_bord', 'icon': 'fa-chart-line', 'label': 'Tableau de bord'},
+            {'endpoint': 'main.notifications', 'icon': 'fa-bell', 'label': 'Notifications',
+             'active_prefix': 'main.notifications'},
             {'endpoint': 'main.search', 'icon': 'fa-search', 'label': 'Recherche'},
         ]
         sections.append({
@@ -464,6 +484,10 @@ class PluginManager:
                      'active_prefix': 'textes.veille_preuves'},
                     {'endpoint': 'conformite.index', 'icon': 'fa-clipboard-list', 'label': 'Conformité',
                      'active_prefix': 'conformite.'},
+                    {'endpoint': 'conformite.nonconformites', 'icon': 'fa-exclamation-circle', 'label': 'NC Conformité',
+                     'active_prefix': 'conformite.nonconformites'},
+                    {'endpoint': 'conformite.preuves_gestion', 'icon': 'fa-paperclip', 'label': 'Preuves Conformité',
+                     'active_prefix': 'conformite.preuves'},
                 ]
             })
 

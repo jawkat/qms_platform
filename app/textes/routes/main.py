@@ -1,15 +1,13 @@
 from flask import render_template, request, jsonify
-from flask_login import login_required
 from app import db
 from app.models import Domaine, TexteReglementaire, TexteVersion, Article
 from app.textes import textes
-from app.utils.permissions import system_admin_required
-from app.utils.permissions import has_permission
+from app.utils.permissions import system_admin_required, access_required
 from sqlalchemy import func
 
 
 @textes.route('/')
-@login_required
+@access_required()
 @system_admin_required
 def index():
     query = TexteReglementaire.query
@@ -42,8 +40,7 @@ def index():
 
 
 @textes.route('/<int:texte_id>')
-@login_required
-@has_permission('textes.voir')
+@access_required(permission='textes.voir')
 def detail(texte_id):
     from flask_login import current_user
     texte = TexteReglementaire.query.get_or_404(texte_id)
@@ -60,8 +57,7 @@ def detail(texte_id):
 
 
 @textes.route('/version/<int:version_id>')
-@login_required
-@has_permission('textes.voir')
+@access_required(permission='textes.voir')
 def version_detail(version_id):
     from flask_login import current_user
     from app.models.conformite import EntrepriseTexte
@@ -76,7 +72,7 @@ def version_detail(version_id):
 
 
 @textes.route('/api/liste')
-@login_required
+@access_required()
 def api_liste():
     textes_list = TexteReglementaire.query.order_by(TexteReglementaire.code).all()
     data = []
@@ -98,7 +94,7 @@ def api_liste():
 
 
 @textes.route('/api/domaines')
-@login_required
+@access_required()
 def api_domaines():
     domaines = Domaine.query.order_by(Domaine.nom).all()
     data = [{'id': d.id, 'nom': d.nom, 'description': d.description} for d in domaines]
@@ -106,7 +102,7 @@ def api_domaines():
 
 
 @textes.route('/api/<int:texte_id>')
-@login_required
+@access_required()
 def api_texte(texte_id):
     texte = TexteReglementaire.query.get_or_404(texte_id)
     versions = TexteVersion.query.filter_by(texte_id=texte_id).order_by(TexteVersion.numero_version.desc()).all()

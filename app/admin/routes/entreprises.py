@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, abort, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.permissions import access_required
 from app.admin import admin
 from app import db
 from app.models import (
@@ -29,7 +30,7 @@ def admin_required(f):
 
 
 @admin.route('/')
-@login_required
+@access_required()
 @admin_required
 def dashboard():
     from app.models import ActionCorrective, ProofMaster, JournalSecurite
@@ -46,7 +47,7 @@ def dashboard():
 
 
 @admin.route('/entreprises')
-@login_required
+@access_required()
 @admin_required
 def entreprises():
     entreprises = Entreprise.query.order_by(Entreprise.date_inscription.desc()).all()
@@ -85,14 +86,14 @@ def entreprises():
 
 
 @admin.route('/entreprises/create')
-@login_required
+@access_required()
 @admin_required
 def entreprise_create():
     return redirect(url_for('entreprises.create'))
 
 
 @admin.route('/entreprises/<int:eid>')
-@login_required
+@access_required()
 @admin_required
 def entreprise_detail(eid):
     entreprise = db.session.get(Entreprise, eid)
@@ -107,7 +108,7 @@ def entreprise_detail(eid):
 
 
 @admin.route('/entreprises/<int:eid>/update', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def entreprise_update(eid):
     entreprise = db.session.get(Entreprise, eid)
@@ -159,7 +160,7 @@ def entreprise_update(eid):
 
 
 @admin.get('/entreprises/<int:eid>/api/quota')
-@login_required
+@access_required()
 @admin_required
 @admin.response(200, QuotaSchema)
 def entreprise_api_quota(eid):
@@ -190,7 +191,7 @@ def entreprise_api_quota(eid):
 
 
 @admin.get('/entreprises/<int:eid>/api/paiements')
-@login_required
+@access_required()
 @admin_required
 @admin.response(200, HistoriquePaiementSchema(many=True))
 def entreprise_api_paiements(eid):
@@ -203,7 +204,7 @@ def entreprise_api_paiements(eid):
 
 
 @admin.post('/entreprises/<int:eid>/api/paiements/create')
-@login_required
+@access_required()
 @admin_required
 @admin.arguments(HistoriquePaiementSchema)
 @admin.response(201, HistoriquePaiementSchema)
@@ -236,7 +237,7 @@ def entreprise_api_paiements_create(data, eid):
 
 
 @admin.route('/entreprises/<int:eid>/suspendre', methods=['POST'])
-@login_required
+@access_required()
 @admin_required
 def entreprise_suspendre(eid):
     entreprise = db.session.get(Entreprise, eid)

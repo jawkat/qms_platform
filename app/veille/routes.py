@@ -1,16 +1,27 @@
 from flask import render_template, request, jsonify
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Veille, SourceReglementaire, TexteReglementaire
 from app.veille import veille
-from app.utils.permissions import has_permission, system_admin_required
+from app.utils.permissions import system_admin_required, access_required
 from datetime import date
+from app.utils.base_resource import BaseResource
+
+
+class VeilleResource(BaseResource):
+    model = Veille
+    protected_fields = frozenset({'id', 'entreprise_id', 'date_creation'})
+
+
+class SourceReglementaireResource(BaseResource):
+    model = SourceReglementaire
+    protected_fields = frozenset({'id', 'date_creation'})
+    tenant_field = None
 
 
 @veille.route('/')
-@login_required
+@access_required(permission='textes.voir')
 @system_admin_required
-@has_permission('textes.voir')
 def index():
     sources = SourceReglementaire.query.order_by(SourceReglementaire.nom).all()
     statut = request.args.get('statut')
@@ -24,18 +35,16 @@ def index():
 
 
 @veille.route('/<int:veille_id>')
-@login_required
+@access_required(permission='textes.voir')
 @system_admin_required
-@has_permission('textes.voir')
 def detail(veille_id):
     v = Veille.query.get_or_404(veille_id)
     return render_template('veille/detail.html', veille=v)
 
 
 @veille.route('/api/liste')
-@login_required
+@access_required(permission='textes.voir')
 @system_admin_required
-@has_permission('textes.voir')
 def api_liste():
     veilles = Veille.query.order_by(Veille.date_detection.desc()).all()
     return jsonify([{
@@ -53,9 +62,8 @@ def api_liste():
 
 
 @veille.route('/api/sources')
-@login_required
+@access_required(permission='textes.voir')
 @system_admin_required
-@has_permission('textes.voir')
 def api_sources():
     sources = SourceReglementaire.query.order_by(SourceReglementaire.nom).all()
     return jsonify([{
@@ -67,9 +75,8 @@ def api_sources():
 
 
 @veille.route('/api/create', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def api_create():
     data = request.get_json()
     v = Veille(
@@ -87,39 +94,27 @@ def api_create():
 
 
 @veille.route('/api/<int:id>/update', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def api_update(id):
-    v = Veille.query.get_or_404(id)
     data = request.get_json()
-    if 'statut' in data:
-        v.statut = data['statut']
-    if 'resume' in data:
-        v.resume = data['resume']
-    if 'texte_id' in data:
-        v.texte_id = data['texte_id']
-    if 'source_id' in data:
-        v.source_id = data['source_id']
-    db.session.commit()
+    if not data:
+        return jsonify({'error': 'Données JSON requises'}), 400
+    VeilleResource.update_resource(id)
     return jsonify({'success': True})
 
 
 @veille.route('/api/<int:id>/delete', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def api_delete(id):
-    v = Veille.query.get_or_404(id)
-    db.session.delete(v)
-    db.session.commit()
+    VeilleResource.delete_resource(id)
     return jsonify({'success': True})
 
 
 @veille.route('/api/source/create', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def api_source_create():
     data = request.get_json()
     s = SourceReglementaire(
@@ -134,9 +129,8 @@ def api_source_create():
 
 
 @veille.route('/api/source/<int:id>/delete', methods=['POST'])
-@login_required
+@access_required(permission='textes.modifier')
 @system_admin_required
-@has_permission('textes.modifier')
 def api_source_delete(id):
     s = SourceReglementaire.query.get_or_404(id)
     Veille.query.filter_by(source_id=id).update({'source_id': None})

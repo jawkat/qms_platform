@@ -69,7 +69,6 @@
                 <div class="mb-3">
                   <label class="form-label-custom" for="abonnement_type">Plan</label>
                   <select id="abonnement_type" name="abonnement_type" class="form-select form-select-custom">
-                    <option value="trial" data-price="0">Essai gratuit</option>
                     {% for p in plans %}
                     <option value="{{ p.plan_key }}" data-price="{{ p.price_mad }}">
                       {{ p.label }} — {{ p.price_mad }} MAD/an

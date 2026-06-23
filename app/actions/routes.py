@@ -1,10 +1,11 @@
 from flask import render_template, request, jsonify, redirect, url_for, flash, Response
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import ActionCorrective, ProofMaster, ProofReference, Utilisateur
 from app.actions import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app.services.quota_middleware import check_quota
 from app.services.action_service import ActionService
 from app.schemas.actions import ActionSchema, ActionCreateSchema
@@ -13,11 +14,19 @@ import csv
 import io
 
 
+class ActionCorrectiveResource(BaseResource):
+    model = ActionCorrective
+    schema = ActionSchema
+    search_fields = ['description', 'type_action', 'statut', 'priorite']
+    filter_fields = {'statut': 'statut', 'type_action': 'type_action', 'priorite': 'priorite'}
+    sort_field = 'date_creation'
+    sort_dir = 'desc'
+
+
 @blueprint.route('/')
 @blueprint.route('/')
 @blueprint.route('/liste')
-@login_required
-@has_permission('actions.voir')
+@access_required(permission='actions.voir')
 def liste_actions():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     actions = ActionService.get_all_by_tenant(
@@ -31,8 +40,7 @@ def liste_actions():
 
 
 @blueprint.get('/api/liste')
-@login_required
-@has_permission('actions.voir')
+@access_required(permission='actions.voir')
 @blueprint.response(200, ActionSchema(many=True))
 def api_liste_actions():
     """Liste des actions au format JSON"""
@@ -41,8 +49,7 @@ def api_liste_actions():
 
 
 @blueprint.post('/api/create')
-@login_required
-@has_permission('actions.cree')
+@access_required(permission='actions.cree')
 @check_quota('actions')
 @blueprint.arguments(ActionCreateSchema)
 @blueprint.response(201, ActionSchema)
@@ -55,8 +62,7 @@ def api_create_action(data):
 
 
 @blueprint.route('/<int:action_id>', methods=['GET', 'POST'])
-@login_required
-@has_permission('actions.modifier')
+@access_required(permission='actions.modifier')
 def detail_action(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
     responsables = Utilisateur.query.all()
@@ -89,8 +95,7 @@ def detail_action(action_id):
 
 
 @blueprint.post('/<int:action_id>/api/update')
-@login_required
-@has_permission('actions.modifier')
+@access_required(permission='actions.modifier')
 @blueprint.arguments(ActionSchema(partial=True))
 @blueprint.response(200, ActionSchema)
 def api_update_action(data, action_id):
@@ -112,8 +117,7 @@ from app.services.proof_service import ProofService
 
 
 @blueprint.post('/<int:action_id>/status')
-@login_required
-@has_permission('actions.modifier')
+@access_required(permission='actions.modifier')
 @blueprint.response(200, ActionSchema)
 def update_status(action_id):
     """Mettre à jour le statut d'une action"""
@@ -132,8 +136,7 @@ def update_status(action_id):
 
 
 @blueprint.post('/<int:action_id>/proof/attach')
-@login_required
-@has_permission('actions.modifier')
+@access_required(permission='actions.modifier')
 def attach_proof(action_id):
     """Attacher une preuve à une action"""
     action = tenant_get_or_404(ActionCorrective, action_id)
@@ -157,8 +160,7 @@ def attach_proof(action_id):
 
 
 @blueprint.post('/<int:action_id>/proof/detach/<int:ref_id>')
-@login_required
-@has_permission('actions.modifier')
+@access_required(permission='actions.modifier')
 def detach_proof(action_id, ref_id):
     """Détacher une preuve d'une action"""
     ref = tenant_get_or_404(ProofReference, ref_id)
@@ -168,8 +170,7 @@ def detach_proof(action_id, ref_id):
 
 
 @blueprint.get('/<int:action_id>/proof/liste')
-@login_required
-@has_permission('actions.modifier')
+@access_required(permission='actions.modifier')
 @blueprint.response(200, ActionReferenceSchema(many=True))
 def list_proofs(action_id):
     """Liste des preuves attachées à une action"""
@@ -180,10 +181,9 @@ def list_proofs(action_id):
 
 
 @blueprint.route('/<int:action_id>/delete', methods=['POST'])
-@login_required
-@has_permission('actions.supprimer')
+@access_required(permission='actions.supprimer')
 def delete_action(action_id):
-    action = tenant_get_or_404(ActionCorrective, action_id)
+    action = ActionCorrectiveResource.get_resource(action_id)
     db.session.delete(action)
     db.session.commit()
     flash('Action supprimee.', 'success')
@@ -191,8 +191,7 @@ def delete_action(action_id):
 
 
 @blueprint.route('/api/export')
-@login_required
-@has_permission('actions.voir')
+@access_required(permission='actions.voir')
 def export_actions():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     actions = ActionCorrective.query.filter_by(

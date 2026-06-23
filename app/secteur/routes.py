@@ -1,16 +1,15 @@
 from flask import render_template, flash, redirect, url_for, request, abort
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 
 from app.models import TexteReglementaire, TexteVersion, Article, Secteur, ExigenceType
 from . import secteur
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
 from flask import jsonify
 
 
 @secteur.route('/')
-@login_required
-@has_permission('secteur.voir')
+@access_required(permission='secteur.voir')
 def liste_secteurs():
     """Liste des secteurs"""
     secteurs_list = Secteur.query.all()
@@ -19,8 +18,7 @@ def liste_secteurs():
 
 
 @secteur.route('/<int:secteur_id>')
-@login_required
-@has_permission('secteur.voir')
+@access_required(permission='secteur.voir')
 def consulter_secteur(secteur_id):
     """Consulter un secteur"""
     secteur = Secteur.query.get_or_404(secteur_id)
@@ -28,8 +26,7 @@ def consulter_secteur(secteur_id):
 
 
 @secteur.route('/admin/textes')
-@login_required
-@has_permission('secteur.gerer_textes')
+@access_required(permission='secteur.gerer_textes')
 def admin_textes():
     """Admin interface: list all textes and their linked secteurs"""
     textes = TexteReglementaire.query.order_by(TexteReglementaire.titre).all()
@@ -38,8 +35,7 @@ def admin_textes():
 
 
 @secteur.route('/admin/textes/<int:texte_id>/edit_secteurs', methods=['GET'])
-@login_required
-@has_permission('secteur.gerer_textes')
+@access_required(permission='secteur.gerer_textes')
 def edit_textes_secteurs_form(texte_id):
     """Return partial form to edit secteurs for a texte (used by modal AJAX)"""
     t = TexteReglementaire.query.get_or_404(texte_id)
@@ -50,8 +46,7 @@ def edit_textes_secteurs_form(texte_id):
 
 
 @secteur.route('/admin/textes/<int:texte_id>/set_secteurs', methods=['POST'])
-@login_required
-@has_permission('secteur.gerer_textes')
+@access_required(permission='secteur.gerer_textes')
 def set_textes_secteurs(texte_id):
     """Set the list of secteurs for a texte. Expects form field 'secteur_ids' (multiple)"""
     t = TexteReglementaire.query.get_or_404(texte_id)
@@ -81,8 +76,7 @@ def set_textes_secteurs(texte_id):
 
 
 @secteur.route('/create', methods=['GET', 'POST'])
-@login_required
-@has_permission('secteur.cree')
+@access_required(permission='secteur.cree')
 def create_secteur():
     """Create a new Secteur. Supports GET (form HTML) and POST (create).
 
@@ -113,8 +107,7 @@ def create_secteur():
 
 
 @secteur.route('/<int:secteur_id>/edit', methods=['GET', 'POST'])
-@login_required
-@has_permission('secteur.modifier')
+@access_required(permission='secteur.modifier')
 def edit_secteur(secteur_id):
     """Edit an existing Secteur. GET returns partial form, POST updates and returns JSON."""
     s = Secteur.query.get_or_404(secteur_id)
@@ -145,8 +138,7 @@ def edit_secteur(secteur_id):
     return jsonify({'success': True, 'secteur': {'id': s.id, 'nom': s.nom, 'description': s.description}})
 
 @secteur.route('/<int:secteur_id>/delete', methods=['POST'])
-@login_required
-@has_permission('secteur.modifier')
+@access_required(permission='secteur.modifier')
 def delete_secteur(secteur_id):
     """Supprime un seul secteur."""
     s = Secteur.query.get_or_404(secteur_id)
@@ -157,8 +149,7 @@ def delete_secteur(secteur_id):
     return jsonify({'success': True})
 
 @secteur.route('/delete_all', methods=['POST'])
-@login_required
-@has_permission('secteur.modifier')
+@access_required(permission='secteur.modifier')
 def delete_all_secteurs():
     """Supprime la totalité des secteurs."""
     secteurs = Secteur.query.all()

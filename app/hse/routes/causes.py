@@ -1,6 +1,7 @@
 from flask import render_template, request
-from flask_login import login_required, current_user
-from app.utils.permissions import module_access_required
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.hse import blueprint
 from app.models.hse import Incident, CauseIncident
@@ -8,11 +9,15 @@ from app.schemas.hse import CauseIncidentSchema
 from datetime import datetime
 
 
+class CauseIncidentResource(BaseResource):
+    model = CauseIncident
+    schema = CauseIncidentSchema
+
+
 # --- Page ---
 
 @blueprint.route('/incidents/<int:incident_id>/causes')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 def arbre_causes(incident_id):
     incident = Incident.query.filter_by(id=incident_id).first_or_404()
     return render_template('hse/causes.html', incident=incident)
@@ -21,8 +26,7 @@ def arbre_causes(incident_id):
 # --- API: Causes d'un incident ---
 
 @blueprint.get('/api/incidents/<int:incident_id>/causes')
-@login_required
-@module_access_required('hse', 'hse.voir_incidents')
+@access_required(module='hse', permission='hse.voir_incidents')
 @blueprint.response(200, CauseIncidentSchema(many=True))
 def api_causes(incident_id):
     """Liste des causes d'un incident (arbre des causes)"""
@@ -33,8 +37,7 @@ def api_causes(incident_id):
 
 
 @blueprint.post('/api/incidents/<int:incident_id>/causes/create')
-@login_required
-@module_access_required('hse', 'hse.gerer_incidents')
+@access_required(module='hse', permission='hse.gerer_incidents')
 @blueprint.arguments(CauseIncidentSchema)
 @blueprint.response(201, CauseIncidentSchema)
 def api_causes_create(data, incident_id):
@@ -47,26 +50,16 @@ def api_causes_create(data, incident_id):
 
 
 @blueprint.post('/api/causes/<int:item_id>/update')
-@login_required
-@module_access_required('hse', 'hse.gerer_incidents')
+@access_required(module='hse', permission='hse.gerer_incidents')
 @blueprint.arguments(CauseIncidentSchema(partial=True))
 @blueprint.response(200, CauseIncidentSchema)
 def api_causes_update(data, item_id):
     """Mettre à jour une cause"""
-    item = CauseIncident.query.filter_by(id=item_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+    return CauseIncidentResource.update_resource(item_id)
 
 
 @blueprint.post('/api/causes/<int:item_id>/delete')
-@login_required
-@module_access_required('hse', 'hse.gerer_incidents')
+@access_required(module='hse', permission='hse.gerer_incidents')
 def api_causes_delete(item_id):
     """Supprimer une cause"""
-    item = CauseIncident.query.filter_by(id=item_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return CauseIncidentResource.delete_resource(item_id)

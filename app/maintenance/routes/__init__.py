@@ -4,6 +4,7 @@ from flask_smorest import Blueprint
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 
 import os
@@ -22,18 +23,14 @@ class EquipementResource(BaseResource):
     search_fields = ['nom', 'reference']
 
 
+auto_register_crud(blueprint, EquipementMaintenance, EquipementMaintenanceSchema,
+                   module='maintenance', flat=True)
+
+
 @blueprint.route('/')
 @access_required(module='maintenance', permission='maintenance.voir')
 def index():
     return render_template('maintenance/index.html')
-
-
-@blueprint.get('/api/liste')
-@access_required(module='maintenance', permission='maintenance.voir')
-@blueprint.response(200, EquipementMaintenanceSchema(many=True))
-def api_liste():
-    """Liste des équipements et machines"""
-    return EquipementResource.list_resources()
 
 
 @blueprint.get('/api/stats')
@@ -48,28 +45,3 @@ def api_stats():
         'maintenances_due': base.filter(EquipementMaintenance.date_prochaine_maintenance <= date.today()).count(),
         'interventions_en_cours': InterventionMaintenance.query.filter_by(statut='en_cours').count(),
     }
-
-
-@blueprint.post('/api/creer')
-@access_required(module='maintenance', permission='maintenance.gerer')
-@blueprint.arguments(EquipementMaintenanceSchema)
-@blueprint.response(201, EquipementMaintenanceSchema)
-def api_creer(data):
-    """Ajouter un nouvel équipement"""
-    return EquipementResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(module='maintenance', permission='maintenance.gerer')
-@blueprint.arguments(EquipementMaintenanceSchema(partial=True))
-@blueprint.response(200, EquipementMaintenanceSchema)
-def api_modifier(data, item_id):
-    """Modifier un équipement"""
-    return EquipementResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(module='maintenance', permission='maintenance.gerer')
-def api_supprimer(item_id):
-    """Supprimer un équipement"""
-    return EquipementResource.delete_resource(item_id)

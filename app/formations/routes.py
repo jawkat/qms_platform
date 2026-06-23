@@ -2,6 +2,7 @@ from flask import render_template, request, jsonify, session
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 from app.formations import blueprint
 from app.models.partages import Formation
@@ -12,14 +13,40 @@ from app.schemas.partages import FormationSchema
 from app.schemas.competence import CompetenceSchema, FormationParticipantSchema, EmployeCompetenceSchema
 
 
-# =============================================================================
-# Resource definitions
-# =============================================================================
-
 class FormationResource(BaseResource):
     model = Formation
     schema = FormationSchema
     search_fields = ['titre', 'formateur', 'theme']
+
+    @classmethod
+    def _query(cls):
+        q = super()._query()
+        domaine = session.get('domaine', 'hse')
+        return q.filter_by(domaine=domaine)
+
+    @classmethod
+    def list_resources(cls):
+        q = cls._query()
+        for param, col in cls.filter_fields.items():
+            val = request.args.get(param)
+            if val:
+                q = q.filter(getattr(cls.model, col) == val)
+        search = request.args.get('q', '').strip()
+        if search and cls.search_fields:
+            like = f'%{search}%'
+            conds = [getattr(cls.model, f).ilike(like) for f in cls.search_fields]
+            q = q.filter(db.or_(*conds))
+        sort_attr = getattr(cls.model, cls.sort_field)
+        if sort_attr is not None:
+            order = getattr(sort_attr, cls.sort_dir)
+            if order is not None:
+                q = q.order_by(order())
+        return q.all()
+
+    @classmethod
+    def create_resource(cls, data):
+        data.domaine = session.get('domaine', 'hse')
+        return super().create_resource(data)
 
 
 class CompetenceResource(BaseResource):
@@ -44,9 +71,10 @@ class MatriceResource(BaseResource):
     tenant_field = 'entreprise_id'
 
 
-# =============================================================================
-# Pages HTML
-# =============================================================================
+auto_register_crud(blueprint, Formation, FormationSchema,
+                   permission_voir='formations.voir', permission_gerer='formations.gerer',
+                   flat=True)
+
 
 @blueprint.route('/')
 @access_required(permission='formations.voir')
@@ -84,50 +112,6 @@ def matrice():
 @access_required(permission='formations.voir')
 def certifications():
     return render_template('formations/certifications.html')
-
-
-# =============================================================================
-# API — Formations CRUD
-# =============================================================================
-
-@blueprint.get('/api/liste')
-@access_required(permission='formations.voir')
-@blueprint.response(200, FormationSchema(many=True))
-def api_liste():
-    """Liste des formations (filtrée par domaine depuis la session)"""
-    domaine = session.get('domaine', 'hse')
-    return Formation.query.filter_by(
-        domaine=domaine
-    ).order_by(Formation.date_creation.desc()).all()
-
-
-@blueprint.post('/api/creer')
-@access_required(permission='formations.gerer')
-@blueprint.arguments(FormationSchema)
-@blueprint.response(201, FormationSchema)
-def api_creer(data):
-    """Créer une nouvelle formation"""
-    data.entreprise_id = current_user.entreprise_id
-    data.domaine = session.get('domaine', 'hse')
-    db.session.add(data)
-    db.session.commit()
-    return data
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(permission='formations.gerer')
-@blueprint.arguments(FormationSchema(partial=True))
-@blueprint.response(200, FormationSchema)
-def api_modifier(data, item_id):
-    """Mettre à jour une formation"""
-    return FormationResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(permission='formations.gerer')
-def api_supprimer(item_id):
-    """Supprimer une formation"""
-    return FormationResource.delete_resource(item_id)
 
 
 # =============================================================================

@@ -1,14 +1,14 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, abort, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
 from app import db
 from app.models import Entreprise, Secteur, TexteReglementaire, EntrepriseTexte, SubscriptionPlan, Utilisateur, Role
 from app.entreprises import entreprises
-from app.utils.permissions import has_permission
+from app.utils.permissions import access_required
 from datetime import date, timedelta
 
 
 @entreprises.route('/')
-@login_required
+@access_required()
 def index():
     entreprises_list = Entreprise.query.all()
     plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
@@ -16,8 +16,7 @@ def index():
 
 
 @entreprises.route('/create', methods=['GET', 'POST'])
-@login_required
-@has_permission('entreprises.cree')
+@access_required(permission='entreprises.cree')
 def create():
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
@@ -63,14 +62,14 @@ def create():
 
         selected_secteur_ids = request.form.getlist('secteurs')
 
+        from app.utils.subscriptions import get_subscription_plan
+
         plan_key = (request.form.get('abonnement_type') or '').strip().lower() or None
-        plan = SubscriptionPlan.query.filter_by(plan_key=plan_key).first() if plan_key else None
-        default_trial = (plan.trial_days if plan else None) or 14
+        plan = get_subscription_plan(plan_key) if plan_key else None
         trial_override = request.form.get('trial_days')
-        try:
-            trial_days = int(trial_override) if (trial_override or '').strip() else default_trial
-        except (TypeError, ValueError):
-            trial_days = default_trial
+        trial_days = 14
+        if plan_key == 'trial':
+            trial_days = int(trial_override) if (trial_override or '').strip() else 14
 
         entreprise = Entreprise(
             nom=nom,
@@ -78,14 +77,17 @@ def create():
             pays=pays,
             adresse=adresse,
             modules_actifs=modules,
-            abonnement_type=plan_key or 'trial',
-            statut='active',
+            abonnement_type='essential' if plan_key == 'trial' else (plan_key or 'essential'),
+            statut='trial',
             date_inscription=date.today(),
             contact_facturation_email=contact_facturation_email,
-            periode_essai_jours=trial_days,
-            date_debut_essai=None,
+            periode_essai_jours=trial_days if plan_key == 'trial' else None,
+            date_debut_essai=date.today() if plan_key == 'trial' else None,
         )
-        entreprise.abonnement_prochaine_echeance = date.today() + timedelta(days=trial_days)
+        if plan_key == 'trial':
+            entreprise.abonnement_prochaine_echeance = date.today() + timedelta(days=trial_days)
+        else:
+            entreprise.abonnement_prochaine_echeance = date.today() + timedelta(days=14)
         db.session.add(entreprise)
         db.session.flush()
 
@@ -205,7 +207,7 @@ def create():
 
 
 @entreprises.route('/<int:entreprise_id>/edit', methods=['GET', 'POST'])
-@login_required
+@access_required()
 def edit(entreprise_id):
     entreprise = db.session.get(Entreprise, entreprise_id)
     if not entreprise:
@@ -226,8 +228,7 @@ def edit(entreprise_id):
 
 
 @entreprises.route('/<int:entreprise_id>/resend-welcome-email', methods=['POST'])
-@login_required
-@has_permission('entreprises.modifier')
+@access_required(permission='entreprises.modifier')
 def resend_welcome_email(entreprise_id):
     entreprise = db.session.get(Entreprise, entreprise_id)
     if not entreprise:
@@ -260,7 +261,7 @@ def resend_welcome_email(entreprise_id):
 
 
 @entreprises.route('/api/liste')
-@login_required
+@access_required()
 def api_liste():
     items = Entreprise.query.order_by(Entreprise.nom).all()
     return jsonify([{
@@ -277,7 +278,7 @@ def api_liste():
 
 
 @entreprises.route('/api/<int:item_id>/detail')
-@login_required
+@access_required()
 def api_detail(item_id):
     r = db.session.get(Entreprise, item_id)
     if not r:
@@ -303,8 +304,7 @@ def api_detail(item_id):
 
 
 @entreprises.route('/api/<int:item_id>/update', methods=['POST'])
-@login_required
-@has_permission('entreprises.modifier')
+@access_required(permission='entreprises.modifier')
 def api_update(item_id):
     r = db.session.get(Entreprise, item_id)
     if not r:
@@ -318,8 +318,7 @@ def api_update(item_id):
 
 
 @entreprises.route('/api/<int:item_id>/delete', methods=['POST'])
-@login_required
-@has_permission('entreprises.supprimer')
+@access_required(permission='entreprises.supprimer')
 def api_delete(item_id):
     r = db.session.get(Entreprise, item_id)
     if not r:
@@ -328,8 +327,7 @@ def api_delete(item_id):
     db.session.commit()
     return jsonify({'success': True})
 @entreprises.route('/mon-entreprise')
-@login_required
-@has_permission('entreprises.modifier')
+@access_required(permission='entreprises.modifier')
 def management():
     """
     Console de management locale pour les administrateurs d'entreprise.
@@ -337,6 +335,7 @@ def management():
     et superviser l'équipe sans avoir accès à l'administration globale.
     """
     from app.models import SubscriptionPlan, ActionCorrective
+    from app.utils.subscriptions import get_subscription_plan
 
     entreprise_id = current_user.entreprise_id
     if not entreprise_id:
@@ -351,16 +350,23 @@ def management():
     users_actifs = Utilisateur.query.filter_by(entreprise_id=entreprise.id, actif=True).count()
 
     # Quotas du plan d'abonnement
-    plan = SubscriptionPlan.query.filter_by(plan_key=entreprise.abonnement_type).first()
-    max_users = plan.max_users if plan else None
-    max_documents = plan.max_documents if plan else None
-    max_actions = plan.max_open_actions if plan else None
+    plan = get_subscription_plan(entreprise.abonnement_type)
+    max_users = plan.get('max_users') if plan else None
+    max_documents = plan.get('max_documents') if plan else None
+    max_actions = plan.get('max_open_actions') if plan else None
+    max_storage_mb = plan.get('max_storage_mb') if plan else None
     
     # Usage
     open_actions = ActionCorrective.query.filter(
         ActionCorrective.entreprise_id == entreprise.id,
         ActionCorrective.statut.in_(['ouverte', 'en_cours'])
     ).count() if max_actions else None
+
+    from app.models.proofs import ProofMaster
+    proof_masters = ProofMaster.query.filter_by(entreprise_id=entreprise.id).all()
+    used_documents = len({pm.nom_fichier for pm in proof_masters}) if max_documents else None
+    used_storage_bytes = sum(pm.taille_bytes or 0 for pm in proof_masters)
+    used_storage_mb = round(used_storage_bytes / (1024 * 1024), 1) if max_storage_mb else None
     
     # Modules
     from app.core import plugin_manager
@@ -377,5 +383,9 @@ def management():
         plan=plan,
         max_users=max_users,
         max_actions=max_actions,
+        max_documents=max_documents,
+        max_storage_mb=max_storage_mb,
         open_actions=open_actions,
+        used_documents=used_documents,
+        used_storage_mb=used_storage_mb,
     )

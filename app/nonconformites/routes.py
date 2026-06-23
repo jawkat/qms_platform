@@ -2,6 +2,7 @@ from flask import render_template, request
 from flask_login import current_user
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app import db
 from app.nonconformites import blueprint
 from app.models.nonconformite import NonConformite
@@ -16,42 +17,15 @@ class NonConformiteResource(BaseResource):
     search_fields = ['reference', 'description']
 
 
+auto_register_crud(blueprint, NonConformite, NonConformiteSchema,
+                   permission_voir='nonconformites.voir', permission_gerer='nonconformites.gerer',
+                   flat=True)
+
+
 @blueprint.route('/')
 @access_required(permission='nonconformites.voir')
 def index():
     return render_template('nonconformites/index.html')
-
-
-@blueprint.get('/api/liste')
-@access_required(permission='nonconformites.voir')
-@blueprint.response(200, NonConformiteSchema(many=True))
-def api_liste():
-    """Liste des non-conformités filtrée"""
-    return NonConformiteResource.list_resources()
-
-
-@blueprint.post('/api/creer')
-@access_required(permission='nonconformites.gerer')
-@blueprint.arguments(NonConformiteCreateSchema)
-@blueprint.response(201, NonConformiteSchema)
-def api_creer(data):
-    """Créer une nouvelle non-conformité"""
-    return NonConformiteResource.create_resource(data)
-
-
-@blueprint.post('/api/<int:item_id>/modifier')
-@access_required(permission='nonconformites.gerer')
-@blueprint.response(200, NonConformiteSchema)
-def api_modifier(item_id):
-    """Mettre à jour une non-conformité"""
-    return NonConformiteResource.update_resource(item_id)
-
-
-@blueprint.post('/api/<int:item_id>/supprimer')
-@access_required(permission='nonconformites.gerer')
-def api_supprimer(item_id):
-    """Supprimer une non-conformité"""
-    return NonConformiteResource.delete_resource(item_id)
 
 
 @blueprint.post('/api/<int:item_id>/valider-cloture')

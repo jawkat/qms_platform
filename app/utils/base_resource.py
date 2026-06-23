@@ -1,28 +1,34 @@
 from flask import request, abort
 from flask_login import current_user
 from app.extensions import db
+from app.services.base import BaseService
 
 
 class BaseResource:
-    """Generic CRUD for any SQLAlchemy model with tenant scoping & field protection.
+    """Pont HTTP → Service.
 
-    Usage in a route file::
+    Responsabilités :
+    - Lire la requête HTTP (request.args, request.get_json)
+    - Récupérer le tenant courant (current_user.entreprise_id)
+    - Déléguer les opérations CRUD au service
+    - Protéger les champs sensibles (id, entreprise_id, date_creation)
+    - Retourner 404 si l'item n'existe pas
+
+    NE CONTIENT PAS de logique métier.  Pour ajouter des règles,
+    créer une sous-classe de BaseService et la référencer via
+    ``service_class``.
+
+    Usage ::
 
         class FormationResource(BaseResource):
             model = Formation
             schema = FormationSchema
-            search_fields = ['titre', 'formateur']
-            filter_fields = {'statut': 'statut', 'domaine': 'domaine'}
-
-        @blueprint.get('/api/liste')
-        @access_required(permission='formations.voir')
-        @blueprint.response(200, FormationSchema(many=True))
-        def api_liste():
-            return FormationResource.list_resources()
+            service_class = FormationService  # optionnel
     """
 
     model = None
     schema = None
+    service_class = None
     protected_fields = frozenset({'id', 'entreprise_id', 'date_creation'})
     sort_field = 'date_creation'
     sort_dir = 'desc'
@@ -30,69 +36,117 @@ class BaseResource:
     filter_fields = {}
     tenant_field = 'entreprise_id'
 
+    # ------------------------------------------------------------------
+    # Service
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _get_service(cls):
+        if cls.service_class is not None:
+            return cls.service_class
+        if cls.model is not None:
+            return type(f'{cls.__name__}AutoService', (BaseService,), {'model': cls.model})
+        return BaseService
+
+    @classmethod
+    def _get_entreprise_id(cls):
+        if not cls.tenant_field or not current_user.is_authenticated:
+            return None
+        return current_user.entreprise_id
+
+    # ------------------------------------------------------------------
+    # Query — surchargeable pour filtres customs (PrpResource, …)
+    # ------------------------------------------------------------------
+
     @classmethod
     def _query(cls):
-        """Base query scoped to current tenant."""
-        q = cls.model.query
-        if cls.tenant_field and current_user.is_authenticated and current_user.entreprise_id:
-            q = q.filter(getattr(cls.model, cls.tenant_field) == current_user.entreprise_id)
-        return q
+        """Requête de base — le tenant scoping est assuré par l'Event Listener global."""
+        return cls.model.query
+
+    @classmethod
+    def _uses_custom_query(cls):
+        """True si une sous-classe a surchargé _query()."""
+        return '_query' in cls.__dict__
+
+    # ------------------------------------------------------------------
+    # list_resources
+    # ------------------------------------------------------------------
 
     @classmethod
     def list_resources(cls):
-        """GET /api/liste — filtre, cherche, trie et retourne tous les items."""
-        q = cls._query()
+        if cls._uses_custom_query():
+            q = cls._query()
+            for param, col in cls.filter_fields.items():
+                val = request.args.get(param)
+                if val:
+                    q = q.filter(getattr(cls.model, col) == val)
+            search = request.args.get('q', '').strip()
+            if search and cls.search_fields:
+                like = f'%{search}%'
+                conds = [getattr(cls.model, f).ilike(like) for f in cls.search_fields]
+                q = q.filter(db.or_(*conds))
+            sort_attr = getattr(cls.model, cls.sort_field, None)
+            if sort_attr is not None:
+                order = getattr(sort_attr, cls.sort_dir, None)
+                if order is not None:
+                    q = q.order_by(order())
+            return q.all()
 
-        for param, col in cls.filter_fields.items():
-            val = request.args.get(param)
-            if val:
-                q = q.filter(getattr(cls.model, col) == val)
-
+        svc = cls._get_service()
+        eid = cls._get_entreprise_id()
+        filters = {p: request.args[p] for p in cls.filter_fields if p in request.args}
         search = request.args.get('q', '').strip()
-        if search and cls.search_fields:
-            like = f'%{search}%'
-            filters = [getattr(cls.model, f).ilike(like) for f in cls.search_fields]
-            q = q.filter(db.or_(*filters))
+        return svc.list(
+            entreprise_id=eid,
+            filters=filters,
+            search=search,
+            search_fields=cls.search_fields,
+            sort_field=cls.sort_field,
+            sort_dir=cls.sort_dir,
+        )
 
-        sort_attr = getattr(cls.model, cls.sort_field, None)
-        if sort_attr is not None:
-            order = getattr(sort_attr, cls.sort_dir, None)
-            if order is not None:
-                q = q.order_by(order())
-
-        return q.all()
+    # ------------------------------------------------------------------
+    # get_resource
+    # ------------------------------------------------------------------
 
     @classmethod
     def get_resource(cls, item_id):
-        """GET /api/<id> — retourne un item ou 404."""
-        item = cls._query().filter(cls.model.id == item_id).first()
+        if cls._uses_custom_query():
+            item = cls._query().filter(cls.model.id == item_id).first()
+        else:
+            item = cls._get_service().get_by_id(item_id, cls._get_entreprise_id())
         if not item:
             abort(404)
         return item
 
+    # ------------------------------------------------------------------
+    # create_resource
+    # ------------------------------------------------------------------
+
     @classmethod
     def create_resource(cls, data):
-        """POST /api/creer — assigne l'entreprise, ajoute et commit."""
-        if cls.tenant_field and hasattr(data, cls.tenant_field):
-            setattr(data, cls.tenant_field, current_user.entreprise_id)
-        db.session.add(data)
-        db.session.commit()
-        return data
+        if cls.tenant_field:
+            setattr(data, cls.tenant_field, cls._get_entreprise_id())
+        return cls._get_service().save(data)
+
+    # ------------------------------------------------------------------
+    # update_resource
+    # ------------------------------------------------------------------
 
     @classmethod
     def update_resource(cls, item_id):
-        """POST /api/<id>/modifier — met à jour depuis request.get_json()."""
         item = cls.get_resource(item_id)
         for field, value in request.get_json().items():
             if field not in cls.protected_fields and hasattr(item, field):
                 setattr(item, field, value)
-        db.session.commit()
-        return item
+        return cls._get_service().save(item)
+
+    # ------------------------------------------------------------------
+    # delete_resource
+    # ------------------------------------------------------------------
 
     @classmethod
     def delete_resource(cls, item_id):
-        """POST /api/<id>/supprimer — supprime et commit."""
         item = cls.get_resource(item_id)
-        db.session.delete(item)
-        db.session.commit()
+        cls._get_service().remove(item)
         return {'success': True}

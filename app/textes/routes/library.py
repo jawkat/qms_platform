@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from flask import render_template, request, redirect, url_for, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.permissions import access_required
 from app import db
 from app.models import Domaine, TexteReglementaire, TexteVersion, Article, Secteur, EntrepriseTexte, EvaluationArticle, ActionCorrective, ConformiteEnum, Utilisateur
 from app.textes import textes
@@ -72,7 +73,7 @@ def _render_library(tab, filters):
         v = t.version_active
         is_new = t.date_creation and t.date_creation.date() >= cutoff if t.date_creation else False
         has_update = v and v.date_publication and v.date_publication >= cutoff if v and v.date_publication else False
-        link_state = _compute_library_linkage(eid, t.id, v.id if v else None)
+        link_state = _compute_library_linkage(current_user.entreprise_id, t.id, v.id if v else None)
         entreprise_count = EntrepriseTexte.query.filter_by(texte_version_id=v.id).count() if v else 0
         if link_state in ('linked', 'evaluated'):
             counts['linked'] += 1
@@ -140,7 +141,7 @@ def _render_library(tab, filters):
 
 @textes.route('/bibliotheque')
 @textes.route('/bibliotheque/tous-les-textes')
-@login_required
+@access_required()
 def library_all():
     filters = _parse_library_filters()
     filters['status'] = request.args.get('status', 'all')
@@ -148,7 +149,7 @@ def library_all():
 
 
 @textes.route('/bibliotheque/nouveaux-textes')
-@login_required
+@access_required()
 def library_new():
     filters = _parse_library_filters()
     filters['status'] = 'all'
@@ -156,7 +157,7 @@ def library_new():
 
 
 @textes.route('/bibliotheque/mises-a-jour-recentes')
-@login_required
+@access_required()
 def library_recent():
     filters = _parse_library_filters()
     filters['status'] = 'all'
@@ -164,7 +165,7 @@ def library_recent():
 
 
 @textes.route('/bibliotheque/article/<int:article_id>', methods=['GET', 'POST'])
-@login_required
+@access_required()
 def article_detail(article_id):
     from app.models.nonconformite import NonConformite as NCModel
     from app.models.proofs import ProofMaster, ProofReference
@@ -258,7 +259,7 @@ def article_detail(article_id):
 
 
 @textes.route('/bibliotheque/article/<int:article_id>/proof/attach', methods=['POST'])
-@login_required
+@access_required()
 def article_attach_proof(article_id):
     from app.models.proofs import ProofReference
     from app.services.proof_service import ProofService
@@ -281,7 +282,7 @@ def article_attach_proof(article_id):
 
 
 @textes.route('/bibliotheque/article/<int:article_id>/proof/liste')
-@login_required
+@access_required()
 def article_list_proofs(article_id):
     from app.models.proofs import ProofReference
     eid = current_user.entreprise_id
@@ -303,7 +304,7 @@ def article_list_proofs(article_id):
 
 
 @textes.route('/bibliotheque/article/<int:article_id>/action/add', methods=['POST'])
-@login_required
+@access_required()
 def article_add_action(article_id):
     from app.models.actions import ActionCorrective
     from datetime import datetime as dt, timedelta
@@ -330,7 +331,7 @@ def article_add_action(article_id):
 
 
 @textes.route('/bibliotheque/article/<int:article_id>/actions')
-@login_required
+@access_required()
 def article_list_actions(article_id):
     from app.models.actions import ActionCorrective
     eid = current_user.entreprise_id
@@ -353,7 +354,7 @@ def article_list_actions(article_id):
 
 
 @textes.route('/bibliotheque/preuves/<int:proof_id>/download')
-@login_required
+@access_required()
 def veille_preuves_download(proof_id):
     import os
     import mimetypes
@@ -388,7 +389,7 @@ def veille_preuves_download(proof_id):
 
 
 @textes.route('/bibliotheque/preuves/<int:proof_id>/supprimer', methods=['POST'])
-@login_required
+@access_required()
 def veille_preuves_supprimer(proof_id):
     from app.models.proofs import ProofMaster
     from app.services.proof_service import ProofService
@@ -401,7 +402,7 @@ def veille_preuves_supprimer(proof_id):
 
 
 @textes.route('/bibliotheque/preuves/upload', methods=['POST'])
-@login_required
+@access_required()
 def veille_preuves_upload():
     from app.models.proofs import ProofMaster
     from app.services.proof_service import ProofService
@@ -452,7 +453,7 @@ def veille_preuves_upload():
 
 
 @textes.route('/bibliotheque/preuves')
-@login_required
+@access_required()
 def veille_preuves():
     import os
     from datetime import date, timedelta
@@ -542,7 +543,7 @@ def veille_preuves():
 
 
 @textes.route('/bibliotheque/non-conformites')
-@login_required
+@access_required()
 def veille_non_conformites():
     from app.models.nonconformite import NonConformite
     eid = current_user.entreprise_id
@@ -609,7 +610,7 @@ def veille_non_conformites():
 
 
 @textes.route('/bibliotheque/veille-dashboard')
-@login_required
+@access_required()
 def veille_dashboard():
     eid = current_user.entreprise_id
     today = date.today()
