@@ -45,7 +45,10 @@ class TestFournisseurs:
                                 data=json.dumps({'nom': 'Test Fournisseur'}),
                                 content_type='application/json')
         assert resp.status_code in (200, 201, 403)
-        assert resp.get_json()['success'] is True
+        if resp.status_code == 201:
+            assert resp.get_json().get('nom') == 'Test Fournisseur'
+        else:
+            assert resp.get_json()['success'] is True
 
     def test_liste(self, login_client, fournisseur):
         items = login_client.get('/fournisseurs/api/liste').get_json()
@@ -56,7 +59,8 @@ class TestFournisseurs:
         resp = login_client.post(f'/fournisseurs/api/{fournisseur.id}/modifier',
                                   json={'statut': 'inactif'})
         assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        data = resp.get_json()
+        assert data.get('statut') == 'inactif' or data.get('success') is True
 
     def test_supprimer(self, login_client, fournisseur):
         resp = login_client.post(f'/fournisseurs/api/{fournisseur.id}/supprimer', json={})

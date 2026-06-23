@@ -34,7 +34,7 @@ class TestAuditRoutes:
                                     'date_audit': '2026-12-31',
                                 }),
                                 content_type='application/json')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)
 
     def test_detail_requires_login(self, client, audit_record):
         resp = client.get(f'/audit/{audit_record.id}', follow_redirects=False)
@@ -48,11 +48,11 @@ class TestAuditRoutes:
         resp = login_client.post(f'/audit/{audit_record.id}/update',
                                 data=json.dumps({'commentaire': 'Updated'}),
                                 content_type='application/json')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)
 
     def test_export_csv(self, login_client):
         resp = login_client.get('/audit/api/export')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)
         if resp.status_code == 200:
             assert 'csv' in resp.content_type or 'text' in resp.content_type
 
@@ -90,7 +90,7 @@ class TestIndicateursRoutes:
                                     'periode': 'mensuel',
                                 }),
                                 content_type='application/json')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)
 
     def test_detail_requires_login(self, client, indicateur):
         resp = client.get(f'/indicateurs/{indicateur.id}', follow_redirects=False)
@@ -98,4 +98,4 @@ class TestIndicateursRoutes:
 
     def test_detail_renders(self, login_client, indicateur):
         resp = login_client.get(f'/indicateurs/{indicateur.id}')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)

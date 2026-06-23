@@ -1,6 +1,7 @@
 from flask import render_template, request, jsonify, session
-from flask_login import login_required, current_user
-from app.utils.permissions import has_permission
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.fournisseurs import blueprint
 from app.models.partages import Fournisseur
@@ -13,9 +14,30 @@ from sqlalchemy import func
 from app.schemas.partages import FournisseurSchema
 
 
+class FournisseurResource(BaseResource):
+    model = Fournisseur
+    schema = FournisseurSchema
+    search_fields = ['nom', 'contact', 'produit']
+
+    @classmethod
+    def create_resource(cls, data):
+        data.domaine = session.get('domaine', 'hse')
+        data.calculer_score_global()
+        return super().create_resource(data)
+
+    @classmethod
+    def update_resource(cls, item_id):
+        item = cls.get_resource(item_id)
+        for field, value in request.get_json().items():
+            if field not in cls.protected_fields and hasattr(item, field):
+                setattr(item, field, value)
+        item.calculer_score_global()
+        db.session.commit()
+        return item
+
+
 @blueprint.route('/')
-@login_required
-@has_permission('fournisseurs.voir')
+@access_required(permission='fournisseurs.voir')
 def index():
     utilisateurs = Utilisateur.query.filter_by(
         actif=True
@@ -24,20 +46,16 @@ def index():
 
 
 @blueprint.get('/api/liste')
-@login_required
-@has_permission('fournisseurs.voir')
+@access_required(permission='fournisseurs.voir')
 @blueprint.response(200, FournisseurSchema(many=True))
 def api_liste():
     """Liste des fournisseurs"""
     domaine = session.get('domaine', 'hse')
-    return Fournisseur.query.filter_by(
-        domaine=domaine
-    ).order_by(Fournisseur.date_creation.desc()).all()
+    return FournisseurResource.list_resources()
 
 
 @blueprint.get('/api/stats')
-@login_required
-@has_permission('fournisseurs.voir')
+@access_required(permission='fournisseurs.voir')
 def api_stats():
     """Statistiques fournisseurs"""
     base = Fournisseur.query
@@ -50,59 +68,35 @@ def api_stats():
 
 
 @blueprint.post('/api/creer')
-@login_required
-@has_permission('fournisseurs.gerer')
+@access_required(permission='fournisseurs.gerer')
 @blueprint.arguments(FournisseurSchema)
 @blueprint.response(201, FournisseurSchema)
 def api_creer(data):
     """Enregistrer un nouveau fournisseur"""
-    data.entreprise_id = current_user.entreprise_id
-    data.domaine = session.get('domaine', 'hse')
-    data.calculer_score_global()
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return FournisseurResource.create_resource(data)
 
 
 @blueprint.post('/api/<int:item_id>/modifier')
-@login_required
-@has_permission('fournisseurs.gerer')
+@access_required(permission='fournisseurs.gerer')
 @blueprint.arguments(FournisseurSchema(partial=True))
 @blueprint.response(200, FournisseurSchema)
 def api_modifier(data, item_id):
     """Mettre à jour un fournisseur"""
-    item = Fournisseur.query.filter_by(
-        id=item_id
-    ).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    item.calculer_score_global()
-    db.session.commit()
-    return item
+    return FournisseurResource.update_resource(item_id)
 
 
 @blueprint.post('/api/<int:item_id>/supprimer')
-@login_required
-@has_permission('fournisseurs.gerer')
+@access_required(permission='fournisseurs.gerer')
 def api_supprimer(item_id):
     """Supprimer un fournisseur"""
-    item = Fournisseur.query.filter_by(
-        id=item_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return FournisseurResource.delete_resource(item_id)
 
 
 @blueprint.post('/api/<int:item_id>/evaluer')
-@login_required
-@has_permission('fournisseurs.gerer')
+@access_required(permission='fournisseurs.gerer')
 def api_evaluer(item_id):
     """Enregistrer une évaluation périodique"""
-    item = Fournisseur.query.filter_by(
-        id=item_id
-    ).first_or_404()
+    item = FournisseurResource.get_resource(item_id)
     data = request.get_json()
     evaluation = EvaluationFournisseur(
         fournisseur_id=item_id,

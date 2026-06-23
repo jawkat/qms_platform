@@ -1,19 +1,29 @@
 from flask import render_template, request, redirect, url_for, flash, Response
-from flask_login import login_required, current_user
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.models import Audit, AuditObservation, Utilisateur, TexteReglementaire, Article
 from app.audit import blueprint
 from app.schemas.audit import AuditSchema, AuditObservationSchema
-from app.utils.tenant_scope import tenant_get_or_404
-from app.utils.permissions import has_permission
 from datetime import datetime
 import csv
 import io
 
 
+class AuditResource(BaseResource):
+    model = Audit
+    schema = AuditSchema
+    search_fields = ['commentaire', 'type']
+
+    @classmethod
+    def create_resource(cls, data):
+        data.domaine = __import__('flask').session.get('domaine_actif', 'hse')
+        return super().create_resource(data)
+
+
 @blueprint.route('/')
-@login_required
-@has_permission('audit.voir')
+@access_required(permission='audit.voir')
 def index():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     q = Audit.query.filter_by(
@@ -35,29 +45,22 @@ def index():
 
 
 @blueprint.route('/creer', methods=['GET'])
-@login_required
+@access_required(permission='audit.voir')
 def creer():
     return redirect(url_for('audit.index'))
 
 
 @blueprint.post('/creer')
-@login_required
-@has_permission('audit.cree')
+@access_required(permission='audit.cree')
 @blueprint.arguments(AuditSchema)
 @blueprint.response(201, AuditSchema)
 def api_creer(data):
     """Créer un nouvel audit"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    data.entreprise_id = current_user.entreprise_id
-    data.domaine = domaine
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return AuditResource.create_resource(data)
 
 
 @blueprint.get('/api/liste')
-@login_required
-@has_permission('audit.voir')
+@access_required(permission='audit.voir')
 @blueprint.response(200, AuditSchema(many=True))
 def api_liste():
     """Liste des audits"""
@@ -68,10 +71,9 @@ def api_liste():
 
 
 @blueprint.route('/<int:audit_id>', methods=['GET'])
-@login_required
-@has_permission('audit.voir')
+@access_required(permission='audit.voir')
 def detail(audit_id):
-    audit = tenant_get_or_404(Audit, audit_id)
+    audit = AuditResource.get_resource(audit_id)
     auditeurs = Utilisateur.query.all()
     textes = TexteReglementaire.query.order_by(TexteReglementaire.titre).all()
     articles = Article.query.order_by(Article.numero_article).all()
@@ -80,52 +82,42 @@ def detail(audit_id):
 
 
 @blueprint.post('/<int:audit_id>/update')
-@login_required
-@has_permission('audit.modifier')
+@access_required(permission='audit.modifier')
 @blueprint.arguments(AuditSchema(partial=True))
 @blueprint.response(200, AuditSchema)
 def update(data, audit_id):
     """Mettre à jour un audit"""
-    audit = tenant_get_or_404(Audit, audit_id)
-    for field, value in request.get_json().items():
-        if hasattr(audit, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(audit, field, value)
-    db.session.commit()
-    return audit
+    return AuditResource.update_resource(audit_id)
 
 
 @blueprint.post('/<int:audit_id>/delete')
-@login_required
-@has_permission('audit.modifier')
+@access_required(permission='audit.modifier')
 def delete(audit_id):
     """Supprimer un audit"""
-    audit = tenant_get_or_404(Audit, audit_id)
-    db.session.delete(audit)
-    db.session.commit()
+    AuditResource.delete_resource(audit_id)
     flash('Audit supprimé.', 'success')
     return redirect(url_for('audit.index'))
 
 
 @blueprint.post('/<int:audit_id>/observation/add')
-@login_required
-@has_permission('audit.modifier')
+@access_required(permission='audit.modifier')
 @blueprint.arguments(AuditObservationSchema)
 @blueprint.response(201, AuditObservationSchema)
 def add_observation(data, audit_id):
     """Ajouter une observation à un audit"""
-    audit = tenant_get_or_404(Audit, audit_id)
+    audit = AuditResource.get_resource(audit_id)
     data.audit_id = audit.id
+    data.entreprise_id = current_user.entreprise_id
     db.session.add(data)
     db.session.commit()
     return data
 
 
 @blueprint.post('/<int:audit_id>/observation/<int:obs_id>/delete')
-@login_required
-@has_permission('audit.modifier')
+@access_required(permission='audit.modifier')
 def delete_observation(audit_id, obs_id):
     """Supprimer une observation"""
-    tenant_get_or_404(Audit, audit_id)
+    AuditResource.get_resource(audit_id)
     obs = AuditObservation.query.get_or_404(obs_id)
     if obs.audit_id != audit_id:
         from flask import abort
@@ -136,8 +128,7 @@ def delete_observation(audit_id, obs_id):
 
 
 @blueprint.route('/api/export')
-@login_required
-@has_permission('audit.voir')
+@access_required(permission='audit.voir')
 def export_audits():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     audits = Audit.query.filter_by(
