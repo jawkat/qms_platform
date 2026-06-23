@@ -1,6 +1,7 @@
-from flask import render_template, request, jsonify, abort
-from flask_login import login_required, current_user
-from app.utils.permissions import module_access_required
+from flask import render_template
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.haccp import blueprint
 from app.models import (
@@ -14,622 +15,452 @@ from app.schemas.haccp import (
     CcpSchema, EnregistrementCcpSchema, PrpSchema, EnregistrementOprpSchema,
     TracabiliteLotSchema, RappelProduitSchema
 )
-from datetime import date, datetime
 
 
+# =============================================================================
+# Resource definitions
+# =============================================================================
+
+class ProcessusHaccpResource(BaseResource):
+    model = ProcessusHaccp
+    schema = ProcessusHaccpSchema
 
 
-# --- Pages ---
-
-@blueprint.route('/')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def tableau_de_bord():
-    return render_template('haccp/tableau_de_bord.html')
+class ProduitHaccpResource(BaseResource):
+    model = ProduitHaccp
+    schema = ProduitHaccpSchema
 
 
-@blueprint.route('/processus')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def processus():
-    return render_template('haccp/processus.html')
+class AnalyseDangerResource(BaseResource):
+    model = AnalyseDanger
+    schema = AnalyseDangerSchema
 
 
-@blueprint.route('/produits')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def produits():
-    return render_template('haccp/produits.html')
+class CcpResource(BaseResource):
+    model = Ccp
+    schema = CcpSchema
 
 
-@blueprint.route('/dangers')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def dangers():
-    return render_template('haccp/dangers.html')
+class EnregistrementCcpResource(BaseResource):
+    model = EnregistrementCcp
+    schema = EnregistrementCcpSchema
+    sort_field = 'date_controle'
 
 
-@blueprint.route('/ccp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def ccp():
-    return render_template('haccp/ccp.html')
+class EnregistrementOprpResource(BaseResource):
+    model = EnregistrementOprp
+    schema = EnregistrementOprpSchema
+    sort_field = 'date_controle'
 
 
-@blueprint.route('/enregistrements')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def enregistrements():
-    return render_template('haccp/enregistrements.html')
+class TracabiliteLotResource(BaseResource):
+    model = TracabiliteLot
+    schema = TracabiliteLotSchema
 
 
-@blueprint.route('/prp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def prp():
-    return render_template('haccp/prp.html')
+class RappelProduitResource(BaseResource):
+    model = RappelProduit
+    schema = RappelProduitSchema
 
 
-@blueprint.route('/oprp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def oprp():
-    return render_template('haccp/oprp.html')
+class PrpResource(BaseResource):
+    model = Prp
+    schema = PrpSchema
+
+    @classmethod
+    def _query(cls):
+        return super()._query().filter_by(type_prp='generic')
+
+    @classmethod
+    def create_resource(cls, data):
+        data.type_prp = 'generic'
+        return super().create_resource(data)
 
 
-@blueprint.route('/enregistrements-oprp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def enregistrements_oprp():
-    return render_template('haccp/enregistrements_oprp.html')
+class OprpResource(BaseResource):
+    model = Prp
+    schema = PrpSchema
+
+    @classmethod
+    def _query(cls):
+        return super()._query().filter_by(type_prp='operational')
+
+    @classmethod
+    def create_resource(cls, data):
+        data.type_prp = 'operational'
+        return super().create_resource(data)
 
 
-@blueprint.route('/tracabilite')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def tracabilite():
-    return render_template('haccp/tracabilite.html')
+# =============================================================================
+# Pages HTML
+# =============================================================================
+
+PAGES = [
+    ('/', 'tableau_de_bord', 'haccp.voir'),
+    ('/processus', 'processus', 'haccp.voir'),
+    ('/produits', 'produits', 'haccp.voir'),
+    ('/dangers', 'dangers', 'haccp.voir'),
+    ('/ccp', 'ccp', 'haccp.voir'),
+    ('/enregistrements', 'enregistrements', 'haccp.voir'),
+    ('/prp', 'prp', 'haccp.voir'),
+    ('/oprp', 'oprp', 'haccp.voir'),
+    ('/enregistrements-oprp', 'enregistrements_oprp', 'haccp.voir'),
+    ('/tracabilite', 'tracabilite', 'haccp.voir'),
+    ('/rappels', 'rappels', 'haccp.voir'),
+]
 
 
-@blueprint.route('/rappels')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-def rappels():
-    return render_template('haccp/rappels.html')
+def _make_page(route, template_name, view_func):
+    """Create a simple page endpoint."""
+    return blueprint.route(route, endpoint=template_name)(view_func)
 
 
-# --- API: Analyse des dangers ---
+for route_url, template_name, _ in PAGES:
+    def _build_page(tpl=template_name):
+        return render_template(f'haccp/{tpl}.html')
 
-# --- API: Analyse des dangers ---
-
-@blueprint.get('/api/dangers')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
-@blueprint.response(200, AnalyseDangerSchema(many=True))
-def api_dangers():
-    """Liste des analyses de dangers"""
-    return AnalyseDanger.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(AnalyseDanger.date_creation.desc()).all()
+    _make_page(route_url, template_name,
+               access_required(module='haccp', permission='haccp.voir')(_build_page))
 
 
-@blueprint.post('/api/dangers/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_dangers')
-@blueprint.arguments(AnalyseDangerSchema)
-@blueprint.response(201, AnalyseDangerSchema)
-def api_dangers_create(data):
-    """Créer une analyse de danger"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
-
-
-@blueprint.post('/api/dangers/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_dangers')
-@blueprint.arguments(AnalyseDangerSchema(partial=True))
-@blueprint.response(200, AnalyseDangerSchema)
-def api_dangers_update(data, item_id):
-    """Mettre à jour une analyse de danger"""
-    item = AnalyseDanger.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
-
-
-@blueprint.post('/api/dangers/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_dangers')
-def api_dangers_delete(item_id):
-    """Supprimer une analyse de danger"""
-    item = AnalyseDanger.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
-
-
-# --- API: Stats ---
+# =============================================================================
+# API — Statistiques
+# =============================================================================
 
 @blueprint.get('/api/stats')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 def api_stats():
     """Statistiques HACCP"""
-    eid = current_user.entreprise_id
     return {
-        'processus': ProcessusHaccp.query.filter_by(entreprise_id=eid).count(),
-        'produits': ProduitHaccp.query.filter_by(entreprise_id=eid).count(),
-        'ccp': Ccp.query.filter_by(entreprise_id=eid).count(),
-        'dangers': AnalyseDanger.query.filter_by(entreprise_id=eid).count(),
-        'nonconformites': NonConformite.query.filter_by(entreprise_id=eid, domaine='haccp').count(),
-        'enregistrements': EnregistrementCcp.query.filter_by(entreprise_id=eid).count(),
-        'prp': Prp.query.filter_by(entreprise_id=eid, type_prp='generic').count(),
-        'oprp': Prp.query.filter_by(entreprise_id=eid, type_prp='operational').count(),
-        'enregistrements_oprp': EnregistrementOprp.query.filter_by(entreprise_id=eid).count(),
-        'tracabilite': TracabiliteLot.query.filter_by(entreprise_id=eid).count(),
-        'rappels': RappelProduit.query.filter_by(entreprise_id=eid).count(),
+        'processus': ProcessusHaccp.query.count(),
+        'produits': ProduitHaccp.query.count(),
+        'ccp': Ccp.query.count(),
+        'dangers': AnalyseDanger.query.count(),
+        'nonconformites': NonConformite.query.filter_by(domaine='haccp').count(),
+        'enregistrements': EnregistrementCcp.query.count(),
+        'prp': Prp.query.filter_by(type_prp='generic').count(),
+        'oprp': Prp.query.filter_by(type_prp='operational').count(),
+        'enregistrements_oprp': EnregistrementOprp.query.count(),
+        'tracabilite': TracabiliteLot.query.count(),
+        'rappels': RappelProduit.query.count(),
     }
 
 
-# --- API: Processus HACCP ---
+# =============================================================================
+# API — Analyse des dangers
+# =============================================================================
+
+@blueprint.get('/api/dangers')
+@access_required(module='haccp', permission='haccp.voir')
+@blueprint.response(200, AnalyseDangerSchema(many=True))
+def api_dangers():
+    return AnalyseDangerResource.list_resources()
+
+
+@blueprint.post('/api/dangers/create')
+@access_required(module='haccp', permission='haccp.gerer_dangers')
+@blueprint.arguments(AnalyseDangerSchema)
+@blueprint.response(201, AnalyseDangerSchema)
+def api_dangers_create(data):
+    return AnalyseDangerResource.create_resource(data)
+
+
+@blueprint.post('/api/dangers/<int:item_id>/update')
+@access_required(module='haccp', permission='haccp.gerer_dangers')
+@blueprint.response(200, AnalyseDangerSchema)
+def api_dangers_update(item_id):
+    return AnalyseDangerResource.update_resource(item_id)
+
+
+@blueprint.post('/api/dangers/<int:item_id>/delete')
+@access_required(module='haccp', permission='haccp.gerer_dangers')
+def api_dangers_delete(item_id):
+    return AnalyseDangerResource.delete_resource(item_id)
+
+
+# =============================================================================
+# API — Processus HACCP
+# =============================================================================
 
 @blueprint.get('/api/processus')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, ProcessusHaccpSchema(many=True))
 def api_processus():
-    """Liste des étapes du processus HACCP"""
-    return ProcessusHaccp.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(ProcessusHaccp.date_creation.desc()).all()
+    return ProcessusHaccpResource.list_resources()
 
 
 @blueprint.post('/api/processus/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_processus')
+@access_required(module='haccp', permission='haccp.gerer_processus')
 @blueprint.arguments(ProcessusHaccpSchema)
 @blueprint.response(201, ProcessusHaccpSchema)
 def api_processus_create(data):
-    """Créer une étape de processus"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return ProcessusHaccpResource.create_resource(data)
 
 
 @blueprint.post('/api/processus/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_processus')
-@blueprint.arguments(ProcessusHaccpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_processus')
 @blueprint.response(200, ProcessusHaccpSchema)
-def api_processus_update(data, item_id):
-    """Mettre à jour une étape de processus"""
-    item = ProcessusHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_processus_update(item_id):
+    return ProcessusHaccpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/processus/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_processus')
+@access_required(module='haccp', permission='haccp.gerer_processus')
 def api_processus_delete(item_id):
-    """Supprimer une étape de processus"""
-    item = ProcessusHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return ProcessusHaccpResource.delete_resource(item_id)
 
 
-# --- API: Produits ---
+# =============================================================================
+# API — Produits
+# =============================================================================
 
 @blueprint.get('/api/produits')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, ProduitHaccpSchema(many=True))
 def api_produits():
-    """Liste des produits HACCP"""
-    return ProduitHaccp.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(ProduitHaccp.date_creation.desc()).all()
+    return ProduitHaccpResource.list_resources()
 
 
 @blueprint.post('/api/produits/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_produits')
+@access_required(module='haccp', permission='haccp.gerer_produits')
 @blueprint.arguments(ProduitHaccpSchema)
 @blueprint.response(201, ProduitHaccpSchema)
 def api_produits_create(data):
-    """Créer un produit"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return ProduitHaccpResource.create_resource(data)
 
 
 @blueprint.post('/api/produits/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_produits')
-@blueprint.arguments(ProduitHaccpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_produits')
 @blueprint.response(200, ProduitHaccpSchema)
-def api_produits_update(data, item_id):
-    """Mettre à jour un produit"""
-    item = ProduitHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_produits_update(item_id):
+    return ProduitHaccpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/produits/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_produits')
+@access_required(module='haccp', permission='haccp.gerer_produits')
 def api_produits_delete(item_id):
-    """Supprimer un produit"""
-    item = ProduitHaccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return ProduitHaccpResource.delete_resource(item_id)
 
 
-# --- API: CCP ---
+# =============================================================================
+# API — CCP
+# =============================================================================
 
 @blueprint.get('/api/ccp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, CcpSchema(many=True))
 def api_ccp():
-    """Liste des CCP (Points de Contrôle Critique)"""
-    return Ccp.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(Ccp.date_creation.desc()).all()
+    return CcpResource.list_resources()
 
 
 @blueprint.post('/api/ccp/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_ccp')
+@access_required(module='haccp', permission='haccp.gerer_ccp')
 @blueprint.arguments(CcpSchema)
 @blueprint.response(201, CcpSchema)
 def api_ccp_create(data):
-    """Créer un CCP"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return CcpResource.create_resource(data)
 
 
 @blueprint.post('/api/ccp/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_ccp')
-@blueprint.arguments(CcpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_ccp')
 @blueprint.response(200, CcpSchema)
-def api_ccp_update(data, item_id):
-    """Mettre à jour un CCP"""
-    item = Ccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_ccp_update(item_id):
+    return CcpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/ccp/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_ccp')
+@access_required(module='haccp', permission='haccp.gerer_ccp')
 def api_ccp_delete(item_id):
-    """Supprimer un CCP"""
-    item = Ccp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return CcpResource.delete_resource(item_id)
 
 
-# --- API: Enregistrements CCP ---
+# =============================================================================
+# API — Enregistrements CCP
+# =============================================================================
 
 @blueprint.get('/api/enregistrements')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, EnregistrementCcpSchema(many=True))
 def api_enregistrements():
-    """Liste des enregistrements de contrôle CCP"""
-    return EnregistrementCcp.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(EnregistrementCcp.date_controle.desc()).all()
+    return EnregistrementCcpResource.list_resources()
 
 
 @blueprint.post('/api/enregistrements/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_enregistrements')
+@access_required(module='haccp', permission='haccp.gerer_enregistrements')
 @blueprint.arguments(EnregistrementCcpSchema)
 @blueprint.response(201, EnregistrementCcpSchema)
 def api_enregistrements_create(data):
-    """Créer un enregistrement de contrôle CCP"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return EnregistrementCcpResource.create_resource(data)
 
 
 @blueprint.post('/api/enregistrements/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_enregistrements')
-@blueprint.arguments(EnregistrementCcpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_enregistrements')
 @blueprint.response(200, EnregistrementCcpSchema)
-def api_enregistrements_update(data, item_id):
-    """Mettre à jour un enregistrement de contrôle CCP"""
-    item = EnregistrementCcp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_enregistrements_update(item_id):
+    return EnregistrementCcpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/enregistrements/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_enregistrements')
+@access_required(module='haccp', permission='haccp.gerer_enregistrements')
 def api_enregistrements_delete(item_id):
-    """Supprimer un enregistrement de contrôle CCP"""
-    item = EnregistrementCcp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return EnregistrementCcpResource.delete_resource(item_id)
 
 
-# --- API: PRP ---
+# =============================================================================
+# API — PRP
+# =============================================================================
 
 @blueprint.get('/api/prp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, PrpSchema(many=True))
 def api_prp():
-    """Liste des PRP (Programmes Prérequis)"""
-    return Prp.query.filter_by(entreprise_id=current_user.entreprise_id, type_prp='generic')\
-        .order_by(Prp.categorie, Prp.date_creation.desc()).all()
+    return PrpResource.list_resources()
 
 
 @blueprint.post('/api/prp/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_prp')
+@access_required(module='haccp', permission='haccp.gerer_prp')
 @blueprint.arguments(PrpSchema)
 @blueprint.response(201, PrpSchema)
 def api_prp_create(data):
-    """Créer un PRP"""
-    data.entreprise_id = current_user.entreprise_id
-    data.type_prp = 'generic'
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return PrpResource.create_resource(data)
 
 
 @blueprint.post('/api/prp/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_prp')
-@blueprint.arguments(PrpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_prp')
 @blueprint.response(200, PrpSchema)
-def api_prp_update(data, item_id):
-    """Mettre à jour un PRP"""
-    item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_prp_update(item_id):
+    return PrpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/prp/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_prp')
+@access_required(module='haccp', permission='haccp.gerer_prp')
 def api_prp_delete(item_id):
-    """Supprimer un PRP"""
-    item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return PrpResource.delete_resource(item_id)
 
 
-# --- API: OPRP ---
+# =============================================================================
+# API — OPRP
+# =============================================================================
 
 @blueprint.get('/api/oprp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, PrpSchema(many=True))
 def api_oprp():
-    """Liste des OPRP (Programmes Prérequis Opérationnels)"""
-    return Prp.query.filter_by(entreprise_id=current_user.entreprise_id, type_prp='operational')\
-        .order_by(Prp.categorie, Prp.date_creation.desc()).all()
+    return OprpResource.list_resources()
 
 
 @blueprint.post('/api/oprp/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_prp')
+@access_required(module='haccp', permission='haccp.gerer_prp')
 @blueprint.arguments(PrpSchema)
 @blueprint.response(201, PrpSchema)
 def api_oprp_create(data):
-    """Créer un OPRP"""
-    data.entreprise_id = current_user.entreprise_id
-    data.type_prp = 'operational'
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return OprpResource.create_resource(data)
 
 
 @blueprint.post('/api/oprp/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_prp')
-@blueprint.arguments(PrpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_prp')
 @blueprint.response(200, PrpSchema)
-def api_oprp_update(data, item_id):
-    """Mettre à jour un OPRP"""
-    item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_oprp_update(item_id):
+    return OprpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/oprp/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_prp')
+@access_required(module='haccp', permission='haccp.gerer_prp')
 def api_oprp_delete(item_id):
-    """Supprimer un OPRP"""
-    item = Prp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return OprpResource.delete_resource(item_id)
 
 
-# --- API: Enregistrements OPRP ---
+# =============================================================================
+# API — Enregistrements OPRP
+# =============================================================================
 
 @blueprint.get('/api/enregistrements-oprp')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, EnregistrementOprpSchema(many=True))
 def api_enregistrements_oprp():
-    """Liste des enregistrements de contrôle OPRP"""
-    return EnregistrementOprp.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(EnregistrementOprp.date_controle.desc()).all()
+    return EnregistrementOprpResource.list_resources()
 
 
 @blueprint.post('/api/enregistrements-oprp/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_enregistrements')
+@access_required(module='haccp', permission='haccp.gerer_enregistrements')
 @blueprint.arguments(EnregistrementOprpSchema)
 @blueprint.response(201, EnregistrementOprpSchema)
 def api_enregistrements_oprp_create(data):
-    """Créer un enregistrement de contrôle OPRP"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return EnregistrementOprpResource.create_resource(data)
 
 
 @blueprint.post('/api/enregistrements-oprp/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_enregistrements')
-@blueprint.arguments(EnregistrementOprpSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_enregistrements')
 @blueprint.response(200, EnregistrementOprpSchema)
-def api_enregistrements_oprp_update(data, item_id):
-    """Mettre à jour un enregistrement de contrôle OPRP"""
-    item = EnregistrementOprp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_enregistrements_oprp_update(item_id):
+    return EnregistrementOprpResource.update_resource(item_id)
 
 
 @blueprint.post('/api/enregistrements-oprp/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_enregistrements')
+@access_required(module='haccp', permission='haccp.gerer_enregistrements')
 def api_enregistrements_oprp_delete(item_id):
-    """Supprimer un enregistrement de contrôle OPRP"""
-    item = EnregistrementOprp.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return EnregistrementOprpResource.delete_resource(item_id)
 
 
-# --- API: Traçabilité ---
+# =============================================================================
+# API — Traçabilité
+# =============================================================================
 
 @blueprint.get('/api/tracabilite')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, TracabiliteLotSchema(many=True))
 def api_tracabilite():
-    """Liste des lots pour la traçabilité"""
-    return TracabiliteLot.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(TracabiliteLot.date_creation.desc()).all()
+    return TracabiliteLotResource.list_resources()
 
 
 @blueprint.post('/api/tracabilite/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_tracabilite')
+@access_required(module='haccp', permission='haccp.gerer_tracabilite')
 @blueprint.arguments(TracabiliteLotSchema)
 @blueprint.response(201, TracabiliteLotSchema)
 def api_tracabilite_create(data):
-    """Créer un lot de traçabilité"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return TracabiliteLotResource.create_resource(data)
 
 
 @blueprint.post('/api/tracabilite/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_tracabilite')
-@blueprint.arguments(TracabiliteLotSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_tracabilite')
 @blueprint.response(200, TracabiliteLotSchema)
-def api_tracabilite_update(data, item_id):
-    """Mettre à jour un lot de traçabilité"""
-    item = TracabiliteLot.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_tracabilite_update(item_id):
+    return TracabiliteLotResource.update_resource(item_id)
 
 
 @blueprint.post('/api/tracabilite/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_tracabilite')
+@access_required(module='haccp', permission='haccp.gerer_tracabilite')
 def api_tracabilite_delete(item_id):
-    """Supprimer un lot de traçabilité"""
-    item = TracabiliteLot.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return TracabiliteLotResource.delete_resource(item_id)
 
 
-# --- API: Rappels ---
+# =============================================================================
+# API — Rappels
+# =============================================================================
 
 @blueprint.get('/api/rappels')
-@login_required
-@module_access_required('haccp', 'haccp.voir')
+@access_required(module='haccp', permission='haccp.voir')
 @blueprint.response(200, RappelProduitSchema(many=True))
 def api_rappels():
-    """Liste des rappels produits"""
-    return RappelProduit.query.filter_by(entreprise_id=current_user.entreprise_id)\
-        .order_by(RappelProduit.date_creation.desc()).all()
+    return RappelProduitResource.list_resources()
 
 
 @blueprint.post('/api/rappels/create')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_rappels')
+@access_required(module='haccp', permission='haccp.gerer_rappels')
 @blueprint.arguments(RappelProduitSchema)
 @blueprint.response(201, RappelProduitSchema)
 def api_rappels_create(data):
-    """Créer un rappel produit"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return RappelProduitResource.create_resource(data)
 
 
 @blueprint.post('/api/rappels/<int:item_id>/update')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_rappels')
-@blueprint.arguments(RappelProduitSchema(partial=True))
+@access_required(module='haccp', permission='haccp.gerer_rappels')
 @blueprint.response(200, RappelProduitSchema)
-def api_rappels_update(data, item_id):
-    """Mettre à jour un rappel produit"""
-    item = RappelProduit.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+def api_rappels_update(item_id):
+    return RappelProduitResource.update_resource(item_id)
 
 
 @blueprint.post('/api/rappels/<int:item_id>/delete')
-@login_required
-@module_access_required('haccp', 'haccp.gerer_rappels')
+@access_required(module='haccp', permission='haccp.gerer_rappels')
 def api_rappels_delete(item_id):
-    """Supprimer un rappel produit"""
-    item = RappelProduit.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return RappelProduitResource.delete_resource(item_id)

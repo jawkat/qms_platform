@@ -60,6 +60,73 @@ def resolve_incident(incident_id):
         return jsonify({'success': False, 'error': 'Erreur serveur'}), 500
 
 
+@admin.route('/securite/resolve-all', methods=['POST'])
+@login_required
+@admin_required
+def resolve_all_incidents():
+    try:
+        count = JournalSecurite.query.filter_by(resolu=False).update({
+            'resolu': True,
+            'resolved_at': datetime.utcnow(),
+            'resolved_by': current_user.id,
+        })
+        db.session.commit()
+        return jsonify({'success': True, 'count': count})
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Erreur serveur'}), 500
+
+
+@admin.route('/securite/delete-all', methods=['POST'])
+@login_required
+@admin_required
+def delete_all_incidents():
+    try:
+        count = JournalSecurite.query.delete()
+        db.session.commit()
+        return jsonify({'success': True, 'count': count})
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Erreur serveur'}), 500
+
+
+@admin.route('/securite/<int:incident_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_incident(incident_id):
+    try:
+        incident = db.session.get(JournalSecurite, incident_id)
+        if not incident:
+            return jsonify({'success': False, 'error': 'Introuvable'}), 404
+        db.session.delete(incident)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Erreur serveur'}), 500
+
+
+@admin.route('/securite/<int:incident_id>/detail')
+@login_required
+@admin_required
+def incident_detail(incident_id):
+    incident = db.session.get(JournalSecurite, incident_id)
+    if not incident:
+        return jsonify({'error': 'Introuvable'}), 404
+    user = db.session.get(Utilisateur, incident.utilisateur_id) if incident.utilisateur_id else None
+    return jsonify({
+        'id': incident.id,
+        'date_action': incident.date_action.isoformat() if incident.date_action else None,
+        'type_action': incident.type_action,
+        'adresse_ip': incident.adresse_ip,
+        'navigateur': incident.navigateur,
+        'details': incident.details,
+        'resolu': incident.resolu,
+        'resolved_at': incident.resolved_at.isoformat() if incident.resolved_at else None,
+        'utilisateur': {'prenom': user.prenom, 'nom': user.nom, 'email': user.email} if user else None,
+    })
+
+
 @admin.route('/notifications')
 @login_required
 @admin_required
@@ -107,18 +174,38 @@ def notifications():
 @login_required
 @admin_required
 def notification_send():
-    from app.utils.notifications import create_notification
     type_notif = request.form.get('type', 'info')
     message = request.form.get('message', '').strip()
     utilisateur_id = request.form.get('utilisateur_id')
     if not message:
         flash('Le message est requis.', 'danger')
         return redirect(url_for('admin.notifications'))
+
+    from app.services.notification_service import NotificationService
+    from app.utils.notifications import TYPE_CATEGORY_MAP, TYPE_URGENCE_MAP
+
+    category = TYPE_CATEGORY_MAP.get(type_notif, 'general')
+    urgence = TYPE_URGENCE_MAP.get(type_notif, 'normale')
+
     if utilisateur_id:
-        create_notification(int(utilisateur_id), message, type=type_notif)
+        NotificationService.notify(
+            utilisateur_id=int(utilisateur_id),
+            category=category,
+            message=message,
+            urgence=urgence,
+            notification_type=type_notif,
+            skip_module_check=True,
+        )
     else:
         for u in Utilisateur.query.all():
-            create_notification(u.id, message, type=type_notif)
+            NotificationService.notify(
+                utilisateur_id=u.id,
+                category=category,
+                message=message,
+                urgence=urgence,
+                notification_type=type_notif,
+                skip_module_check=True,
+            )
     flash('Notification(s) envoyée(s).', 'success')
     return redirect(url_for('admin.notifications'))
 
@@ -220,17 +307,33 @@ def mail_test_send():
 @login_required
 @admin_required
 def plans():
+    import json
     plans_list = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
+    for p in plans_list:
+        if isinstance(p.features, str):
+            try:
+                p.features = json.loads(p.features)
+            except (json.JSONDecodeError, TypeError):
+                p.features = {}
     all_feature_keys = []
+    all_feature_visibility = {}
     seen = set()
     for p in plans_list:
         if p.features:
             for k in p.features:
-                if k not in seen:
+                if k.startswith('_vis_'):
+                    feat = k[5:]
+                    if feat not in all_feature_visibility:
+                        all_feature_visibility[feat] = bool(p.features[k])
+                elif k not in seen:
                     all_feature_keys.append(k)
                     seen.add(k)
+    for k in all_feature_keys:
+        if k not in all_feature_visibility:
+            all_feature_visibility[k] = True
     return render_template('admin/plans.html', plans=plans_list,
-                           all_feature_keys=all_feature_keys)
+                           all_feature_keys=all_feature_keys,
+                           all_feature_visibility=all_feature_visibility)
 
 
 @admin.route('/plans/seed', methods=['POST'])
@@ -240,6 +343,71 @@ def plans_seed():
     _seed_default_plans()
     flash('Plans d\'abonnement par défaut créés.', 'success')
     return redirect(url_for('admin.plans'))
+
+
+@admin.route('/plans/<int:plan_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def plans_delete(plan_id):
+    p = db.session.get(SubscriptionPlan, plan_id)
+    if not p:
+        abort(404)
+    db.session.delete(p)
+    db.session.commit()
+    flash('Plan supprimé.', 'success')
+    return redirect(url_for('admin.plans'))
+
+
+@admin.route('/plans/api/<int:plan_id>/update', methods=['POST'])
+@login_required
+@admin_required
+def plans_api_update(plan_id):
+    p = db.session.get(SubscriptionPlan, plan_id)
+    if not p:
+        abort(404)
+    data = request.get_json()
+    for f in ('plan_key', 'label', 'max_users', 'price_mad', 'max_documents',
+              'max_open_actions', 'max_storage_mb', 'trial_days'):
+        if f in data and data[f] is not None:
+            setattr(p, f, data[f])
+    if 'features' in data and data['features'] is not None:
+        new_feats = data['features']
+        if isinstance(new_feats, dict) and any(k.startswith('_vis_') for k in new_feats):
+            p.features = new_feats
+        else:
+            existing = dict(p.features) if p.features and isinstance(p.features, dict) else {}
+            if isinstance(new_feats, dict):
+                existing.update(new_feats)
+                existing = {k: v for k, v in existing.items() if v is not None and v != ''}
+            else:
+                existing = new_feats
+            p.features = existing
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(p, 'features')
+    if 'rename_feature' in data:
+        rf = data['rename_feature']
+        old_key, new_key = rf.get('old'), rf.get('new')
+        if old_key and new_key:
+            existing = dict(p.features) if p.features and isinstance(p.features, dict) else {}
+            if old_key in existing:
+                existing[new_key] = existing.pop(old_key)
+            vis_key = '_vis_' + old_key
+            if vis_key in existing:
+                existing['_vis_' + new_key] = existing.pop(vis_key)
+            p.features = existing
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(p, 'features')
+    if 'feature_visibility' in data and isinstance(data['feature_visibility'], dict):
+        existing = dict(p.features) if p.features and isinstance(p.features, dict) else {}
+        for k, v in data['feature_visibility'].items():
+            existing['_vis_' + k] = v
+        p.features = existing
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(p, 'features')
+    if 'is_active' in data:
+        p.is_active = data['is_active']
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @admin.route('/plans/entreprises')

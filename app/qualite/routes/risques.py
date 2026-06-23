@@ -55,16 +55,15 @@ def api_stats():
     """Statistiques globales qualité"""
     from app.models import Reclamation, Fournisseur, Formation, Equipement, ControleQualite, RevueDirection
     from app.models.nonconformite import NonConformite
-    eid = current_user.entreprise_id
     return {
-        'risques': Risque.query.filter_by(entreprise_id=eid).count(),
-        'reclamations': Reclamation.query.filter_by(entreprise_id=eid).count(),
-        'fournisseurs': Fournisseur.query.filter_by(entreprise_id=eid).count(),
-        'formations': Formation.query.filter_by(entreprise_id=eid).count(),
-        'equipements': Equipement.query.filter_by(entreprise_id=eid).count(),
-        'controles': ControleQualite.query.filter_by(entreprise_id=eid).count(),
-        'revues': RevueDirection.query.filter_by(entreprise_id=eid).count(),
-        'nonconformites': NonConformite.query.filter_by(entreprise_id=eid, domaine='qualite').count(),
+        'risques': Risque.query.count(),
+        'reclamations': Reclamation.query.count(),
+        'fournisseurs': Fournisseur.query.count(),
+        'formations': Formation.query.count(),
+        'equipements': Equipement.query.count(),
+        'controles': ControleQualite.query.count(),
+        'revues': RevueDirection.query.count(),
+        'nonconformites': NonConformite.query.filter_by(domaine='qualite').count(),
     }
 
 
@@ -74,7 +73,7 @@ def api_stats():
 @blueprint.response(200, RisqueSchema(many=True))
 def api_risques():
     """Liste des risques qualité"""
-    return Risque.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    return Risque.query\
         .order_by(Risque.date_creation.desc()).all()
 
 
@@ -98,7 +97,7 @@ def api_risques_create(data):
 @blueprint.response(200, RisqueSchema)
 def api_risques_update(data, item_id):
     """Mettre à jour un risque"""
-    item = Risque.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Risque.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -111,7 +110,7 @@ def api_risques_update(data, item_id):
 @module_access_required('qualite', 'qualite.voir')
 def api_risques_delete(item_id):
     """Supprimer un risque"""
-    item = Risque.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Risque.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}
@@ -122,7 +121,7 @@ def api_risques_delete(item_id):
 @module_access_required('qualite', 'qualite.voir')
 def api_risques_heatmap():
     """Matrice de criticité des risques"""
-    items = Risque.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+    items = Risque.query.all()
     grid = [[0]*5 for _ in range(5)]
     for r in items:
         g = min(r.gravite if r.gravite else 1, 5) - 1
@@ -136,8 +135,7 @@ def api_risques_heatmap():
 @module_access_required('qualite', 'qualite.voir')
 def api_risques_stats():
     """Statistiques par niveau et statut"""
-    eid = current_user.entreprise_id
-    items = Risque.query.filter_by(entreprise_id=eid).all()
+    items = Risque.query.all()
     par_niveau = {'faible': 0, 'moyen': 0, 'eleve': 0, 'critique': 0}
     for r in items:
         par_niveau[r.niveau_risque] = par_niveau.get(r.niveau_risque, 0) + 1
@@ -156,7 +154,7 @@ def api_risques_stats():
 @module_access_required('qualite', 'qualite.voir')
 def export_risques():
     """Export des risques en CSV"""
-    risques_list = Risque.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    risques_list = Risque.query\
         .order_by(Risque.date_creation.desc()).all()
     output = io.StringIO()
     writer = csv.writer(output)

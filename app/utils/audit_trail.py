@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 _TRACKED_MODELS = set()
 _IGNORED_COLUMNS = {'date_creation', 'date_modification', 'updated_at'}
+_IGNORED_MODELS = {'Notification', 'JournalSecurite'}
 
 
 def init_audit_trail(app):
@@ -29,9 +30,12 @@ def init_audit_trail(app):
         user_agent = request.headers.get('User-Agent') if has_request_context() else None
 
         for obj in session.new:
-            _log_change('CREATE', obj, None, None, user_id, ip_addr, user_agent)
+            if type(obj).__name__ not in _IGNORED_MODELS:
+                _log_change('CREATE', obj, None, None, user_id, ip_addr, user_agent)
 
         for obj in session.dirty:
+            if type(obj).__name__ in _IGNORED_MODELS:
+                continue
             hist = db.inspect(obj).committed_state
             for attr in db.inspect(obj).mapper.column_attrs:
                 col_name = attr.key
@@ -43,7 +47,8 @@ def init_audit_trail(app):
                     _log_change('UPDATE', obj, col_name, (old_val, new_val), user_id, ip_addr, user_agent)
 
         for obj in session.deleted:
-            _log_change('DELETE', obj, None, None, user_id, ip_addr, user_agent)
+            if type(obj).__name__ not in _IGNORED_MODELS:
+                _log_change('DELETE', obj, None, None, user_id, ip_addr, user_agent)
 
 
 def _log_change(action_type, obj, field, change, user_id, ip_addr, user_agent):

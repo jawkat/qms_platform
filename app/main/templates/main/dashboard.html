@@ -172,6 +172,28 @@
   <div class="row g-3 mb-4">
     <div class="col-12">
       <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+          <h5 class="mb-0"><i class="fas fa-bell me-2 text-danger"></i>Notifications &amp; Alertes</h5>
+          <div>
+            <a href="{{ url_for('users.notification_preferences') }}" class="btn btn-sm btn-outline-secondary me-1">
+              <i class="fas fa-cog"></i> Préférences
+            </a>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3" id="dashboard-alerts"></div>
+          <hr class="my-3">
+          <div class="notif-dashboard-list" id="dashboard-notif-list">
+            <div class="text-center text-muted small py-3">Chargement...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
         <div class="card-body py-3">
           <h6 class="text-muted text-uppercase small mb-3"><i class="fas fa-file-export me-1"></i>Exporter les données</h6>
           <div class="d-flex flex-wrap gap-2">
@@ -209,7 +231,7 @@
             <a href="{{ url_for('entreprises.index') }}" class="btn btn-outline-primary btn-sm">
               <i class="fas fa-building me-1"></i>Entreprises
             </a>
-            <a href="{{ url_for('plans.index') }}" class="btn btn-outline-info btn-sm">
+            <a href="{{ url_for('admin.plans') }}" class="btn btn-outline-info btn-sm">
               <i class="fas fa-box me-1"></i>Abonnement
             </a>
           </div>
@@ -355,6 +377,64 @@ fetch('/actions/api/liste').then(function(r) { return r.json(); }).then(function
       scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
     }
   });
+});
+
+fetch('/api/dashboard/alerts').then(function(r) { return r.json(); }).then(function(data) {
+  var alertsHtml = '';
+  var alertItems = [
+    { count: data.overdue_actions, label: 'Actions en retard', icon: 'fa-exclamation-triangle', color: '#dc3545', url: '/actions/' },
+    { count: data.upcoming_actions, label: 'Échéances imminentes (7j)', icon: 'fa-clock', color: '#fd7e14', url: '/actions/' },
+    { count: data.pending_approvals, label: 'Validations en attente', icon: 'fa-file-signature', color: '#0d6efd', url: '/documents/' },
+    { count: data.expired_docs, label: 'Documents expirés', icon: 'fa-ban', color: '#dc3545', url: '/documents/' },
+    { count: data.expiring_docs, label: 'Documents en expiration', icon: 'fa-hourglass-half', color: '#ffc107', url: '/documents/' },
+  ];
+  alertItems.forEach(function(item) {
+    var badge = item.count > 0 ? '<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem">' + item.count + '</span>' : '';
+    alertsHtml += '<div class="col-md">' +
+      '<a href="' + item.url + '" class="text-decoration-none">' +
+        '<div class="d-flex align-items-center p-3 border rounded position-relative" style="background:#f8f9fa">' +
+          '<div class="rounded-circle p-2 me-3" style="background:' + item.color + '22;color:' + item.color + '">' +
+            '<i class="fas ' + item.icon + '"></i>' +
+          '</div>' +
+          '<div>' +
+            '<div class="fw-bold small">' + (item.count > 0 ? item.count : '0') + '</div>' +
+            '<small class="text-muted">' + item.label + '</small>' +
+          '</div>' +
+          badge +
+        '</div>' +
+      '</a>' +
+    '</div>';
+  });
+  document.getElementById('dashboard-alerts').innerHTML = alertsHtml;
+
+  var notifList = document.getElementById('dashboard-notif-list');
+  if (data.notifications.length === 0) {
+    notifList.innerHTML = '<div class="text-center text-muted small py-3">Aucune notification récente</div>';
+    return;
+  }
+  var icons = { 'hse': 'fa-hard-hat', 'qualite': 'fa-check-circle', 'general': 'fa-info-circle', 'systeme': 'fa-shield-alt', 'support': 'fa-headset', 'veille': 'fa-scroll', 'technique': 'fa-bug' };
+  var colors = { 'critique': '#dc3545', 'haute': '#fd7e14', 'normale': '#0d6efd', 'basse': '#6c757d' };
+  notifList.innerHTML = data.notifications.slice(0, 10).map(function(n) {
+    var icon = icons[n.categorie] || 'fa-bell';
+    var c = colors[n.urgence] || '#6c757d';
+    var luClass = n.lu ? 'opacity-50' : '';
+    var bg = n.lu ? '' : 'style="background:#f0f7ff"';
+    return '<div class="d-flex align-items-start py-2 px-2 border-bottom ' + luClass + '" ' + bg + ' onclick="window.location.href=\'/notifications/' + n.id + '/open\'" style="cursor:pointer">' +
+      '<div class="rounded-circle p-2 me-3 flex-shrink-0" style="background:' + c + '22;color:' + c + '">' +
+        '<i class="fas ' + icon + '" style="font-size:0.8rem"></i>' +
+      '</div>' +
+      '<div class="flex-grow-1 min-width-0">' +
+        '<div class="small text-truncate">' + (n.message || '') + '</div>' +
+        '<small class="text-muted">' + (n.date_envoi ? new Date(n.date_envoi).toLocaleDateString('fr-FR', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '') + '</small>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  if (data.notifications.length > 10) {
+    notifList.innerHTML += '<div class="text-center py-2"><a href="/notifications" class="small">Voir toutes les notifications</a></div>';
+  }
+}).catch(function() {
+  document.getElementById('dashboard-notif-list').innerHTML =
+    '<div class="text-center text-danger small py-3">Erreur de chargement</div>';
 });
 </script>
 {% endblock %}

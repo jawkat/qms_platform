@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models import Ticket, MessageTicket, Notification, Utilisateur, Role
+from app.models import Ticket, MessageTicket, Utilisateur, Role
 from app.support import support
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
@@ -19,21 +19,20 @@ def _get_admins():
                             .filter(Role.est_systeme == True).all()
 
 
-from app.utils.notifications import create_notification
-
-
 def _notifier_admins(ticket, message=None):
+    from app.utils.notifications import create_notification
     admins = _get_admins()
     for admin in admins:
         msg = f"Nouveau ticket {ticket.reference}: {ticket.sujet}"
         if message:
             msg = f"Nouveau message sur {ticket.reference}: {message.contenu[:100]}"
-        create_notification(admin.id, msg, type='ticket')
+        create_notification(admin.id, f"{msg} [TICKET:{ticket.id}]", type='ticket')
 
 
 def _notifier_client(ticket, message):
     if ticket.cree_par_id:
-        create_notification(ticket.cree_par_id, f"Nouvelle réponse sur {ticket.reference}: {message.contenu[:100]}", type='ticket')
+        from app.utils.notifications import create_notification
+        create_notification(ticket.cree_par_id, f"Nouvelle réponse sur {ticket.reference}: {message.contenu[:100]} [TICKET:{ticket.id}]", type='ticket')
 
 
 @support.route('/')
@@ -41,7 +40,7 @@ def _notifier_client(ticket, message):
 @login_required
 @has_permission('support.voir')
 def mes_tickets():
-    q = Ticket.query.filter_by(entreprise_id=current_user.entreprise_id)
+    q = Ticket.query
     statut = request.args.get('statut')
     type_ = request.args.get('type')
     search = request.args.get('search')
@@ -54,8 +53,7 @@ def mes_tickets():
             db.or_(
                 Ticket.sujet.ilike(f'%{search}%'),
                 Ticket.reference.ilike(f'%{search}%'),
-                Ticket.email_contact.ilike(f'%{search}%'),
-            )
+                Ticket.email_contact.ilike(f'%{search}%'))
         )
     tickets = q.order_by(Ticket.date_dernier_message.desc().nullslast(),
                          Ticket.date_creation.desc()).all()
@@ -171,5 +169,5 @@ def fermer_ticket(ticket_id):
 @support.response(200, TicketSchema(many=True))
 def api_liste():
     """Liste de vos tickets support"""
-    return Ticket.query.filter_by(entreprise_id=current_user.entreprise_id) \
+    return Ticket.query \
         .order_by(Ticket.date_creation.desc()).all()

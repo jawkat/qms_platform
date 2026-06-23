@@ -71,7 +71,7 @@ from flask import current_app, render_template
 from datetime import datetime
 from app import db
 from app.models.systeme import Notification, NotificationPreference
-from app.models.auth import Utilisateur
+from app.models.auth import Utilisateur, Role
 from app.core import plugin_manager
 
 
@@ -133,8 +133,9 @@ class NotificationService:
         """
         managers = Utilisateur.query.join(Utilisateur.role).filter(
             Utilisateur.entreprise_id == entreprise_id,
-            (Utilisateur.role.nom == 'Manager') | (Utilisateur.role.est_systeme == True),
             Utilisateur.actif == True
+        ).filter(
+            db.or_(Role.nom == 'Manager', Role.est_systeme == True)
         ).all()
 
         for manager in managers:
@@ -154,20 +155,44 @@ class NotificationService:
                 Utilisateur.actif == True
             ).all()
 
-            if not admins:
-                current_app.logger.error("NotificationService: AUCUN ADMIN SYSTEME TROUVE. Utilisation du fallback email.")
+            if admins:
+                current_app.logger.info(f"NotificationService: {len(admins)} admins à notifier.")
+                for admin in admins:
+                    try:
+                        NotificationService.notify(admin.id, category, message, urgence, entite_type, entite_id, notification_type)
+                    except Exception as ex:
+                        current_app.logger.error(f"Echec envoi individuel à admin #{admin.id}: {str(ex)}")
+                return
+
+            current_app.logger.warning("NotificationService: AUCUN ADMIN SYSTEME TROUVE via join. Fallback via requête directe.")
+            admins = Utilisateur.query.filter(Utilisateur.actif == True).all()
+            system_admins = [a for a in admins if a.role and a.role.est_systeme]
+
+            if system_admins:
+                current_app.logger.info(f"NotificationService: {len(system_admins)} admins trouvés via fallback.")
+                for admin in system_admins:
+                    try:
+                        NotificationService.notify(admin.id, category, message, urgence, entite_type, entite_id, notification_type)
+                    except Exception as ex:
+                        current_app.logger.error(f"Echec envoi individuel à admin #{admin.id}: {str(ex)}")
+                return
+
+            current_app.logger.error("NotificationService: Fallback email vers les admins système.")
+            fallback_admins = Utilisateur.query.filter(Utilisateur.actif == True).all()
+            sent_any = False
+            for admin in fallback_admins:
+                if admin.role and admin.role.est_systeme and admin.email:
+                    try:
+                        from app.utils.notifications import send_email_notification_task
+                        send_email_notification_task(admin.email, f"{admin.prenom} {admin.nom}", category, message, urgence)
+                        sent_any = True
+                    except Exception as ex:
+                        current_app.logger.error(f"Fallback email échoué pour {admin.email}: {str(ex)}")
+            if not sent_any:
                 emergency_email = current_app.config.get('MAIL_ADMIN_EMAIL')
                 if emergency_email:
                     from app.utils.notifications import send_email_notification_task
                     send_email_notification_task(emergency_email, "Super Admin", category, message, urgence)
-                return
-
-            current_app.logger.info(f"NotificationService: {len(admins)} admins à notifier.")
-            for admin in admins:
-                try:
-                    NotificationService.notify(admin.id, category, message, urgence, entite_type, entite_id, notification_type)
-                except Exception as ex:
-                    current_app.logger.error(f"Echec envoi individuel à admin #{admin.id}: {str(ex)}")
 
         except Exception as e:
             current_app.logger.error(f"Bug critique dans NotificationService: {str(e)}")

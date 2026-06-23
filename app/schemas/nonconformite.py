@@ -7,6 +7,8 @@ class NonConformiteSchema(SQLAlchemyAutoSchema):
         model = NonConformite
         load_instance = True
         include_fk = True
+    
+    entreprise_id = fields.Integer(required=False, load_default=None)
 
     responsable_name = fields.Function(
         lambda obj: f"{obj.responsable.prenom} {obj.responsable.nom}" if obj.responsable else "",
@@ -23,6 +25,8 @@ class NonConformiteCreateSchema(SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
         exclude = ('id', 'date_creation', 'date_modification', 'date_validation_cloture', 'validee_par_id')
+    
+    entreprise_id = fields.Integer(required=False, load_default=None)
 
 class NonConformiteUpdateSchema(SQLAlchemyAutoSchema):
     class Meta:

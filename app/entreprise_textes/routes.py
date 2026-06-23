@@ -28,8 +28,7 @@ def _create_missing_evaluations_for_link(entreprise_texte):
         for row in db.session.query(EvaluationArticle.article_id)
         .filter(
             EvaluationArticle.entreprise_texte_id == entreprise_texte.id,
-            EvaluationArticle.article_id.in_(article_ids),
-        )
+            EvaluationArticle.article_id.in_(article_ids))
         .all()
     }
 
@@ -72,7 +71,7 @@ def _normalize_link_metadata(form_or_json):
 #     Page minimale qui servira de point d'entree du module.
 #     """
 #     # TODO: remplacer par une requete reelle vers EntrepriseTexte
-#     entreprise_textes_list = EntrepriseTexte.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+#     entreprise_textes_list = EntrepriseTexte.query.all()
 #     return render_template('entreprise_textes/index.html', items=entreprise_textes_list)
 
 
@@ -285,8 +284,7 @@ def evaluate_linked_text():
 
     entreprise_texte = EntrepriseTexte.query.filter_by(
         entreprise_id=entreprise_id,
-        texte_version_id=version_id,
-    ).first()
+        texte_version_id=version_id).first()
 
     if not entreprise_texte:
         flash('Le texte doit etre lie a votre entreprise avant evaluation.', 'warning')

@@ -1,8 +1,8 @@
 from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.rh_qhse import EmployeQHSE
 
-class EmployeQHSESchema(SQLAlchemyAutoSchema):
+class EmployeQHSESchema(AutoSchema):
     class Meta:
         model = EmployeQHSE
         load_instance = True

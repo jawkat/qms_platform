@@ -334,11 +334,11 @@ class PluginManager:
                     {'endpoint': 'admin.entreprises', 'icon': 'fa-building', 'label': 'Entreprises',
                      'active_endpoints': ['admin.entreprises', 'admin.entreprise_detail', 'admin.entreprise_create']},
                     {'endpoint': 'admin.plans', 'icon': 'fa-crown', 'label': 'Plans',
-                     'active_endpoints': ['admin.plans', 'plans.index']},
-                    {'endpoint': 'admin.mail_test', 'icon': 'fa-envelope', 'label': 'Diagnostic Email',
-                     'active_endpoints': ['admin.mail_test', 'admin.mail_test_send']},
+                     'active_endpoints': ['admin.plans']},
                     {'endpoint': 'admin.services', 'icon': 'fa-heartbeat', 'label': 'État des Services',
                      'active_endpoints': ['admin.services']},
+                    {'endpoint': 'admin.notifications', 'icon': 'fa-bell', 'label': 'Notifications',
+                     'active_endpoints': ['admin.notifications']},
                 ]
             })
             sections.append({
@@ -617,8 +617,6 @@ class PluginManager:
                  'active_prefix': 'users.notification_preferences'},
                 {'endpoint': 'facturation.index', 'icon': 'fa-credit-card', 'label': 'Facturation',
                  'active_prefix': 'facturation.'},
-                {'endpoint': 'plans.index', 'icon': 'fa-crown', 'label': 'Mon abonnement',
-                 'active_prefix': 'plans.'},
                 {'endpoint': 'support.mes_tickets', 'icon': 'fa-ticket-alt', 'label': 'Mes tickets',
                  'active_prefix': 'support.'},
                 {'endpoint': 'users.logout', 'icon': 'fa-sign-out-alt', 'label': 'Déconnexion',

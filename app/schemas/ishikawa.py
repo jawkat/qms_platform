@@ -14,6 +14,8 @@ class AnalyseIshikawaSchema(SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
     
+    entreprise_id = fields.Integer(required=False, load_default=None)
+    
     auteur_name = fields.Function(
         lambda obj: f"{obj.auteur.prenom} {obj.auteur.nom}" if obj.auteur else "",
         dump_only=True

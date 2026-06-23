@@ -23,9 +23,7 @@ def index():
 @blueprint.response(200, AnalyseIshikawaSchema(many=True))
 def api_liste():
     """Liste des analyses Ishikawa"""
-    return AnalyseIshikawa.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).order_by(AnalyseIshikawa.date_creation.desc()).all()
+    return AnalyseIshikawa.query.order_by(AnalyseIshikawa.date_creation.desc()).all()
 
 
 @blueprint.post('/api/creer')
@@ -60,7 +58,7 @@ def api_creer(data):
 def api_modifier(data, item_id):
     """Modifier une analyse Ishikawa"""
     item = AnalyseIshikawa.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     
     raw_data = request.get_json()
@@ -89,7 +87,7 @@ def api_modifier(data, item_id):
 def api_supprimer(item_id):
     """Supprimer une analyse Ishikawa"""
     item = AnalyseIshikawa.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()

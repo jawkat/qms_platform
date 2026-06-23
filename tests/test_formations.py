@@ -146,10 +146,10 @@ class TestFormationsAPI:
     def test_creer_formation(self, login_formation_client, formation_data):
         resp = login_formation_client.post(self.ENDPOINT_CREER,
                                            json=formation_data)
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.get_json()
-        assert data['success'] is True
         assert 'id' in data
+        assert data['titre'] == 'Formation HSE'
 
     def test_liste_apres_creation(self, login_formation_client, formation_data):
         login_formation_client.post(self.ENDPOINT_CREER, json=formation_data)
@@ -164,7 +164,7 @@ class TestFormationsAPI:
             json={'titre': 'Formation Modifiée', 'statut': 'realisee'},
         )
         assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        assert resp.get_json()['titre'] == 'Formation Modifiée'
 
     def test_supprimer_formation(self, login_formation_client, formation):
         resp = login_formation_client.post(
@@ -199,8 +199,10 @@ class TestCompetencesAPI:
         resp = login_formation_client.post('/formations/api/competences/create', json={
             'nom': 'Soudure', 'description': 'Soudure à l\'arc', 'domaine': 'qualite',
         })
-        assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert data['nom'] == 'Soudure'
+        assert 'id' in data
 
     def test_supprimer_competence(self, login_formation_client, competence):
         resp = login_formation_client.post(
@@ -226,8 +228,10 @@ class TestParticipantsAPI:
             'utilisateur_id': manager_user.id,
             'statut': 'inscrit',
         })
-        assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert 'id' in data
+        assert data['statut'] == 'inscrit'
 
     def test_inscription_doublon_refusee(self, login_formation_client, formation,
                                           manager_user, formation_participant):
@@ -236,7 +240,7 @@ class TestParticipantsAPI:
             'utilisateur_id': manager_user.id,
         })
         assert resp.status_code == 400
-        assert resp.get_json()['success'] is False
+        assert 'message' in resp.get_json()
 
     def test_modifier_participant(self, login_formation_client, formation_participant):
         resp = login_formation_client.post(
@@ -244,7 +248,7 @@ class TestParticipantsAPI:
             json={'statut': 'present', 'evaluation_score': 95.0},
         )
         assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        assert resp.get_json()['statut'] == 'present'
 
     def test_supprimer_participant(self, login_formation_client, formation_participant):
         resp = login_formation_client.post(
@@ -274,17 +278,19 @@ class TestMatriceAPI:
             'evalue_par_id': manager_user.id,
             'notes': 'Bon niveau',
         })
-        assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert 'id' in data
+        assert data['niveau_actuel'] == 2
 
     def test_creer_evaluation_doublon(self, login_formation_client, competence,
-                                       manager_user, employe_competence):
+                                        manager_user, employe_competence):
         resp = login_formation_client.post('/formations/api/matrice/create', json={
             'utilisateur_id': manager_user.id,
             'competence_id': competence.id,
         })
         assert resp.status_code == 400
-        assert resp.get_json()['success'] is False
+        assert 'message' in resp.get_json()
 
     def test_modifier_evaluation(self, login_formation_client, employe_competence):
         resp = login_formation_client.post(
@@ -292,7 +298,7 @@ class TestMatriceAPI:
             json={'niveau_actuel': 3, 'notes': 'Expert'},
         )
         assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        assert resp.get_json()['niveau_actuel'] == 3
 
     def test_supprimer_evaluation(self, login_formation_client, employe_competence):
         resp = login_formation_client.post(
@@ -312,7 +318,7 @@ class TestCertificationsAPI:
         assert resp.status_code == 200
         items = resp.get_json()
         assert len(items) >= 1
-        assert items[0]['score'] == 85.0
+        assert items[0]['evaluation_score'] == 85.0
         assert items[0]['utilisateur_id'] == formation_participant.utilisateur_id
 
     def test_liste_certifications_vide(self, login_formation_client):

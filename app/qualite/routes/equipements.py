@@ -18,7 +18,7 @@ def equipements():
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_equipements():
-    items = Equipement.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    items = Equipement.query\
         .order_by(Equipement.date_creation.desc()).all()
     return jsonify([{
         'id': r.id,
@@ -81,7 +81,7 @@ def api_equipements_create():
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_equipements_update(item_id):
-    item = Equipement.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Equipement.query.filter_by(id=item_id).first_or_404()
     data = request.get_json()
     for f in ('nom', 'modele', 'numero_serie', 'type_equipement', 'statut',
               'precision', 'unite_mesure', 'organisme_etalonnage', 'certificat_etalonnage',
@@ -100,7 +100,7 @@ def api_equipements_update(item_id):
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_equipements_delete(item_id):
-    item = Equipement.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Equipement.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return jsonify({'success': True})
@@ -113,9 +113,7 @@ def api_equipements_delete(item_id):
 @module_access_required('qualite', 'qualite.voir')
 def api_etalonnages(equipement_id):
     items = EnregistrementEtalonnage.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
-        equipement_id=equipement_id,
-    ).order_by(EnregistrementEtalonnage.date_etalonnage.desc()).all()
+        equipement_id=equipement_id).order_by(EnregistrementEtalonnage.date_etalonnage.desc()).all()
     return jsonify([{
         'id': r.id,
         'date_etalonnage': r.date_etalonnage.isoformat() if r.date_etalonnage else None,
@@ -168,7 +166,7 @@ def api_etalonnages_create():
 @module_access_required('qualite', 'qualite.voir')
 def api_etalonnages_delete(item_id):
     item = EnregistrementEtalonnage.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()

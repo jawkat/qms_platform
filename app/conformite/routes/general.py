@@ -13,9 +13,7 @@ from sqlalchemy import or_
 @login_required
 @has_permission('conformite.voir')
 def index():
-    textes = EntrepriseTexte.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).all()
+    textes = EntrepriseTexte.query.all()
 
     textes_data = []
     for et in textes:
@@ -78,7 +76,6 @@ def attribuer():
         return redirect(url_for('conformite.index'))
 
     existing = EntrepriseTexte.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
         texte_version_id=texte_version_id
     ).first()
     if existing:
@@ -103,7 +100,7 @@ def attribuer():
 @login_required
 @has_permission('conformite.modifier')
 def update(id):
-    et = EntrepriseTexte.query.filter_by(id=id, entreprise_id=current_user.entreprise_id).first_or_404()
+    et = EntrepriseTexte.query.filter_by(id=id).first_or_404()
     if 'statut_evaluation' in request.form:
         et.statut_evaluation = request.form['statut_evaluation']
     if 'score_conformite' in request.form:
@@ -120,7 +117,7 @@ def update(id):
 @login_required
 @has_permission('conformite.modifier')
 def delete(id):
-    et = EntrepriseTexte.query.filter_by(id=id, entreprise_id=current_user.entreprise_id).first_or_404()
+    et = EntrepriseTexte.query.filter_by(id=id).first_or_404()
     db.session.delete(et)
     db.session.commit()
     flash('Texte retiré de la liste.', 'success')
@@ -131,9 +128,7 @@ def delete(id):
 @login_required
 @has_permission('conformite.voir')
 def api_liste():
-    textes = EntrepriseTexte.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).all()
+    textes = EntrepriseTexte.query.all()
     data = []
     for et in textes:
         total_articles = Article.query.filter_by(texte_version_id=et.texte_version_id).count()
@@ -176,14 +171,13 @@ def search():
             db.or_(Article.contenu.ilike(like), Article.resume_article.ilike(like))
         ).order_by(Article.numero_article).limit(100).all()
 
-        eid = current_user.entreprise_id
         for article in articles:
             version = TexteVersion.query.get(article.texte_version_id)
             texte = TexteReglementaire.query.get(version.texte_id) if version else None
             evaluation = None
             if texte:
                 et = EntrepriseTexte.query.filter_by(
-                    entreprise_id=eid, texte_version_id=version.id
+                    texte_version_id=version.id
                 ).first()
                 if et:
                     evaluation = EvaluationArticle.query.filter_by(

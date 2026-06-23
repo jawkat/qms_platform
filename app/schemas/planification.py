@@ -1,8 +1,8 @@
 from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.planification import EvenementPlanification
 
-class EvenementPlanificationSchema(SQLAlchemyAutoSchema):
+class EvenementPlanificationSchema(AutoSchema):
     class Meta:
         model = EvenementPlanification
         load_instance = True

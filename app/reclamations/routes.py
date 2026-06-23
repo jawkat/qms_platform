@@ -1,6 +1,7 @@
 from flask import render_template, request, jsonify, session
-from flask_login import login_required, current_user
-from app.utils.permissions import has_permission
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.reclamations import blueprint
 from app.models.partages import Reclamation
@@ -12,37 +13,38 @@ from sqlalchemy import func
 from app.schemas.partages import ReclamationSchema
 
 
+class ReclamationResource(BaseResource):
+    model = Reclamation
+    schema = ReclamationSchema
+    search_fields = ['titre', 'description']
+
+
 @blueprint.route('/')
-@login_required
-@has_permission('reclamations.voir')
+@access_required(permission='reclamations.voir')
 def index():
     utilisateurs = Utilisateur.query.filter_by(
-        entreprise_id=current_user.entreprise_id, actif=True
+        actif=True
     ).order_by(Utilisateur.nom).all()
     return render_template('reclamations/index.html', utilisateurs=utilisateurs)
 
 
 @blueprint.get('/api/liste')
-@login_required
-@has_permission('reclamations.voir')
+@access_required(permission='reclamations.voir')
 @blueprint.response(200, ReclamationSchema(many=True))
 def api_liste():
     """Liste des réclamations clients"""
     domaine = session.get('domaine', 'hse')
     return Reclamation.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
         domaine=domaine
     ).order_by(Reclamation.date_creation.desc()).all()
 
 
 @blueprint.get('/api/stats')
-@login_required
-@has_permission('reclamations.voir')
+@access_required(permission='reclamations.voir')
 def api_stats():
     """Statistiques des réclamations"""
-    eid = current_user.entreprise_id
     domaine = session.get('domaine', 'hse')
-    base = Reclamation.query.filter_by(entreprise_id=eid, domaine=domaine)
+    base = Reclamation.query.filter_by(domaine=domaine)
 
     par_severite = dict(base.with_entities(Reclamation.severite, func.count())
         .group_by(Reclamation.severite).all())
@@ -63,15 +65,13 @@ def api_stats():
 
 
 @blueprint.get('/api/pareto')
-@login_required
-@has_permission('reclamations.voir')
+@access_required(permission='reclamations.voir')
 def api_pareto():
     """Analyse Pareto des réclamations"""
-    eid = current_user.entreprise_id
     domaine = session.get('domaine', 'hse')
     rows = db.session.query(
         Reclamation.type_reclamation, func.count()
-    ).filter_by(entreprise_id=eid, domaine=domaine) \
+    ).filter_by(domaine=domaine) \
      .group_by(Reclamation.type_reclamation) \
      .order_by(func.count().desc()).all()
 
@@ -89,44 +89,25 @@ def api_pareto():
 
 
 @blueprint.post('/api/creer')
-@login_required
-@has_permission('reclamations.gerer')
+@access_required(permission='reclamations.gerer')
 @blueprint.arguments(ReclamationSchema)
 @blueprint.response(201, ReclamationSchema)
 def api_creer(data):
     """Déclarer une nouvelle réclamation"""
-    data.entreprise_id = current_user.entreprise_id
-    data.domaine = session.get('domaine', 'hse')
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return ReclamationResource.create_resource(data)
 
 
 @blueprint.post('/api/<int:item_id>/modifier')
-@login_required
-@has_permission('reclamations.gerer')
+@access_required(permission='reclamations.gerer')
 @blueprint.arguments(ReclamationSchema(partial=True))
 @blueprint.response(200, ReclamationSchema)
 def api_modifier(data, item_id):
     """Mettre à jour une réclamation"""
-    item = Reclamation.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
-    ).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+    return ReclamationResource.update_resource(item_id)
 
 
 @blueprint.post('/api/<int:item_id>/supprimer')
-@login_required
-@has_permission('reclamations.gerer')
+@access_required(permission='reclamations.gerer')
 def api_supprimer(item_id):
     """Supprimer une réclamation"""
-    item = Reclamation.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return ReclamationResource.delete_resource(item_id)

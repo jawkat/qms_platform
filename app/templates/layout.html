@@ -321,7 +321,7 @@
           e.preventDefault();
           fetch('/api/notifications/read-all', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){ return r.json(); })
-            .then(function(){ loadNotifications(); });
+            .then(function(){ loadNotifications(); refreshNotifCount(); });
         });
       }
     });
@@ -381,12 +381,24 @@
             html += '</div></div></div></a>';
           });
           if (notifs.length > 5) {
-            html += '<div class="text-center py-2"><a href="/admin/notifications" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
+            html += '<div class="text-center py-2"><a href="/notifications" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
           }
           list.innerHTML = html;
         })
         .catch(function() {
           list.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';
+        });
+    }
+
+    function refreshNotifCount() {
+      fetch('/api/notifications/unread-count', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){ return r.json(); })
+        .then(function(data) {
+          var count = document.getElementById('notifCount');
+          if (count) {
+            count.textContent = data.unread;
+            count.style.display = data.unread ? '' : 'none';
+          }
         });
     }
   </script>

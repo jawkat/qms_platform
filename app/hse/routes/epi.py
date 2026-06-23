@@ -21,7 +21,7 @@ def epi_liste():
 @blueprint.response(200, EPISchema(many=True))
 def api_epi():
     """Liste des EPI (Équipements de Protection Individuelle)"""
-    return EPI.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    return EPI.query\
         .order_by(EPI.date_creation.desc()).all()
 
 
@@ -45,7 +45,7 @@ def api_epi_create(data):
 @blueprint.response(200, EPISchema)
 def api_epi_update(data, item_id):
     """Mettre à jour un EPI"""
-    item = EPI.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = EPI.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -58,7 +58,7 @@ def api_epi_update(data, item_id):
 @module_access_required('hse', 'hse.voir_incidents')
 def api_epi_delete(item_id):
     """Supprimer un EPI"""
-    item = EPI.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = EPI.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}

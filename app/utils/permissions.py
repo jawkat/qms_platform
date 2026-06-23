@@ -2,6 +2,7 @@ from functools import wraps
 from flask import abort, current_app, flash, request
 from flask_login import current_user
 
+from app.extensions import db
 from app.utils.observability import get_request_id, record_security_event
 from app.utils.permission_catalog import is_known_permission
 
@@ -114,6 +115,78 @@ def system_admin_required(f):
     return decorated_function
 
 
+
+
+def access_required(permission=None, module=None):
+    """
+    Décorateur unique qui vérifie en une ligne :
+      1. Authentification (remplace @login_required)
+      2. Permission (remplace @has_permission)
+      3. Activation de module (remplace @module_access_required)
+
+    Usage::
+
+        @access_required(permission='formations.voir')
+        @access_required(permission='haccp.gerer_ccp', module='haccp')
+        @access_required(module='haccp')  # vérifie juste le module
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                abort(401)
+
+            if module:
+                from app.models.entreprise import Entreprise
+                entreprise = db.session.get(Entreprise, current_user.entreprise_id)
+                if not entreprise or module not in (entreprise.modules_actifs or []):
+                    abort(403)
+
+            if permission:
+                if not is_known_permission(permission):
+                    current_app.logger.error(
+                        "Permission inconnue utilisee: %s", permission,
+                    )
+                    abort(500)
+
+                if current_user.role and current_user.role.est_systeme:
+                    return f(*args, **kwargs)
+
+                if not current_user.has_permission(permission, current_user.entreprise_id):
+                    request_id = get_request_id()
+                    current_app.logger.warning(
+                        (
+                            "rbac_denied permission=%s endpoint=%s method=%s "
+                            "remote_addr=%s"
+                        ),
+                        permission,
+                        request.endpoint,
+                        request.method,
+                        request.remote_addr,
+                        extra={
+                            'request_id': request_id,
+                            'tenant_id': current_user.entreprise_id or '-',
+                            'user_id': current_user.id or '-',
+                        },
+                    )
+                    record_security_event(
+                        type_action='rbac_denied',
+                        utilisateur_id=current_user.id,
+                        adresse_ip=request.remote_addr,
+                        navigateur=request.headers.get('User-Agent'),
+                        details={
+                            'request_id': request_id,
+                            'permission': permission,
+                            'endpoint': request.endpoint,
+                            'method': request.method,
+                        },
+                    )
+                    flash('Vous n\'avez pas la permission d\'accéder à cette page.', 'error')
+                    abort(403)
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 # def user_has_permission(user, permission_code):

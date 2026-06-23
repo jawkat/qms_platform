@@ -28,6 +28,13 @@ from app.models import (
 from app.utils.permission_catalog import PERMISSION_CATALOG
 
 
+@pytest.fixture(autouse=True)
+def _reset_tenant_scope():
+    """Reset tenant context between tests to prevent cross-test leakage."""
+    from app.utils.tenant_scope import clear_current_entreprise
+    clear_current_entreprise()
+
+
 @pytest.fixture(scope='session')
 def app():
     """Create app with isolated SQLite in-memory database for tests."""

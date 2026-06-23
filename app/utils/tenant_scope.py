@@ -1,5 +1,6 @@
 import logging
 from contextvars import ContextVar
+import sqlalchemy as sa
 from sqlalchemy import event
 from app import db
 
@@ -38,19 +39,57 @@ def tenant_get_or_404(model, obj_id):
     return obj
 
 
-def init_tenant_scope(app):
-    from app.models import ActionCorrective, ProofMaster, Audit, \
-        IndicateurValeur, EntrepriseTexte, EvaluationArticle, EntrepriseRole, Utilisateur
+def _collect_tables(from_element):
+    """Récupère récursivement toutes les tables d'une clause FROM."""
+    if isinstance(from_element, sa.Table):
+        return [from_element]
+    if isinstance(from_element, sa.Join):
+        return _collect_tables(from_element.left) + _collect_tables(from_element.right)
+    if isinstance(from_element, sa.sql.Alias):
+        return _collect_tables(from_element.element)
+    if isinstance(from_element, sa.Select):
+        tables = []
+        for f in from_element.froms:
+            tables.extend(_collect_tables(f))
+        return tables
+    return []
 
-    SCOPED_MODELS = {
-        Utilisateur: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-        ActionCorrective: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-        ProofMaster: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-        Audit: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-        IndicateurValeur: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-        EntrepriseTexte: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-        EntrepriseRole: lambda cls: cls.entreprise_id == current_entreprise_id.get(),
-    }
+
+def _discover_scoped_models():
+    """Découvre dynamiquement tous les modèles avec entreprise_id NOT NULL.
+
+    Exclut les tables de jonction (EntrepriseSecteur) et les modèles
+    dont entreprise_id est nullable (RolePermission, Ticket).
+    Utilisateur est ajouté manuellement car son entreprise_id est nullable
+    mais doit être filtré pour les utilisateurs non-admin.
+    """
+    EXCLUDED_NAMES = {'EntrepriseSecteur'}
+
+    models = []
+    for mapper in db.Model.registry.mappers:
+        model = mapper.class_
+        if model.__name__ in EXCLUDED_NAMES:
+            continue
+        try:
+            columns = [c for c in mapper.columns if c.key == 'entreprise_id']
+        except Exception:
+            continue
+        if columns and not columns[0].nullable:
+            models.append(model)
+
+    from app.models import Utilisateur
+    models.append(Utilisateur)
+
+    logger.info("Découverte auto — %d modèles scopés", len(models))
+    return models
+
+
+SCOPED_MODELS = []
+
+
+def init_tenant_scope(app):
+    global SCOPED_MODELS
+    SCOPED_MODELS = _discover_scoped_models()
 
     def _add_global_tenant_scope(orm_execute_state):
         eid = current_entreprise_id.get()
@@ -61,14 +100,20 @@ def init_tenant_scope(app):
         if not orm_execute_state.is_select:
             return
 
-        from sqlalchemy.orm import with_loader_criteria
-        for model_cls, filter_fn in SCOPED_MODELS.items():
+        stmt = orm_execute_state.statement
+
+        tables_in_query = set()
+        for f in stmt.froms:
+            tables_in_query.update(_collect_tables(f))
+
+        for model_cls in SCOPED_MODELS:
             try:
-                orm_execute_state.statement = orm_execute_state.statement.options(
-                    with_loader_criteria(model_cls, filter_fn, include_aliases=True)
-                )
+                if model_cls.__table__ in tables_in_query:
+                    stmt = stmt.where(model_cls.__table__.c.entreprise_id == eid)
             except Exception:
                 pass
+
+        orm_execute_state.statement = stmt
 
     from sqlalchemy.orm import Session as SASession
     event.listen(SASession, 'do_orm_execute', _add_global_tenant_scope, named=True)

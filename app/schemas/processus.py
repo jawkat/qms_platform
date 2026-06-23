@@ -1,8 +1,9 @@
 from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.processus import Processus, IndicateurProcessus
 
-class ProcessusSchema(SQLAlchemyAutoSchema):
+class ProcessusSchema(AutoSchema):
     class Meta:
         model = Processus
         load_instance = True

@@ -59,11 +59,28 @@ class Utilisateur(UserMixin, db.Model, TimestampMixin):
             return False
         return check_password_hash(self.mot_de_passe, password)
 
+    @property
+    def is_manager(self):
+        return self.role and self.role.nom == 'Manager'
+
     def has_permission(self, permission_code, entreprise_id=None):
         if not self.role:
             return False
         if self.role.est_systeme:
             return True
+        # Manager bypass: grant all active-module permissions
+        # except admin-only features (textes CRUD, system admin)
+        if self.is_manager:
+            if permission_code.startswith('admin.'):
+                return False
+            if permission_code == 'textes.modifier':
+                return False
+            eid = entreprise_id or self.entreprise_id
+            if eid:
+                from app.models.entreprise import Entreprise
+                entreprise = db.session.get(Entreprise, eid)
+                if entreprise:
+                    return True
         eid = entreprise_id or self.entreprise_id
         perm = Permission.query.filter_by(code=permission_code).first()
         if not perm:

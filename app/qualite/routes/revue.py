@@ -18,7 +18,7 @@ def revue():
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_revue():
-    items = RevueDirection.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    items = RevueDirection.query\
         .order_by(RevueDirection.date_creation.desc()).all()
     return jsonify([{
         'id': r.id,
@@ -54,7 +54,7 @@ def api_revue_create():
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_revue_update(item_id):
-    item = RevueDirection.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = RevueDirection.query.filter_by(id=item_id).first_or_404()
     data = request.get_json()
     if data.get('date_revue'):
         item.date_revue = datetime.strptime(data['date_revue'], '%Y-%m-%d').date()
@@ -70,7 +70,7 @@ def api_revue_update(item_id):
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_revue_delete(item_id):
-    item = RevueDirection.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = RevueDirection.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return jsonify({'success': True})

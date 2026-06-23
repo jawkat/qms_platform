@@ -1,8 +1,8 @@
 from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.qualite import ObjectifQualite
 
-class ObjectifQualiteSchema(SQLAlchemyAutoSchema):
+class ObjectifQualiteSchema(AutoSchema):
     class Meta:
         model = ObjectifQualite
         load_instance = True

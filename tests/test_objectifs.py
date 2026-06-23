@@ -55,9 +55,9 @@ class TestObjectifsAPI:
             'domaine': 'qualite',
             'processus_concerne': 'Production',
         })
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.get_json()
-        assert data['success'] is True
+        assert data['titre'] == 'Améliorer la qualité'
         assert 'id' in data
 
     def test_liste_apres_creation(self, login_client, objectif):
@@ -72,7 +72,8 @@ class TestObjectifsAPI:
             'cible': 100.0,
         })
         assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        data = resp.get_json()
+        assert data['statut'] == 'atteint'
 
     def test_delete_objectif(self, login_client, objectif):
         resp = login_client.post(f'/objectifs/api/{objectif.id}/supprimer', json={})

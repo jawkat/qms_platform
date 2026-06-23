@@ -27,7 +27,6 @@ def _compute_library_linkage(entreprise_id, texte_id, version_active_id):
 
 
 def _render_library(tab, filters):
-    eid = current_user.entreprise_id
     query = TexteReglementaire.query
     q = filters.get('q', '').strip()
     if q:
@@ -36,8 +35,7 @@ def _render_library(tab, filters):
             db.or_(
                 TexteReglementaire.code.ilike(like),
                 TexteReglementaire.titre.ilike(like),
-                TexteReglementaire.description.ilike(like),
-            )
+                TexteReglementaire.description.ilike(like))
         )
     domaine_id = filters.get('domaine_id')
     if domaine_id:
@@ -47,8 +45,7 @@ def _render_library(tab, filters):
             query = query.filter(
                 db.or_(
                     TexteReglementaire.domaine_id == domaine_id,
-                    TexteReglementaire.domaine.ilike(domaine.nom),
-                )
+                    TexteReglementaire.domaine.ilike(domaine.nom))
             )
     referentiel = filters.get('referentiel')
     if referentiel:

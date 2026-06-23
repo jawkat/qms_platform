@@ -1,14 +1,14 @@
 from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.environnement import AspectEnvironnemental, SuiviEnvironnemental
 
-class AspectEnvironnementalSchema(SQLAlchemyAutoSchema):
+class AspectEnvironnementalSchema(AutoSchema):
     class Meta:
         model = AspectEnvironnemental
         load_instance = True
         include_fk = True
 
-class SuiviEnvironnementalSchema(SQLAlchemyAutoSchema):
+class SuiviEnvironnementalSchema(AutoSchema):
     class Meta:
         model = SuiviEnvironnemental
         load_instance = True

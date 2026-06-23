@@ -17,7 +17,7 @@ import io
 def index():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     q = Audit.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+        domaine=domaine
     )
     type_filter = request.args.get('type')
     resultat = request.args.get('resultat')
@@ -29,7 +29,7 @@ def index():
     if search:
         q = q.filter(Audit.commentaire.ilike(f'%{search}%'))
     audits = q.order_by(Audit.date_creation.desc()).all()
-    auditeurs = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+    auditeurs = Utilisateur.query.all()
     return render_template('audit/index.html', audits=audits, auditeurs=auditeurs,
                            filters=request.args)
 
@@ -63,7 +63,7 @@ def api_liste():
     """Liste des audits"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return Audit.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+        domaine=domaine
     ).order_by(Audit.date_creation.desc()).all()
 
 
@@ -72,7 +72,7 @@ def api_liste():
 @has_permission('audit.voir')
 def detail(audit_id):
     audit = tenant_get_or_404(Audit, audit_id)
-    auditeurs = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+    auditeurs = Utilisateur.query.all()
     textes = TexteReglementaire.query.order_by(TexteReglementaire.titre).all()
     articles = Article.query.order_by(Article.numero_article).all()
     return render_template('audit/detail.html', audit=audit, auditeurs=auditeurs,
@@ -141,7 +141,7 @@ def delete_observation(audit_id, obs_id):
 def export_audits():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     audits = Audit.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+        domaine=domaine
     ).order_by(Audit.date_creation.desc()).all()
 
     output = io.StringIO()

@@ -59,9 +59,9 @@ class TestProcessusAPI:
             'sortie': 'Commande',
             'statut': 'actif',
         })
-        assert resp.status_code == 200
+        assert resp.status_code == 201
         data = resp.get_json()
-        assert data['success'] is True
+        assert data['nom'] == 'Achat'
         assert 'id' in data
 
     def test_liste_apres_creation(self, login_client, processus):
@@ -77,7 +77,8 @@ class TestProcessusAPI:
             'statut': 'inactif',
         })
         assert resp.status_code == 200
-        assert resp.get_json()['success'] is True
+        data = resp.get_json()
+        assert data['nom'] == 'Production v2'
 
     def test_supprimer_processus(self, login_client, processus):
         resp = login_client.post(f'/processus/api/{processus.id}/supprimer', json={})

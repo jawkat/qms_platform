@@ -39,7 +39,7 @@ def api_infos():
 @login_required
 @has_permission('facturation.voir')
 def api_paiements():
-    items = HistoriquePaiement.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    items = HistoriquePaiement.query\
         .order_by(HistoriquePaiement.date_paiement.desc()).all()
     return jsonify([{
         'id': r.id,

@@ -4,7 +4,6 @@ from flask import render_template, request, jsonify, redirect, url_for, flash, s
 from flask_login import login_required, current_user
 from app import db
 from app.models import ProofMaster, ProofReference, Dossier, TypeDocument, WorkflowLog, Utilisateur
-from app.models.systeme import Notification
 from app.documents import blueprint
 from app.utils.tenant_scope import tenant_get_or_404
 from app.utils.permissions import has_permission
@@ -41,9 +40,7 @@ def before_request_ged():
 @has_permission('documents.voir')
 def gestion():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    eid = current_user.entreprise_id
-
-    base = ProofMaster.query.filter_by(entreprise_id=eid, domaine=domaine, statut='ACTIF')
+    base = ProofMaster.query.filter_by(domaine=domaine, statut='ACTIF')
     all_proofs = base.all()
 
     q = base
@@ -90,14 +87,14 @@ def gestion():
     }
 
     dossiers = Dossier.query.filter_by(
-        entreprise_id=eid, domaine=domaine
+        domaine=domaine
     ).order_by(Dossier.nom).all()
 
     types_doc = TypeDocument.query.filter_by(
-        entreprise_id=eid, domaine=domaine
+        domaine=domaine
     ).order_by(TypeDocument.nom).all()
 
-    approbateurs = Utilisateur.query.filter_by(entreprise_id=eid, actif=True).all()
+    approbateurs = Utilisateur.query.filter_by(actif=True).all()
 
     stats = {
         'total': len(proofs),
@@ -127,17 +124,18 @@ from app.schemas.documents import DossierSchema, TypeDocumentSchema, ProofMaster
 @blueprint.get('/api/dossiers')
 @login_required
 @has_permission('documents.voir')
+@blueprint.response(200, DossierSchema(many=True))
 def api_dossiers():
     """Arborescence des dossiers de la GED"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     dossiers = Dossier.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+        domaine=domaine
     ).order_by(Dossier.nom).all()
 
     # Pre-calculating doc counts to avoid N+1 in recursion
     doc_counts = {
         d.id: ProofMaster.query.filter_by(
-            dossier_id=d.id, entreprise_id=current_user.entreprise_id, statut='ACTIF'
+            dossier_id=d.id, statut='ACTIF'
         ).count() for d in dossiers
     }
 
@@ -151,7 +149,7 @@ def api_dossiers():
             result.append(data)
         return result
 
-    return jsonify(build_tree(None))
+    return build_tree(None)
 
 
 @blueprint.route('/api/dossiers/create', methods=['POST'])
@@ -181,7 +179,7 @@ def dossier_create():
 @has_permission('documents.upload')
 def dossier_rename(dossier_id):
     dossier = Dossier.query.filter_by(
-        id=dossier_id, entreprise_id=current_user.entreprise_id
+        id=dossier_id
     ).first_or_404()
     nom = request.form.get('nom', '').strip()
     if not nom:
@@ -196,7 +194,7 @@ def dossier_rename(dossier_id):
 @has_permission('documents.upload')
 def dossier_move(dossier_id):
     dossier = Dossier.query.filter_by(
-        id=dossier_id, entreprise_id=current_user.entreprise_id
+        id=dossier_id
     ).first_or_404()
     new_parent_id = request.form.get('parent_id', type=int) or None
     if new_parent_id == dossier_id:
@@ -211,7 +209,7 @@ def dossier_move(dossier_id):
 @has_permission('documents.archiver')
 def dossier_delete(dossier_id):
     dossier = Dossier.query.filter_by(
-        id=dossier_id, entreprise_id=current_user.entreprise_id
+        id=dossier_id
     ).first_or_404()
     ProofMaster.query.filter_by(dossier_id=dossier_id).update({'dossier_id': None})
     Dossier.query.filter_by(parent_id=dossier_id).update({'parent_id': None})
@@ -238,8 +236,6 @@ def upload():
     """
     from flask import session as flask_session
     domaine = flask_session.get('domaine_actif', 'hse')
-    eid = current_user.entreprise_id
-
     if 'file' not in request.files:
         flash('Aucun fichier sélectionné.', 'danger')
         return redirect(url_for('documents.gestion'))
@@ -252,7 +248,7 @@ def upload():
     original_filename = secure_filename(file.filename)
 
     # Générer numéro document auto
-    last_num = db.session.query(func.max(ProofMaster.id)).filter_by(entreprise_id=eid).scalar() or 0
+    last_num = db.session.query(func.max(ProofMaster.id)).scalar() or 0
     numero_doc = f"DOC-{datetime.utcnow().strftime('%Y%m')}-{last_num + 1:04d}"
 
     # Upload via ProofService (utilise StorageService en interne)
@@ -299,9 +295,9 @@ def detail(proof_id):
     proof = tenant_get_or_404(ProofMaster, proof_id)
     refs = ProofReference.query.filter_by(proof_master_id=proof.id).all()
     workflow_logs = WorkflowLog.query.filter_by(proof_master_id=proof.id).order_by(WorkflowLog.date_creation.desc()).all()
-    approbateurs = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id, actif=True).all()
-    types_doc = TypeDocument.query.filter_by(entreprise_id=current_user.entreprise_id).all()
-    dossiers = Dossier.query.filter_by(entreprise_id=current_user.entreprise_id).order_by(Dossier.nom).all()
+    approbateurs = Utilisateur.query.filter_by(actif=True).all()
+    types_doc = TypeDocument.query.all()
+    dossiers = Dossier.query.order_by(Dossier.nom).all()
 
     # Fetch version chain (remplace_preuve_id)
     versions = []
@@ -356,7 +352,7 @@ def soumettre(proof_id):
 
     if workflow_modele_id:
         from app.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
-        modele = WorkflowModele.query.filter_by(id=workflow_modele_id, entreprise_id=current_user.entreprise_id).first()
+        modele = WorkflowModele.query.filter_by(id=workflow_modele_id).first()
         if modele:
             etapes = list(modele.etapes.order_by(WorkflowEtape.ordre).all())
             if etapes:
@@ -385,11 +381,12 @@ def soumettre(proof_id):
                 if premiere.role_requis:
                     from app.models.auth import Utilisateur as AuthUtilisateur
                     validateurs = AuthUtilisateur.query.filter_by(
-                        entreprise_id=current_user.entreprise_id, actif=True
+                        actif=True
                     ).all()
                     for v in validateurs:
-                            if v.role and v.role.nom and premiere.role_requis.lower() in v.role.nom.lower():
-                                create_notification(v.id, f'Nouveau document "{proof.nom_fichier}" à valider (workflow: {modele.nom})', type='workflow')
+                        if v.role and v.role.nom and premiere.role_requis.lower() in v.role.nom.lower():
+                            from app.utils.notifications import create_notification
+                            create_notification(v.id, f'Nouveau document "{proof.nom_fichier}" à valider (workflow: {modele.nom})', type='workflow')
 
     if not approbateur_id:
         flash('Veuillez sélectionner un approbateur.', 'warning')
@@ -401,6 +398,7 @@ def soumettre(proof_id):
     proof.workflow_statut = 'soumis'
     proof.workflow_approbateur_id = approbateur_id
     proof.date_soumission = datetime.utcnow()
+    from app.utils.notifications import create_notification
     create_notification(approbateur_id, f'Document "{proof.nom_fichier}" soumis pour votre approbation.', type='workflow')
     db.session.commit()
     flash('Document soumis pour approbation.', 'success')
@@ -436,11 +434,13 @@ def approuver(proof_id):
             if next_etape.delai_jours:
                 wf_inst.date_deadline = datetime.utcnow() + timedelta(days=next_etape.delai_jours)
             if wf_inst.demandeur_id:
+                from app.utils.notifications import create_notification
                 create_notification(wf_inst.demandeur_id, f'Workflow "{wf_inst.modele.nom}" : étape "{next_etape.nom}" en attente.', type='workflow')
         else:
             wf_inst.statut = 'termine'
             wf_inst.date_fin = datetime.utcnow()
             if wf_inst.demandeur_id:
+                from app.utils.notifications import create_notification
                 create_notification(wf_inst.demandeur_id, f'Workflow "{wf_inst.modele.nom}" terminé avec succès.', type='workflow')
 
     _log_workflow(proof_id, 'approuve',
@@ -482,6 +482,7 @@ def rejeter(proof_id):
         wf_inst.statut = 'rejete'
         wf_inst.date_fin = datetime.utcnow()
         if wf_inst.demandeur_id:
+            from app.utils.notifications import create_notification
             create_notification(wf_inst.demandeur_id, f'Workflow "{wf_inst.modele.nom}" rejeté. Motif : {commentaire}', type='workflow')
 
     _log_workflow(proof_id, 'rejete', commentaire, current_user.id)
@@ -526,8 +527,6 @@ def nouvelle_version(proof_id):
     from flask import session as flask_session
     old_proof = tenant_get_or_404(ProofMaster, proof_id)
     domaine = flask_session.get('domaine_actif', 'hse')
-    eid = current_user.entreprise_id
-
     if 'file' not in request.files:
         flash('Aucun fichier sélectionné.', 'danger')
         return redirect(url_for('documents.detail', proof_id=proof_id))
@@ -588,7 +587,7 @@ def api_types():
     """Liste des types de documents disponibles"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return TypeDocument.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+        domaine=domaine
     ).order_by(TypeDocument.nom).all()
 
 
@@ -601,7 +600,7 @@ def type_create():
     if not nom:
         return jsonify({'success': False, 'error': 'Le nom est requis'}), 400
     existing = TypeDocument.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine, nom=nom
+        domaine=domaine, nom=nom
     ).first()
     if existing:
         return jsonify({'success': False, 'error': 'Ce type existe déjà'}), 400
@@ -619,7 +618,7 @@ def type_create():
 @has_permission('documents.upload')
 def type_update(type_id):
     td = TypeDocument.query.filter_by(
-        id=type_id, entreprise_id=current_user.entreprise_id
+        id=type_id
     ).first_or_404()
     if request.form.get('nom'):
         td.nom = request.form['nom']
@@ -634,7 +633,7 @@ def type_update(type_id):
 @has_permission('documents.archiver')
 def type_delete(type_id):
     td = TypeDocument.query.filter_by(
-        id=type_id, entreprise_id=current_user.entreprise_id
+        id=type_id
     ).first_or_404()
     ProofMaster.query.filter_by(type_document_id=type_id).update({'type_document_id': None})
     db.session.delete(td)
@@ -653,8 +652,7 @@ def type_delete(type_id):
 def api_recherche():
     """Recherche avancée dans la GED"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    eid = current_user.entreprise_id
-    q = ProofMaster.query.filter_by(entreprise_id=eid, domaine=domaine, statut='ACTIF')
+    q = ProofMaster.query.filter_by(domaine=domaine, statut='ACTIF')
 
     search = request.args.get('q', '').strip()
     if search:
@@ -664,8 +662,7 @@ def api_recherche():
             ProofMaster.description.ilike(like),
             ProofMaster.numero_document.ilike(like),
             ProofMaster.mots_cles.ilike(like),
-            ProofMaster.notes.ilike(like),
-        ))
+            ProofMaster.notes.ilike(like)))
 
     dossier_id = request.args.get('dossier_id', type=int)
     if dossier_id:
@@ -713,7 +710,6 @@ def api_liste():
     """Liste simple des documents actifs"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return ProofMaster.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
         domaine=domaine, statut='ACTIF'
     ).order_by(ProofMaster.date_creation.desc()).all()
 
@@ -728,42 +724,21 @@ def download(proof_id):
     Utilise StorageService pour récupérer le fichier (MINIO ou local).
     Retourne le fichier comme attachment.
     """
-    import os
-    import mimetypes
     proof = tenant_get_or_404(ProofMaster, proof_id)
-
-    download_name = proof.nom_fichier
-    if '.' not in (download_name or ''):
-        download_name = os.path.basename(proof.chemin or download_name)
-    mime_type, _ = mimetypes.guess_type(download_name or '')
-    mimetype = mime_type or 'application/octet-stream'
 
     # Utiliser ProofService pour récupérer le stream
     file_stream = ProofService.get_proof_stream(proof.id)
-    if file_stream:
-        from flask import send_file
-        return send_file(
-            file_stream,
-            as_attachment=True,
-            download_name=download_name,
-            mimetype=mimetype,
-        )
+    if not file_stream:
+        flash('Fichier introuvable dans le stockage.', 'danger')
+        return redirect(url_for('documents.gestion'))
 
-    # Fallback local filesystem
-    if proof.chemin:
-        filename = os.path.basename(proof.chemin)
-        for base_dir in (
-            current_app.config.get('UPLOAD_FOLDER', 'uploads'),
-            os.path.join(current_app.root_path, 'uploads'),
-        ):
-            for subdir in ('preuves', 'documents/preuves'):
-                local_path = os.path.join(base_dir, str(proof.entreprise_id), subdir, filename)
-                if os.path.exists(local_path):
-                    from flask import send_file
-                    return send_file(local_path, as_attachment=True, download_name=download_name, mimetype=mimetype)
-
-    flash('Fichier introuvable dans le stockage.', 'danger')
-    return redirect(url_for('documents.gestion'))
+    from flask import send_file
+    return send_file(
+        file_stream,
+        as_attachment=True,
+        download_name=proof.nom_fichier,
+        mimetype=f'application/{proof.type}' if proof.type else None,
+    )
 
 
 @blueprint.route('/<int:proof_id>/archiver', methods=['POST'])
@@ -819,7 +794,6 @@ def mettre_a_jour(proof_id):
 def api_actives():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     proofs = ProofMaster.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
         domaine=domaine, statut='ACTIF'
     ).order_by(ProofMaster.nom_fichier).all()
     return jsonify([{

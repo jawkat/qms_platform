@@ -53,6 +53,12 @@
       <p class="text-muted small mb-0">Vue d'ensemble de l'infrastructure QMS Platform</p>
     </div>
     <div class="d-flex align-items-center gap-2">
+      <a href="{{ url_for('admin.securite') }}" class="btn btn-outline-danger btn-sm">
+        <i class="fas fa-shield-alt me-1"></i>Sécurité
+      </a>
+      <a href="{{ url_for('admin.mail_test') }}" class="btn btn-outline-info btn-sm">
+        <i class="fas fa-envelope me-1"></i>Diagnostic Email
+      </a>
       <span class="badge bg-light text-muted border px-3 py-2 auto-refresh-badge">
         <i class="fas fa-sync-alt me-1"></i>Direct
       </span>

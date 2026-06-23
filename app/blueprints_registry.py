@@ -72,12 +72,10 @@ def register_blueprints(app, api):
     api.register_blueprint(change_management_bp, url_prefix='/change-management')
     api.register_blueprint(workflow_engine_bp, url_prefix='/workflow-engine')
 
-    # --- Facturation & Plans ---
+    # --- Facturation ---
     from .facturation import facturation as facturation_bp
-    from .plans import plans as plans_bp
 
     api.register_blueprint(facturation_bp, url_prefix='/facturation')
-    api.register_blueprint(plans_bp, url_prefix='/plans')
 
     # --- Démo ---
     from .demo import demo as demo_bp

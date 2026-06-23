@@ -25,7 +25,7 @@ def duer():
 @blueprint.response(200, UniteTravailSchema(many=True))
 def api_unites_travail():
     """Liste des unités de travail"""
-    return UniteTravail.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    return UniteTravail.query\
         .order_by(UniteTravail.nom).all()
 
 
@@ -49,7 +49,7 @@ def api_unites_travail_create(data):
 @blueprint.response(200, UniteTravailSchema)
 def api_unites_travail_update(data, item_id):
     """Mettre à jour une unité de travail"""
-    item = UniteTravail.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = UniteTravail.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -62,7 +62,7 @@ def api_unites_travail_update(data, item_id):
 @module_access_required('hse', 'hse.gerer_duer')
 def api_unites_travail_delete(item_id):
     """Supprimer une unité de travail"""
-    item = UniteTravail.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = UniteTravail.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}
@@ -77,7 +77,7 @@ def api_unites_travail_delete(item_id):
 def api_dangers_sst():
     """Liste des dangers SST"""
     unite_id = request.args.get('unite_travail_id', type=int)
-    q = DangerSst.query.filter_by(entreprise_id=current_user.entreprise_id)
+    q = DangerSst.query
     if unite_id:
         q = q.filter_by(unite_travail_id=unite_id)
     return q.order_by(DangerSst.famille_danger, DangerSst.danger).all()
@@ -103,7 +103,7 @@ def api_dangers_sst_create(data):
 @blueprint.response(200, DangerSstSchema)
 def api_dangers_sst_update(data, item_id):
     """Mettre à jour un danger SST"""
-    item = DangerSst.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = DangerSst.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -116,7 +116,7 @@ def api_dangers_sst_update(data, item_id):
 @module_access_required('hse', 'hse.gerer_duer')
 def api_dangers_sst_delete(item_id):
     """Supprimer un danger SST"""
-    item = DangerSst.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = DangerSst.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}
@@ -131,7 +131,7 @@ def api_dangers_sst_delete(item_id):
 def api_evaluations_risques():
     """Liste des évaluations de risques SST"""
     danger_id = request.args.get('danger_id', type=int)
-    q = EvaluationRisqueSst.query.filter_by(entreprise_id=current_user.entreprise_id)
+    q = EvaluationRisqueSst.query
     if danger_id:
         q = q.filter_by(danger_id=danger_id)
     return q.order_by(EvaluationRisqueSst.date_creation.desc()).all()
@@ -157,7 +157,7 @@ def api_evaluations_risques_create(data):
 @blueprint.response(200, EvaluationRisqueSstSchema)
 def api_evaluations_risques_update(data, item_id):
     """Mettre à jour une évaluation de risque SST"""
-    item = EvaluationRisqueSst.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = EvaluationRisqueSst.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -170,7 +170,7 @@ def api_evaluations_risques_update(data, item_id):
 @module_access_required('hse', 'hse.gerer_duer')
 def api_evaluations_risques_delete(item_id):
     """Supprimer une évaluation de risque SST"""
-    item = EvaluationRisqueSst.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = EvaluationRisqueSst.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}
@@ -183,10 +183,9 @@ def api_evaluations_risques_delete(item_id):
 @module_access_required('hse', 'hse.voir_duer')
 def api_duer_stats():
     """Statistiques DUER"""
-    eid = current_user.entreprise_id
-    unites = UniteTravail.query.filter_by(entreprise_id=eid).count()
-    dangers = DangerSst.query.filter_by(entreprise_id=eid).count()
-    evaluations = EvaluationRisqueSst.query.filter_by(entreprise_id=eid).all()
+    unites = UniteTravail.query.count()
+    dangers = DangerSst.query.count()
+    evaluations = EvaluationRisqueSst.query.all()
     total_eval = len(evaluations)
     critique = sum(1 for e in evaluations if e.niveau_risque == 'critique')
     eleve = sum(1 for e in evaluations if e.niveau_risque == 'eleve')

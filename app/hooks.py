@@ -10,6 +10,11 @@ def register_hooks(app):
             is_admin = current_user.role and current_user.role.est_systeme
             set_current_entreprise(current_user.entreprise_id, is_admin)
 
+    @app.teardown_request
+    def clear_tenant(exception=None):
+        from app.utils.tenant_scope import clear_current_entreprise
+        clear_current_entreprise()
+
     @app.before_request
     def set_request_id():
         from app.utils.observability import set_request_id

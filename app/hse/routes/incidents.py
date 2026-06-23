@@ -30,8 +30,7 @@ def incidents():
 @blueprint.response(200, IncidentSchema(many=True))
 def api_incidents():
     """Liste des incidents HSE"""
-    eid = current_user.entreprise_id
-    q = Incident.query.filter_by(entreprise_id=eid)
+    q = Incident.query
     type_f = request.args.get('type')
     if type_f:
         q = q.filter_by(type_incident=type_f)
@@ -75,7 +74,7 @@ def api_incidents_create(data):
 @blueprint.response(200, IncidentSchema)
 def api_incidents_update(data, item_id):
     """Mettre à jour un incident HSE"""
-    item = Incident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Incident.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -100,7 +99,7 @@ def api_incidents_update(data, item_id):
 @module_access_required('hse', 'hse.voir_incidents')
 def api_incidents_delete(item_id):
     """Supprimer un incident HSE"""
-    item = Incident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Incident.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}

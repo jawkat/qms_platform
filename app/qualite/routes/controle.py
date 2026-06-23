@@ -18,7 +18,7 @@ def controle():
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_controle():
-    items = ControleQualite.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    items = ControleQualite.query\
         .order_by(ControleQualite.date_creation.desc()).all()
     return jsonify([{
         'id': r.id,
@@ -60,7 +60,7 @@ def api_controle_create():
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_controle_update(item_id):
-    item = ControleQualite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = ControleQualite.query.filter_by(id=item_id).first_or_404()
     data = request.get_json()
     if data.get('date_controle'):
         item.date_controle = datetime.strptime(data['date_controle'], '%Y-%m-%d').date()
@@ -79,7 +79,7 @@ def api_controle_update(item_id):
 @login_required
 @module_access_required('qualite', 'qualite.voir')
 def api_controle_delete(item_id):
-    item = ControleQualite.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = ControleQualite.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return jsonify({'success': True})

@@ -6,25 +6,33 @@ from app.models.haccp import (
     TracabiliteLot, RappelProduit
 )
 
-class ProcessusHaccpSchema(SQLAlchemyAutoSchema):
+
+class _OptionalEntrepriseMixin:
+    entreprise_id = fields.Integer(required=False, load_default=None)
+
+
+class ProcessusHaccpSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = ProcessusHaccp
         load_instance = True
         include_fk = True
 
-class ProduitHaccpSchema(SQLAlchemyAutoSchema):
+
+class ProduitHaccpSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = ProduitHaccp
         load_instance = True
         include_fk = True
 
-class MatierePremiereSchema(SQLAlchemyAutoSchema):
+
+class MatierePremiereSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = MatierePremiere
         load_instance = True
         include_fk = True
 
-class AnalyseDangerSchema(SQLAlchemyAutoSchema):
+
+class AnalyseDangerSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = AnalyseDanger
         load_instance = True
@@ -33,19 +41,22 @@ class AnalyseDangerSchema(SQLAlchemyAutoSchema):
     ipr = fields.Int(dump_only=True)
     etape = fields.Function(lambda obj: obj.processus.etape if obj.processus else '', dump_only=True)
 
-class CcpSchema(SQLAlchemyAutoSchema):
+
+class CcpSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = Ccp
         load_instance = True
         include_fk = True
 
-class EnregistrementCcpSchema(SQLAlchemyAutoSchema):
+
+class EnregistrementCcpSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = EnregistrementCcp
         load_instance = True
         include_fk = True
 
-class PrpSchema(SQLAlchemyAutoSchema):
+
+class PrpSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = Prp
         load_instance = True
@@ -54,19 +65,22 @@ class PrpSchema(SQLAlchemyAutoSchema):
     etape = fields.Function(lambda obj: obj.processus.etape if obj.processus else '', dump_only=True)
     danger_libelle = fields.Function(lambda obj: obj.danger.danger if obj.danger else '', dump_only=True)
 
-class EnregistrementOprpSchema(SQLAlchemyAutoSchema):
+
+class EnregistrementOprpSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = EnregistrementOprp
         load_instance = True
         include_fk = True
 
-class TracabiliteLotSchema(SQLAlchemyAutoSchema):
+
+class TracabiliteLotSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = TracabiliteLot
         load_instance = True
         include_fk = True
 
-class RappelProduitSchema(SQLAlchemyAutoSchema):
+
+class RappelProduitSchema(_OptionalEntrepriseMixin, SQLAlchemyAutoSchema):
     class Meta:
         model = RappelProduit
         load_instance = True

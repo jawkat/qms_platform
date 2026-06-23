@@ -41,7 +41,7 @@ def _update_entreprise_texte_stats(entreprise_texte_id):
 @has_permission('conformite.voir')
 def evaluation_detail(evaluation_id):
     evaluation = tenant_get_or_404(EvaluationArticle, evaluation_id)
-    responsables = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+    responsables = Utilisateur.query.all()
 
     if request.method == 'POST':
         if request.form.get('conforme'):
@@ -180,10 +180,7 @@ def list_proofs(evaluation_id):
 @login_required
 @has_permission('conformite.voir')
 def nonconformites():
-    eid = current_user.entreprise_id
-    q = EvaluationArticle.query.join(EntrepriseTexte).filter(
-        EntrepriseTexte.entreprise_id == eid
-    )
+    q = EvaluationArticle.query.join(EntrepriseTexte)
 
     conforme_filter = request.args.get('conforme')
     if conforme_filter:
@@ -192,8 +189,7 @@ def nonconformites():
         q = q.filter(
             db.or_(
                 EvaluationArticle.conforme == ConformiteEnum.NON_CONFORME,
-                EvaluationArticle.conforme.is_(None),
-            )
+                EvaluationArticle.conforme.is_(None))
         )
 
     texte_id = request.args.get('texte_id', type=int)
@@ -207,8 +203,7 @@ def nonconformites():
             db.or_(
                 Article.contenu.ilike(like),
                 Article.resume_article.ilike(like),
-                EvaluationArticle.observation.ilike(like),
-            )
+                EvaluationArticle.observation.ilike(like))
         )
 
     q = q.order_by(EvaluationArticle.date_evaluation.desc().nullslast())
@@ -234,7 +229,7 @@ def nonconformites():
             'texte_titre': texte.titre if texte else '',
         })
 
-    entreprise_textes = EntrepriseTexte.query.filter_by(entreprise_id=eid).all()
+    entreprise_textes = EntrepriseTexte.query.all()
 
     filters = {
         'conforme': conforme_filter or '',
@@ -256,10 +251,7 @@ def nonconformites():
 @login_required
 @has_permission('conformite.voir')
 def api_nonconformites():
-    eid = current_user.entreprise_id
-    q = EvaluationArticle.query.join(EntrepriseTexte).filter(
-        EntrepriseTexte.entreprise_id == eid
-    )
+    q = EvaluationArticle.query.join(EntrepriseTexte)
 
     conforme = request.args.get('conforme')
     if conforme:
@@ -296,12 +288,11 @@ def api_nonconformites():
 @login_required
 @has_permission('conformite.voir')
 def preuves_gestion():
-    eid = current_user.entreprise_id
     from app.models import ProofMaster, ProofReference
     from datetime import date, timedelta
 
     proofs = ProofMaster.query.filter_by(
-        entreprise_id=eid, statut='ACTIF'
+        statut='ACTIF'
     ).order_by(ProofMaster.date_creation.desc()).all()
 
     today = date.today()

@@ -25,7 +25,7 @@ def liste_actions():
         domaine=domaine,
         **request.args
     )
-    responsables = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+    responsables = Utilisateur.query.all()
     return render_template('actions/liste.html', actions=actions, responsables=responsables,
                            domaine=domaine, filters=request.args)
 
@@ -59,7 +59,7 @@ def api_create_action(data):
 @has_permission('actions.modifier')
 def detail_action(action_id):
     action = tenant_get_or_404(ActionCorrective, action_id)
-    responsables = Utilisateur.query.filter_by(entreprise_id=current_user.entreprise_id).all()
+    responsables = Utilisateur.query.all()
     if request.method == 'POST':
         action.description = request.form.get('description', action.description)
         action.statut = request.form.get('statut', action.statut)
@@ -196,7 +196,7 @@ def delete_action(action_id):
 def export_actions():
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
     actions = ActionCorrective.query.filter_by(
-        entreprise_id=current_user.entreprise_id, domaine=domaine
+        domaine=domaine
     ).order_by(ActionCorrective.date_creation.desc()).all()
 
     output = io.StringIO()

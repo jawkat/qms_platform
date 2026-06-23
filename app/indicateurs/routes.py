@@ -23,7 +23,7 @@ def index():
     cards = []
     for ind in indicateurs:
         valeurs = IndicateurValeur.query.filter_by(
-            indicateur_id=ind.id, entreprise_id=current_user.entreprise_id
+            indicateur_id=ind.id
         ).order_by(IndicateurValeur.date_calcul.desc()).all()
         derniere = valeurs[0] if valeurs else None
         avant = valeurs[1] if len(valeurs) > 1 else None
@@ -46,7 +46,7 @@ def index():
 def detail(indicateur_id):
     ind = Indicateur.query.get_or_404(indicateur_id)
     valeurs = IndicateurValeur.query.filter_by(
-        indicateur_id=ind.id, entreprise_id=current_user.entreprise_id
+        indicateur_id=ind.id
     ).order_by(IndicateurValeur.date_calcul.desc()).all()
     return render_template('indicateurs/detail.html', indicateur=ind, valeurs=valeurs)
 

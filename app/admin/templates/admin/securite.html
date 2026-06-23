@@ -4,17 +4,25 @@
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0"><i class="fas fa-shield-alt me-2"></i>Journal de sécurité</h1>
-    <form class="d-flex gap-2" method="GET">
-      <select name="type_action" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
-        <option value="">Tous les types</option>
-        {% for t in types %}
-        <option value="{{ t }}" {% if request.args.type_action == t %}selected{% endif %}>{{ t }}</option>
-        {% endfor %}
-      </select>
-      {% if request.args.type_action %}
-      <a href="{{ url_for('admin.securite') }}" class="btn btn-sm btn-outline-secondary">Réinitialiser</a>
-      {% endif %}
-    </form>
+    <div class="d-flex gap-2">
+      <form class="d-flex gap-2" method="GET">
+        <select name="type_action" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+          <option value="">Tous les types</option>
+          {% for t in types %}
+          <option value="{{ t }}" {% if request.args.type_action == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+        {% if request.args.type_action %}
+        <a href="{{ url_for('admin.securite') }}" class="btn btn-sm btn-outline-secondary">Réinitialiser</a>
+        {% endif %}
+      </form>
+      <button class="btn btn-sm btn-outline-success" onclick="resolveAll()" title="Marquer toutes les entrées non résolues comme résolues">
+        <i class="fas fa-check-double me-1"></i>Tout résoudre
+      </button>
+      <button class="btn btn-sm btn-outline-danger" onclick="deleteAll()" title="Supprimer toutes les entrées">
+        <i class="fas fa-trash-alt me-1"></i>Tout supprimer
+      </button>
+    </div>
   </div>
 
   <div class="card border-0 shadow-sm">
@@ -30,12 +38,12 @@
               <th>Navigateur</th>
               <th>Détails</th>
               <th>Statut</th>
-              <th class="text-center">Action</th>
+              <th class="text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for log in logs %}
-            <tr>
+            <tr id="row-{{ log.id }}">
               <td class="text-nowrap">{{ log.date_action.strftime('%d/%m/%Y %H:%M') if log.date_action else '-' }}</td>
               <td>
                 {% set user = utilisateurs.get(log.utilisateur_id) %}
@@ -70,9 +78,19 @@
                 {% endif %}
               </td>
               <td class="text-center">
-                {% if not log.resolu %}
-                <button class="btn btn-sm btn-outline-success js-resolve" data-incident-id="{{ log.id }}">Marquer résolu</button>
-                {% endif %}
+                <div class="d-flex gap-1 justify-content-center">
+                  <button class="btn btn-sm btn-outline-info" onclick="showDetail({{ log.id }})" title="Voir détail">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  {% if not log.resolu %}
+                  <button class="btn btn-sm btn-outline-success js-resolve" data-incident-id="{{ log.id }}" title="Marquer résolu">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  {% endif %}
+                  <button class="btn btn-sm btn-outline-danger js-delete" data-incident-id="{{ log.id }}" title="Supprimer">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
               </td>
             </tr>
             {% else %}
@@ -89,35 +107,155 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Modal détail -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-shield-alt me-2"></i>Détail de l'incident</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detailBody">
+        <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-danger"></div> Chargement...</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('click', async function(e) {
-  if (!e.target.matches('.js-resolve')) return;
-  e.preventDefault();
-  var btn = e.target;
-  var id = btn.dataset.incidentId;
-  if (!id) return;
-  btn.disabled = true;
+  if (e.target.closest('.js-resolve')) {
+    var btn = e.target.closest('.js-resolve');
+    e.preventDefault();
+    var id = btn.dataset.incidentId;
+    if (!id) return;
+    btn.disabled = true;
+    try {
+      var res = await fetch('/admin/securite/' + id + '/resolve', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' }
+      });
+      var data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+      var row = document.getElementById('row-' + id);
+      if (row) {
+        var statusCell = row.querySelector('td:nth-child(7)');
+        if (statusCell) {
+          statusCell.innerHTML = '<span class="badge bg-success">Résolu</span><div class="small text-muted">' + new Date(data.resolved_at).toLocaleString('fr-FR') + '</div>';
+        }
+        var actionsCell = row.querySelector('td:last-child .d-flex');
+        if (actionsCell) {
+          var resolveBtn = actionsCell.querySelector('.js-resolve');
+          if (resolveBtn) resolveBtn.remove();
+        }
+      }
+    } catch(err) {
+      alert(err.message || 'Erreur');
+      btn.disabled = false;
+    }
+  }
+
+  if (e.target.closest('.js-delete')) {
+    var btn = e.target.closest('.js-delete');
+    e.preventDefault();
+    var id = btn.dataset.incidentId;
+    if (!id || !confirm('Supprimer cette entrée de sécurité ?')) return;
+    btn.disabled = true;
+    try {
+      var res = await fetch('/admin/securite/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' }
+      });
+      var data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+      var row = document.getElementById('row-' + id);
+      if (row) row.remove();
+    } catch(err) {
+      alert(err.message || 'Erreur');
+      btn.disabled = false;
+    }
+  }
+});
+
+async function resolveAll() {
+  if (!confirm('Marquer toutes les entrées non résolues comme résolues ?')) return;
   try {
-    var res = await fetch('/admin/securite/' + id + '/resolve', {
+    var res = await fetch('/admin/securite/resolve-all', {
       method: 'POST',
       headers: { 'Accept': 'application/json' }
     });
     var data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
-    var cell = btn.closest('td');
-    if (cell) {
-      cell.innerHTML = '<span class="badge bg-success">Résolu</span>';
-    }
-    var row = btn.closest('tr');
-    if (row) {
-      var statusCell = row.querySelector('td:nth-child(7)');
-      if (statusCell) {
-        statusCell.innerHTML = '<span class="badge bg-success">Résolu</span><div class="small text-muted">' + new Date(data.resolved_at).toLocaleString('fr-FR') + '</div>';
-      }
-    }
+    if (typeof refreshNotifCount === 'function') refreshNotifCount();
+    location.reload();
   } catch(err) {
     alert(err.message || 'Erreur');
-    btn.disabled = false;
+  }
+}
+
+async function deleteAll() {
+  if (!confirm('Supprimer TOUTES les entrées de sécurité ? Cette action est irréversible.')) return;
+  try {
+    var res = await fetch('/admin/securite/delete-all', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' }
+    });
+    var data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erreur');
+    if (typeof refreshNotifCount === 'function') refreshNotifCount();
+    location.reload();
+  } catch(err) {
+    alert(err.message || 'Erreur');
+  }
+}
+
+async function showDetail(id) {
+  var body = document.getElementById('detailBody');
+  body.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-danger"></div> Chargement...</div>';
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
+  try {
+    var res = await fetch('/admin/securite/' + id + '/detail');
+    var d = await res.json();
+    if (d.error) throw new Error(d.error);
+    var detailsHtml = '';
+    if (d.details && typeof d.details === 'object') {
+      detailsHtml = '<table class="table table-sm">';
+      for (var k in d.details) {
+        var val = d.details[k];
+        if (typeof val === 'object') val = JSON.stringify(val, null, 2);
+        detailsHtml += '<tr><th class="text-muted" style="width:150px">' + k + '</th><td><code style="font-size:.8rem;">' + (val || '-') + '</code></td></tr>';
+      }
+      detailsHtml += '</table>';
+    } else {
+      detailsHtml = '<p>' + (d.details || '-') + '</p>';
+    }
+    body.innerHTML = '<div class="row g-3">' +
+      '<div class="col-md-6"><table class="table table-sm">' +
+      '<tr><th class="text-muted">Date</th><td>' + (d.date_action ? new Date(d.date_action).toLocaleString('fr-FR') : '-') + '</td></tr>' +
+      '<tr><th class="text-muted">Type</th><td><span class="badge bg-secondary">' + (d.type_action || '-') + '</span></td></tr>' +
+      '<tr><th class="text-muted">IP</th><td><code>' + (d.adresse_ip || '-') + '</code></td></tr>' +
+      '<tr><th class="text-muted">Navigateur</th><td>' + (d.navigateur || '-') + '</td></tr>' +
+      '<tr><th class="text-muted">Statut</th><td>' + (d.resolu ? '<span class="badge bg-success">Résolu</span>' : '<span class="badge bg-warning text-dark">Non résolu</span>') + '</td></tr>' +
+      (d.resolved_at ? '<tr><th class="text-muted">Résolu le</th><td>' + new Date(d.resolved_at).toLocaleString('fr-FR') + '</td></tr>' : '') +
+      '</table></div>' +
+      '<div class="col-md-6">' +
+      (d.utilisateur ? '<h6 class="fw-bold mb-2">Utilisateur</h6><table class="table table-sm"><tr><th class="text-muted">Nom</th><td>' + d.utilisateur.prenom + ' ' + d.utilisateur.nom + '</td></tr><tr><th class="text-muted">Email</th><td>' + d.utilisateur.email + '</td></tr></table>' : '') +
+      '<h6 class="fw-bold mb-2 mt-3">Détails</h6>' + detailsHtml +
+      '</div></div>';
+  } catch(err) {
+    body.innerHTML = '<div class="text-center text-danger py-3">' + (err.message || 'Erreur de chargement') + '</div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(window.location.search);
+  var incidentId = params.get('incident_id');
+  if (incidentId) {
+    showDetail(incidentId);
   }
 });
 </script>

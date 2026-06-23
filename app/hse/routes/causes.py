@@ -14,7 +14,7 @@ from datetime import datetime
 @login_required
 @module_access_required('hse', 'hse.voir_incidents')
 def arbre_causes(incident_id):
-    incident = Incident.query.filter_by(id=incident_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    incident = Incident.query.filter_by(id=incident_id).first_or_404()
     return render_template('hse/causes.html', incident=incident)
 
 
@@ -27,7 +27,6 @@ def arbre_causes(incident_id):
 def api_causes(incident_id):
     """Liste des causes d'un incident (arbre des causes)"""
     return CauseIncident.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
         incident_id=incident_id,
         parent_id=None
     ).order_by(CauseIncident.ordre).all()
@@ -54,7 +53,7 @@ def api_causes_create(data, incident_id):
 @blueprint.response(200, CauseIncidentSchema)
 def api_causes_update(data, item_id):
     """Mettre à jour une cause"""
-    item = CauseIncident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = CauseIncident.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -67,7 +66,7 @@ def api_causes_update(data, item_id):
 @module_access_required('hse', 'hse.gerer_incidents')
 def api_causes_delete(item_id):
     """Supprimer une cause"""
-    item = CauseIncident.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = CauseIncident.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}

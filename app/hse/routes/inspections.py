@@ -21,7 +21,7 @@ def inspections():
 @blueprint.response(200, InspectionSchema(many=True))
 def api_inspections():
     """Liste des inspections HSE"""
-    return Inspection.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    return Inspection.query\
         .order_by(Inspection.date_creation.desc()).all()
 
 
@@ -52,7 +52,7 @@ def api_inspections_create(data):
 @blueprint.response(200, InspectionSchema)
 def api_inspections_update(data, item_id):
     """Mettre à jour une inspection HSE"""
-    item = Inspection.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Inspection.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation', 'items'):
             setattr(item, field, value)
@@ -65,7 +65,7 @@ def api_inspections_update(data, item_id):
 @module_access_required('hse', 'hse.voir_incidents')
 def api_inspections_delete(item_id):
     """Supprimer une inspection HSE"""
-    item = Inspection.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = Inspection.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}

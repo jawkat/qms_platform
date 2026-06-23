@@ -5,7 +5,7 @@ from datetime import datetime, date, time, timedelta
 from flask import render_template, flash, redirect, url_for, request, current_app
 from flask_mail import Message
 from app import db, mail
-from app.models import Disponibilite, CreneauDemo, Ticket, MessageTicket, Notification, Role, Utilisateur
+from app.models import Disponibilite, CreneauDemo, Ticket, MessageTicket, Role, Utilisateur
 from . import demo
 
 
@@ -196,11 +196,11 @@ def _envoyer_confirmations(creneau):
     ))
     creneau.ticket_id = ticket.id
 
-    from app.utils.notifications import create_notification
     admins = Utilisateur.query.join(Role, Utilisateur.role_id == Role.id).filter(
         Role.est_systeme == True,
         Utilisateur.actif == True,
     ).all()
     for admin in admins:
-        create_notification(admin.id, f"Nouvelle demande de demo - {creneau.nom_contact} ({creneau.email_contact})", type='ticket')
+        from app.utils.notifications import create_notification
+        create_notification(admin.id, f"Nouvelle demande de demo - {creneau.nom_contact} ({creneau.email_contact}) [TICKET:{ticket.id}]", type='ticket')
     db.session.commit()

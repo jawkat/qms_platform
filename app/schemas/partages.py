@@ -8,6 +8,7 @@ class FournisseurSchema(SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
     
+    entreprise_id = fields.Integer(required=False, load_default=None)
     score_global = fields.Float(dump_only=True)
 
 class FormationSchema(SQLAlchemyAutoSchema):
@@ -15,6 +16,8 @@ class FormationSchema(SQLAlchemyAutoSchema):
         model = Formation
         load_instance = True
         include_fk = True
+    
+    entreprise_id = fields.Integer(required=False, load_default=None)
 
 class ReclamationSchema(SQLAlchemyAutoSchema):
     class Meta:
@@ -22,6 +25,7 @@ class ReclamationSchema(SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
     
+    entreprise_id = fields.Integer(required=False, load_default=None)
     responsable_name = fields.Function(
         lambda obj: f"{obj.responsable.prenom} {obj.responsable.nom}" if obj.responsable else "",
         dump_only=True

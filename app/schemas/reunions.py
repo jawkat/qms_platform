@@ -1,8 +1,8 @@
 from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.reunions import Reunion, CompteRendu, ActionReunion
 
-class ActionReunionSchema(SQLAlchemyAutoSchema):
+class ActionReunionSchema(AutoSchema):
     class Meta:
         model = ActionReunion
         load_instance = True
@@ -13,7 +13,7 @@ class ActionReunionSchema(SQLAlchemyAutoSchema):
         dump_only=True
     )
 
-class CompteRenduSchema(SQLAlchemyAutoSchema):
+class CompteRenduSchema(AutoSchema):
     class Meta:
         model = CompteRendu
         load_instance = True
@@ -21,7 +21,7 @@ class CompteRenduSchema(SQLAlchemyAutoSchema):
     
     actions = fields.Nested(ActionReunionSchema, many=True, dump_only=True)
 
-class ReunionSchema(SQLAlchemyAutoSchema):
+class ReunionSchema(AutoSchema):
     class Meta:
         model = Reunion
         load_instance = True

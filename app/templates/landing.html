@@ -355,15 +355,23 @@
                 <span>Jusqu'à <strong>{{ p.max_open_actions }} actions</strong> simultanées</span>
               </li>
             </ul>
-            {% if p.features %}
+            {% if p.features is mapping and p.features %}
             <hr class="my-1">
             <ul class="list-unstyled pricing-features flex-grow-1">
               {% for k, v in p.features.items() %}
-              {% if v %}
+              {% if not k.startswith('_vis_') %}
+              {% set vis = p.features.get('_vis_' ~ k, true) %}
+              {% if vis %}
               <li class="d-flex align-items-center small">
+                {% if v %}
                 <i class="fas fa-check-circle text-success me-2 flex-shrink-0"></i>
                 <span>{{ features_labels.get(k) or (k|replace('_',' ')|title) }}</span>
+                {% else %}
+                <i class="fas fa-times-circle text-danger me-2 flex-shrink-0"></i>
+                <span class="text-muted">{{ features_labels.get(k) or (k|replace('_',' ')|title) }}</span>
+                {% endif %}
               </li>
+              {% endif %}
               {% endif %}
               {% endfor %}
             </ul>

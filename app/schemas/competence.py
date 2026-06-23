@@ -7,12 +7,16 @@ class CompetenceSchema(SQLAlchemyAutoSchema):
         model = Competence
         load_instance = True
         include_fk = True
+    
+    entreprise_id = fields.Integer(required=False, load_default=None)
 
 class EmployeCompetenceSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = EmployeCompetence
         load_instance = True
         include_fk = True
+    
+    entreprise_id = fields.Integer(required=False, load_default=None)
     
     utilisateur_name = fields.Function(
         lambda obj: f"{obj.utilisateur.prenom} {obj.utilisateur.nom}" if obj.utilisateur else "",

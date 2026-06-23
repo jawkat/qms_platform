@@ -13,7 +13,7 @@ from datetime import date, datetime
 @has_permission('change_management.voir')
 def index():
     utilisateurs = Utilisateur.query.filter_by(
-        entreprise_id=current_user.entreprise_id, actif=True
+        actif=True
     ).order_by(Utilisateur.nom).all()
     return render_template('change_management/index.html', utilisateurs=utilisateurs)
 
@@ -22,9 +22,7 @@ def index():
 @login_required
 @has_permission('change_management.voir')
 def api_liste():
-    items = ChangeRequest.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).order_by(ChangeRequest.date_creation.desc()).all()
+    items = ChangeRequest.query.order_by(ChangeRequest.date_creation.desc()).all()
     return jsonify([{
         'id': r.id, 'reference': r.reference, 'titre': r.titre,
         'description': r.description, 'type_changement': r.type_changement,
@@ -47,8 +45,7 @@ def api_liste():
 @login_required
 @has_permission('change_management.voir')
 def api_stats():
-    eid = current_user.entreprise_id
-    base = ChangeRequest.query.filter_by(entreprise_id=eid)
+    base = ChangeRequest.query
     return jsonify({
         'total': base.count(),
         'brouillon': base.filter_by(statut='brouillon').count(),
@@ -92,7 +89,7 @@ def api_creer():
 @has_permission('change_management.gerer')
 def api_modifier(item_id):
     item = ChangeRequest.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     data = request.get_json()
     for f in ('titre', 'description', 'type_changement', 'priorite', 'statut',
@@ -117,7 +114,7 @@ def api_modifier(item_id):
 @has_permission('change_management.gerer')
 def api_supprimer(item_id):
     item = ChangeRequest.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()

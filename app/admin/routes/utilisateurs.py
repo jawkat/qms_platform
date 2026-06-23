@@ -2,7 +2,7 @@ from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from app.admin import admin
 from app import db
-from app.models import Utilisateur, Ticket, MessageTicket, Notification
+from app.models import Utilisateur, Ticket, MessageTicket
 from functools import wraps
 from datetime import datetime
 import secrets
@@ -120,7 +120,7 @@ def admin_ticket_repondre(ticket_id):
 
     if not est_interne and ticket.cree_par_id:
         from app.utils.notifications import create_notification
-        create_notification(ticket.cree_par_id, f"Nouvelle réponse sur {ticket.reference}: {contenu[:100]}", type='ticket')
+        create_notification(ticket.cree_par_id, f"Nouvelle réponse sur {ticket.reference}: {contenu[:100]} [TICKET:{ticket.id}]", type='ticket')
         db.session.commit()
 
     flash('Message ajouté.', 'success')

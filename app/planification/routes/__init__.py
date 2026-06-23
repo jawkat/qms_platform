@@ -1,9 +1,9 @@
 """Routes du module Planification."""
 from flask import render_template, request, jsonify
 from flask_smorest import Blueprint
-from flask_login import login_required, current_user
-from app.utils.permissions import has_permission
-from app.core import module_active
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 
 import os
@@ -12,9 +12,7 @@ blueprint = Blueprint('planification', __name__, template_folder='templates',
 
 
 @blueprint.route('/')
-@login_required
-@module_active('planification')
-@has_permission('planification.voir')
+@access_required(module='planification', permission='planification.voir')
 def index():
     return render_template('planification/index.html')
 
@@ -25,33 +23,24 @@ from datetime import datetime, date
 
 
 @blueprint.route('/')
-@login_required
-@module_active('planification')
-@has_permission('planification.voir')
+@access_required(module='planification', permission='planification.voir')
 def index():
     return render_template('planification/index.html')
 
 
 @blueprint.get('/api/liste')
-@login_required
-@module_active('planification')
-@has_permission('planification.voir')
+@access_required(module='planification', permission='planification.voir')
 @blueprint.response(200, EvenementPlanificationSchema(many=True))
 def api_liste():
     """Liste des événements planifiés"""
-    return EvenementPlanification.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).order_by(EvenementPlanification.date_debut).all()
+    return EvenementResource.list_resources()
 
 
 @blueprint.get('/api/stats')
-@login_required
-@module_active('planification')
-@has_permission('planification.voir')
+@access_required(module='planification', permission='planification.voir')
 def api_stats():
     """Statistiques de planification"""
-    eid = current_user.entreprise_id
-    base = EvenementPlanification.query.filter_by(entreprise_id=eid)
+    base = EvenementPlanification.query
     return {
         'total': base.count(),
         'a_venir': base.filter(EvenementPlanification.date_debut >= datetime.utcnow()).count(),
@@ -60,46 +49,28 @@ def api_stats():
 
 
 @blueprint.post('/api/creer')
-@login_required
-@module_active('planification')
-@has_permission('planification.gerer')
+@access_required(module='planification', permission='planification.gerer')
 @blueprint.arguments(EvenementPlanificationSchema)
 @blueprint.response(201, EvenementPlanificationSchema)
 def api_creer(data):
     """Créer un nouvel événement"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return EvenementResource.create_resource(data)
 
 
 @blueprint.post('/api/<int:item_id>/modifier')
-@login_required
-@module_active('planification')
-@has_permission('planification.gerer')
+@access_required(module='planification', permission='planification.gerer')
 @blueprint.arguments(EvenementPlanificationSchema(partial=True))
 @blueprint.response(200, EvenementPlanificationSchema)
 def api_modifier(data, item_id):
     """Mettre à jour un événement"""
-    item = EvenementPlanification.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
-    ).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+    return EvenementResource.update_resource(item_id)
 
 
 @blueprint.get('/api/calendrier')
-@login_required
-@module_active('planification')
-@has_permission('planification.voir')
+@access_required(module='planification', permission='planification.voir')
 def api_calendrier():
     """Calendrier des événements"""
-    items = EvenementPlanification.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).all()
+    items = EvenementPlanification.query.all()
     couleurs = {
         'audit': '#3b82f6', 'formation': '#10b981', 'inspection': '#f59e0b',
         'maintenance': '#8b5cf6', 'reunion': '#06b6d4', 'echeance': '#ef4444',
@@ -119,14 +90,7 @@ def api_calendrier():
 
 
 @blueprint.post('/api/<int:item_id>/supprimer')
-@login_required
-@module_active('planification')
-@has_permission('planification.gerer')
+@access_required(module='planification', permission='planification.gerer')
 def api_supprimer(item_id):
     """Supprimer un événement"""
-    item = EvenementPlanification.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return EvenementResource.delete_resource(item_id)

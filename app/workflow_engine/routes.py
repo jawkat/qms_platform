@@ -4,10 +4,11 @@ from app.utils.permissions import has_permission
 from app import db
 from app.workflow_engine import blueprint
 from app.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
-from app.utils.notifications import create_notification
+from datetime import datetime
 
 
 def _notify_workflow(user_id, message, wf_type='workflow'):
+    from app.utils.notifications import create_notification
     create_notification(user_id, message, type=wf_type)
 
 
@@ -23,7 +24,7 @@ def index():
 @has_permission('workflow_engine.voir')
 def api_modeles():
     module = request.args.get('module')
-    q = WorkflowModele.query.filter_by(entreprise_id=current_user.entreprise_id, statut='actif')
+    q = WorkflowModele.query.filter_by(statut='actif')
     if module:
         q = q.filter_by(module_cible=module)
     items = q.order_by(WorkflowModele.nom).all()
@@ -71,7 +72,7 @@ def api_modeles_creer():
 @has_permission('workflow_engine.voir')
 def api_modele_detail(item_id):
     modele = WorkflowModele.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     result = modele.to_dict()
     result['etapes'] = [e.to_dict() for e in modele.etapes.order_by(WorkflowEtape.ordre).all()]
@@ -83,7 +84,7 @@ def api_modele_detail(item_id):
 @has_permission('workflow_engine.gerer')
 def api_modeles_supprimer(item_id):
     item = WorkflowModele.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()
@@ -96,7 +97,7 @@ def api_modeles_supprimer(item_id):
 def api_instances():
     statut = request.args.get('statut')
     module = request.args.get('module')
-    q = WorkflowInstance.query.filter_by(entreprise_id=current_user.entreprise_id)
+    q = WorkflowInstance.query
     if statut:
         q = q.filter_by(statut=statut)
     if module:
@@ -112,7 +113,7 @@ def api_instances_creer():
     data = request.get_json()
     modele_id = data.get('modele_id')
     modele = WorkflowModele.query.filter_by(
-        id=modele_id, entreprise_id=current_user.entreprise_id
+        id=modele_id
     ).first_or_404()
 
     etapes = list(modele.etapes.order_by(WorkflowEtape.ordre).all())
@@ -155,7 +156,7 @@ def api_instances_creer():
 @has_permission('workflow_engine.voir')
 def api_instance_detail(item_id):
     instance = WorkflowInstance.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     result = instance.to_dict()
     result['historique'] = [h.to_dict() for h in instance.historique.order_by(WorkflowHistorique.date_action.desc()).all()]
@@ -178,7 +179,7 @@ def api_instance_detail(item_id):
 @has_permission('workflow_engine.gerer')
 def api_instances_valider(item_id):
     instance = WorkflowInstance.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     if instance.statut != 'en_cours':
         return jsonify({'success': False, 'error': 'Instance non active'}), 400
@@ -222,7 +223,7 @@ def api_instances_valider(item_id):
 @has_permission('workflow_engine.gerer')
 def api_instances_rejeter(item_id):
     instance = WorkflowInstance.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     if instance.statut != 'en_cours':
         return jsonify({'success': False, 'error': 'Instance non active'}), 400
@@ -254,7 +255,7 @@ def api_instances_rejeter(item_id):
 @has_permission('workflow_engine.gerer')
 def api_instances_annuler(item_id):
     instance = WorkflowInstance.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     if instance.statut != 'en_cours':
         return jsonify({'success': False, 'error': 'Instance non active'}), 400
@@ -279,14 +280,13 @@ def api_instances_annuler(item_id):
 @login_required
 @has_permission('workflow_engine.voir')
 def api_stats():
-    eid = current_user.entreprise_id
-    instances_actives = WorkflowInstance.query.filter_by(entreprise_id=eid, statut='en_cours')
+    instances_actives = WorkflowInstance.query.filter_by(statut='en_cours')
     now = datetime.utcnow()
     en_retard = sum(1 for i in instances_actives if i.date_deadline and i.date_deadline < now)
     return jsonify({
-        'modeles': WorkflowModele.query.filter_by(entreprise_id=eid, statut='actif').count(),
+        'modeles': WorkflowModele.query.filter_by(statut='actif').count(),
         'instances_actives': instances_actives.count(),
-        'instances_terminees': WorkflowInstance.query.filter_by(entreprise_id=eid, statut='termine').count(),
+        'instances_terminees': WorkflowInstance.query.filter_by(statut='termine').count(),
         'instances_en_retard': en_retard,
     })
 
@@ -295,9 +295,8 @@ def api_stats():
 @login_required
 @has_permission('workflow_engine.voir')
 def api_retard():
-    eid = current_user.entreprise_id
     now = datetime.utcnow()
-    items = WorkflowInstance.query.filter_by(entreprise_id=eid, statut='en_cours').all()
+    items = WorkflowInstance.query.filter_by(statut='en_cours').all()
     retard = [i.to_dict() for i in items if i.date_deadline and i.date_deadline < now]
     return jsonify(retard)
 

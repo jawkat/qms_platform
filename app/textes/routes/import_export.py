@@ -133,8 +133,12 @@ def _map_niveau_risque(value):
     return result, None if result else (None, f"'{value}' non reconnu")
 
 
-def _process_json_bundle_payload(payload, dry_run=False, link_to_enterprise=False):
+def _process_json_bundle_payload(payload, dry_run=False, link_to_enterprise=False, user_id=None, entreprise_id=None):
     errors = []
+    if user_id is None:
+        user_id = current_user.id
+    if entreprise_id is None:
+        entreprise_id = current_user.entreprise_id
     warnings = []
     texte_data = payload.get('texte') if isinstance(payload.get('texte'), dict) else {}
     version_data = payload.get('version') if isinstance(payload.get('version'), dict) else {}
@@ -289,7 +293,7 @@ def _process_json_bundle_payload(payload, dry_run=False, link_to_enterprise=Fals
             statut=str(version_data.get('statut') or 'active').strip() or 'active',
             commentaire_version=str(version_data.get('commentaire_version') or '').strip() or None,
             preambule=preambule,
-            cree_par=current_user.id,
+            cree_par=user_id,
         )
         db.session.add(version)
         db.session.flush()
@@ -317,15 +321,13 @@ def _process_json_bundle_payload(payload, dry_run=False, link_to_enterprise=Fals
             )
             db.session.add(article)
         db.session.commit()
-        if link_to_enterprise and current_user.entreprise_id and version:
+        if link_to_enterprise and entreprise_id and version:
             from app.models import EntrepriseTexte
             existing_link = EntrepriseTexte.query.filter_by(
-                entreprise_id=current_user.entreprise_id,
-                texte_version_id=version.id,
-            ).first()
+                texte_version_id=version.id).first()
             if not existing_link:
                 et = EntrepriseTexte(
-                    entreprise_id=current_user.entreprise_id,
+                    entreprise_id=entreprise_id,
                     texte_version_id=version.id,
                     statut_obligation='VOLONTAIRE',
                     motif_obligation='Import JSON',
@@ -347,14 +349,14 @@ def _process_json_bundle_payload(payload, dry_run=False, link_to_enterprise=Fals
         }
 
 
-def _process_json_bundle_entries(payload_entries, dry_run=False, link_to_enterprise=False):
+def _process_json_bundle_entries(payload_entries, dry_run=False, link_to_enterprise=False, user_id=None, entreprise_id=None):
     successes = []
     failures = []
     total_articles = 0
     for entry in payload_entries:
         filename = entry.get('filename') or 'fichier.json'
         payload = entry.get('payload') or {}
-        result = _process_json_bundle_payload(payload, dry_run=dry_run, link_to_enterprise=link_to_enterprise)
+        result = _process_json_bundle_payload(payload, dry_run=dry_run, link_to_enterprise=link_to_enterprise, user_id=user_id, entreprise_id=entreprise_id)
         if result['success']:
             successes.append({'filename': filename, 'result': result, 'payload': payload})
             total_articles += int((result.get('summary') or {}).get('articles') or 0)
@@ -397,7 +399,7 @@ def import_json():
         link_to_enterprise = request.form.get('link_to_enterprise') == '1'
         preview = request.form.get('preview')
         if preview:
-            processing_summary = _process_json_bundle_entries(payloads, dry_run=True)
+            processing_summary = _process_json_bundle_entries(payloads, dry_run=True, user_id=current_user.id, entreprise_id=current_user.entreprise_id)
             if processing_summary['failures']:
                 flash(f"Erreurs de preview: {'; '.join(processing_summary['failures'][:3])}", 'danger')
                 return redirect(url_for('textes.import_json'))
@@ -423,21 +425,14 @@ def import_json():
                 domaines=domaines,
                 link_to_enterprise=link_to_enterprise,
             )
-        link_to_enterprise = request.form.get('link_to_enterprise') == '1'
-        processing_summary = _process_json_bundle_entries(payloads, dry_run=False, link_to_enterprise=link_to_enterprise)
-        if not processing_summary['successes']:
-            flash(f"Aucun import effectue: {'; '.join(processing_summary['failures'][:3])}", 'danger')
+        from app.jobs.textes_import_jobs import enqueue_textes_import
+        try:
+            job_id = enqueue_textes_import(payloads, link_to_enterprise, current_user.id, current_user.entreprise_id)
+        except Exception as exc:
+            current_app.logger.error("Erreur envoi job import JSON: %s", exc)
+            flash("Erreur technique lors de l'envoi de l'import. Veuillez réessayer ou vérifier Redis.", 'danger')
             return redirect(url_for('textes.import_json'))
-        flash(
-            f"Import JSON termine: {len(processing_summary['successes'])} fichier(s), "
-            f"{processing_summary['total_articles']} article(s) cree(s).",
-            'success',
-        )
-        if processing_summary['failures']:
-            flash(f"Fichier(s) en erreur: {'; '.join(processing_summary['failures'][:3])}", 'warning')
-        if len(processing_summary['successes']) == 1:
-            return redirect(url_for('textes.detail', texte_id=processing_summary['successes'][0]['result']['texte_id']))
-        return redirect(url_for('textes.index'))
+        return redirect(url_for('textes.pending_import', job_id=job_id))
     domaines = Domaine.query.order_by(Domaine.nom).all()
     return render_template('textes/import_json.html', domaines=domaines)
 
@@ -447,6 +442,7 @@ def import_json():
 @system_admin_required
 @csrf.exempt
 def confirm_import_json():
+    from app.jobs.textes_import_jobs import enqueue_textes_import
     token = (request.form.get('preview_token') or '').strip()
     if not token:
         flash('Token de preview manquant.', 'danger')
@@ -461,20 +457,31 @@ def confirm_import_json():
     payloads = pending.get('payloads') or []
     link_to_enterprise = pending.get('link_to_enterprise', False)
     _pending_json_import_store.pop(token, None)
-    processing_summary = _process_json_bundle_entries(payloads, dry_run=False, link_to_enterprise=link_to_enterprise)
-    if not processing_summary['successes']:
-        flash(f"Aucun import effectue: {'; '.join(processing_summary['failures'][:3])}", 'danger')
+    try:
+        job_id = enqueue_textes_import(payloads, link_to_enterprise, current_user.id, current_user.entreprise_id)
+    except Exception as exc:
+        current_app.logger.error("Erreur envoi job import JSON (confirm): %s", exc)
+        flash("Erreur technique lors de l'envoi de l'import. Veuillez réessayer ou vérifier Redis.", 'danger')
         return redirect(url_for('textes.import_json'))
-    flash(
-        f"Import confirme: {len(processing_summary['successes'])} fichier(s), "
-        f"{processing_summary['total_articles']} article(s) cree(s).",
-        'success',
-    )
-    if processing_summary['failures']:
-        flash(f"Fichier(s) en erreur: {'; '.join(processing_summary['failures'][:3])}", 'warning')
-    if len(processing_summary['successes']) == 1:
-        return redirect(url_for('textes.detail', texte_id=processing_summary['successes'][0]['result']['texte_id']))
-    return redirect(url_for('textes.index'))
+    return redirect(url_for('textes.pending_import', job_id=job_id))
+
+
+@textes.route('/import_json/pending/<job_id>')
+@login_required
+@system_admin_required
+def pending_import(job_id):
+    from app.jobs.textes_import_jobs import get_job_status
+    status = get_job_status(job_id)
+    return render_template('textes/import_pending.html', job_id=job_id, status=status)
+
+
+@textes.route('/import_json/status/<job_id>')
+@login_required
+@system_admin_required
+def import_status(job_id):
+    from app.jobs.textes_import_jobs import get_job_status
+    status = get_job_status(job_id)
+    return jsonify(status)
 
 
 @textes.route('/import_json/template')

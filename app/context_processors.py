@@ -79,7 +79,7 @@ def _build_sidebar(current_user, modules_actifs):
     is_systeme = (current_user.is_authenticated and
                  current_user.role and current_user.role.est_systeme)
     is_manager = (current_user.is_authenticated and 
-                 current_user.has_permission('entreprises.modifier'))
+                 current_user.is_manager)
     eid = current_user.entreprise_id if current_user.is_authenticated else None
     return plugin_manager.get_sidebar_sections(
         entreprise_id=eid or 0,
@@ -179,7 +179,10 @@ def inject_globals():
                 'subscription_days_remaining': days_remaining,
             })
 
-    ctx['sidebar_sections'] = _build_sidebar(current_user, ctx['modules_actifs'])
+    try:
+        ctx['sidebar_sections'] = _build_sidebar(current_user, ctx['modules_actifs'])
+    except Exception:
+        pass
     ctx['sidebar_is_active'] = sidebar_is_active
     ctx['now'] = datetime.utcnow()
     ctx['today'] = date.today()

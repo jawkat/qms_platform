@@ -21,7 +21,7 @@ def permis_travail():
 @blueprint.response(200, PermisTravailSchema(many=True))
 def api_permis_travail():
     """Liste des permis de travail HSE"""
-    return PermisTravail.query.filter_by(entreprise_id=current_user.entreprise_id)\
+    return PermisTravail.query\
         .order_by(PermisTravail.date_creation.desc()).all()
 
 
@@ -45,7 +45,7 @@ def api_permis_travail_create(data):
 @blueprint.response(200, PermisTravailSchema)
 def api_permis_travail_update(data, item_id):
     """Mettre à jour un permis de travail HSE"""
-    item = PermisTravail.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = PermisTravail.query.filter_by(id=item_id).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
             setattr(item, field, value)
@@ -58,7 +58,7 @@ def api_permis_travail_update(data, item_id):
 @module_access_required('hse', 'hse.voir_incidents')
 def api_permis_travail_delete(item_id):
     """Supprimer un permis de travail HSE"""
-    item = PermisTravail.query.filter_by(id=item_id, entreprise_id=current_user.entreprise_id).first_or_404()
+    item = PermisTravail.query.filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return {'success': True}
@@ -69,16 +69,15 @@ def api_permis_travail_delete(item_id):
 @module_access_required('hse', 'hse.voir_incidents')
 def api_stats():
     """Statistiques HSE"""
-    eid = current_user.entreprise_id
     return {
-        'incidents_total': Incident.query.filter_by(entreprise_id=eid).count(),
-        'incidents_ouverts': Incident.query.filter_by(entreprise_id=eid, statut='ouvert').count(),
-        'incidents_accidents': Incident.query.filter_by(entreprise_id=eid, type_incident='accident').count(),
-        'incidents_presqu_accidents': Incident.query.filter_by(entreprise_id=eid, type_incident='presqu_accident').count(),
-        'epi_total': EPI.query.filter_by(entreprise_id=eid).count(),
-        'epi_perimes': EPI.query.filter_by(entreprise_id=eid, statut='perime').count(),
-        'inspections_total': Inspection.query.filter_by(entreprise_id=eid).count(),
-        'inspections_nc': Inspection.query.filter_by(entreprise_id=eid, statut='NC').count(),
-        'permis_total': PermisTravail.query.filter_by(entreprise_id=eid).count(),
-        'permis_en_cours': PermisTravail.query.filter_by(entreprise_id=eid, statut='autorise').count(),
+        'incidents_total': Incident.query.count(),
+        'incidents_ouverts': Incident.query.filter_by(statut='ouvert').count(),
+        'incidents_accidents': Incident.query.filter_by(type_incident='accident').count(),
+        'incidents_presqu_accidents': Incident.query.filter_by(type_incident='presqu_accident').count(),
+        'epi_total': EPI.query.count(),
+        'epi_perimes': EPI.query.filter_by(statut='perime').count(),
+        'inspections_total': Inspection.query.count(),
+        'inspections_nc': Inspection.query.filter_by(statut='NC').count(),
+        'permis_total': PermisTravail.query.count(),
+        'permis_en_cours': PermisTravail.query.filter_by(statut='autorise').count(),
     }

@@ -15,8 +15,9 @@ Version : 2.0.0 (BPMN integration)
 """
 
 from flask import render_template, request, jsonify
-from flask_login import login_required, current_user
-from app.utils.permissions import has_permission
+from flask_login import current_user
+from app.utils.permissions import access_required
+from app.utils.base_resource import BaseResource
 from app import db
 from app.processus import blueprint
 from app.models import Processus, IndicateurProcessus
@@ -28,34 +29,36 @@ from datetime import date, datetime
 from app.schemas.processus import ProcessusSchema
 
 
+class ProcessusResource(BaseResource):
+    model = Processus
+    schema = ProcessusSchema
+    search_fields = ['nom', 'description']
+    sort_field = 'nom'
+    sort_dir = 'asc'
+
+
 @blueprint.route('/')
-@login_required
-@has_permission('processus.voir')
+@access_required(permission='processus.voir')
 def index():
     utilisateurs = Utilisateur.query.filter_by(
-        entreprise_id=current_user.entreprise_id, actif=True
+        actif=True
     ).order_by(Utilisateur.nom).all()
     return render_template('processus/index.html', utilisateurs=utilisateurs)
 
 
 @blueprint.get('/api/liste')
-@login_required
-@has_permission('processus.voir')
+@access_required(permission='processus.voir')
 @blueprint.response(200, ProcessusSchema(many=True))
 def api_liste():
     """Liste des processus"""
-    return Processus.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).order_by(Processus.nom).all()
+    return ProcessusResource.list_resources()
 
 
 @blueprint.get('/api/stats')
-@login_required
-@has_permission('processus.voir')
+@access_required(permission='processus.voir')
 def api_stats():
     """Statistiques des processus"""
-    eid = current_user.entreprise_id
-    base = Processus.query.filter_by(entreprise_id=eid)
+    base = Processus.query
     today = date.today()
     a_revoir_q = base.filter(Processus.date_prochaine_revu < today)
     return {
@@ -67,46 +70,28 @@ def api_stats():
 
 
 @blueprint.post('/api/creer')
-@login_required
-@has_permission('processus.gerer')
+@access_required(permission='processus.gerer')
 @blueprint.arguments(ProcessusSchema)
 @blueprint.response(201, ProcessusSchema)
 def api_creer(data):
     """Créer un nouveau processus"""
-    data.entreprise_id = current_user.entreprise_id
-    db.session.add(data)
-    db.session.commit()
-    return data
+    return ProcessusResource.create_resource(data)
 
 
 @blueprint.post('/api/<int:item_id>/modifier')
-@login_required
-@has_permission('processus.gerer')
+@access_required(permission='processus.gerer')
 @blueprint.arguments(ProcessusSchema(partial=True))
 @blueprint.response(200, ProcessusSchema)
 def api_modifier(data, item_id):
     """Modifier un processus"""
-    item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
-    ).first_or_404()
-    for field, value in request.get_json().items():
-        if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
-            setattr(item, field, value)
-    db.session.commit()
-    return item
+    return ProcessusResource.update_resource(item_id)
 
 
 @blueprint.post('/api/<int:item_id>/supprimer')
-@login_required
-@has_permission('processus.gerer')
+@access_required(permission='processus.gerer')
 def api_supprimer(item_id):
     """Supprimer un processus"""
-    item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
-    ).first_or_404()
-    db.session.delete(item)
-    db.session.commit()
-    return {'success': True}
+    return ProcessusResource.delete_resource(item_id)
 
 
 # =============================================================================
@@ -114,8 +99,7 @@ def api_supprimer(item_id):
 # =============================================================================
 
 @blueprint.route('/<int:item_id>/bpmn')
-@login_required
-@has_permission('processus.voir')
+@access_required(permission='processus.voir')
 def bpmn_editor(item_id):
     """
     Affiche l'éditeur BPMN unifié pour un processus.
@@ -124,11 +108,11 @@ def bpmn_editor(item_id):
     L'utilisateur peut tout éditer depuis un seul écran.
     """
     item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
 
     utilisateurs = Utilisateur.query.filter_by(
-        entreprise_id=current_user.entreprise_id, actif=True
+        actif=True
     ).order_by(Utilisateur.nom).all()
 
     bpmn_xml = None
@@ -144,8 +128,7 @@ def bpmn_editor(item_id):
 
 
 @blueprint.route('/api/<int:item_id>/bpmn', methods=['GET'])
-@login_required
-@has_permission('processus.voir')
+@access_required(permission='processus.voir')
 def api_bpmn_get(item_id):
     """
     Récupère le diagramme BPMN d'un processus.
@@ -154,7 +137,7 @@ def api_bpmn_get(item_id):
         JSON avec bpmn_xml et les métadonnées extraites
     """
     item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
 
     bpmn_xml = None
@@ -175,8 +158,7 @@ def api_bpmn_get(item_id):
 
 
 @blueprint.route('/api/<int:item_id>/bpmn', methods=['POST'])
-@login_required
-@has_permission('processus.gerer')
+@access_required(permission='processus.gerer')
 def api_bpmn_save(item_id):
     """
     Sauvegarde le diagramme BPMN d'un processus.
@@ -187,7 +169,7 @@ def api_bpmn_save(item_id):
     from sqlalchemy.orm.attributes import flag_modified
 
     item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
 
     data = request.get_json()
@@ -217,8 +199,7 @@ def api_bpmn_save(item_id):
 
 
 @blueprint.route('/api/<int:item_id>/bpmn/generate', methods=['POST'])
-@login_required
-@has_permission('processus.gerer')
+@access_required(permission='processus.gerer')
 def api_bpmn_generate(item_id):
     """
     Génère un diagramme BPMN à partir des données du processus.
@@ -229,7 +210,7 @@ def api_bpmn_generate(item_id):
     from sqlalchemy.orm.attributes import flag_modified
 
     item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
 
     from app.core.bpmn import get_bpmn_service
@@ -266,8 +247,7 @@ def api_bpmn_generate(item_id):
 
 
 @blueprint.route('/api/<int:item_id>/bpmn/import', methods=['POST'])
-@login_required
-@has_permission('processus.gerer')
+@access_required(permission='processus.gerer')
 def api_bpmn_import(item_id):
     """
     Importe un fichier BPMN et le associe à un processus.
@@ -278,7 +258,7 @@ def api_bpmn_import(item_id):
     from sqlalchemy.orm.attributes import flag_modified
 
     item = Processus.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
 
     if 'file' not in request.files:

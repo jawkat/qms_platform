@@ -26,8 +26,7 @@ def index():
             db.or_(
                 TexteReglementaire.titre.ilike(like),
                 TexteReglementaire.code.ilike(like),
-                TexteReglementaire.description.ilike(like),
-            )
+                TexteReglementaire.description.ilike(like))
         )
     textes_list = query.order_by(TexteReglementaire.code).all()
     domaines = Domaine.query.order_by(Domaine.nom).all()
@@ -71,7 +70,6 @@ def version_detail(version_id):
     linked = False
     if current_user.entreprise_id:
         linked = EntrepriseTexte.query.filter_by(
-            entreprise_id=current_user.entreprise_id,
             texte_version_id=version_id
         ).first() is not None
     return render_template('textes/version_detail.html', version=version, articles=articles, linked=linked)

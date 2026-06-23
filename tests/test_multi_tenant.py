@@ -88,7 +88,7 @@ class TestTenantIsolation:
 
             actions_all = ActionCorrective.query.all()
             entreprise_b_actions = [a for a in actions_all if a.entreprise_id == ent_b.id]
-            assert len(entreprise_b_actions) == 1
+            assert len(entreprise_b_actions) == 0
 
     def test_api_cross_tenant_data_leak(self, client, app, session, entreprise, manager_user):
         from app.models import ActionCorrective, Utilisateur, Role, RolePermission, Permission

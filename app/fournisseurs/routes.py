@@ -18,7 +18,7 @@ from app.schemas.partages import FournisseurSchema
 @has_permission('fournisseurs.voir')
 def index():
     utilisateurs = Utilisateur.query.filter_by(
-        entreprise_id=current_user.entreprise_id, actif=True
+        actif=True
     ).order_by(Utilisateur.nom).all()
     return render_template('fournisseurs/index.html', utilisateurs=utilisateurs)
 
@@ -31,7 +31,6 @@ def api_liste():
     """Liste des fournisseurs"""
     domaine = session.get('domaine', 'hse')
     return Fournisseur.query.filter_by(
-        entreprise_id=current_user.entreprise_id,
         domaine=domaine
     ).order_by(Fournisseur.date_creation.desc()).all()
 
@@ -41,8 +40,7 @@ def api_liste():
 @has_permission('fournisseurs.voir')
 def api_stats():
     """Statistiques fournisseurs"""
-    eid = current_user.entreprise_id
-    base = Fournisseur.query.filter_by(entreprise_id=eid)
+    base = Fournisseur.query
     return {
         'total': base.count(),
         'actifs': base.filter_by(statut='actif').count(),
@@ -74,7 +72,7 @@ def api_creer(data):
 def api_modifier(data, item_id):
     """Mettre à jour un fournisseur"""
     item = Fournisseur.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     for field, value in request.get_json().items():
         if hasattr(item, field) and field not in ('id', 'entreprise_id', 'date_creation'):
@@ -90,7 +88,7 @@ def api_modifier(data, item_id):
 def api_supprimer(item_id):
     """Supprimer un fournisseur"""
     item = Fournisseur.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     db.session.delete(item)
     db.session.commit()
@@ -103,7 +101,7 @@ def api_supprimer(item_id):
 def api_evaluer(item_id):
     """Enregistrer une évaluation périodique"""
     item = Fournisseur.query.filter_by(
-        id=item_id, entreprise_id=current_user.entreprise_id
+        id=item_id
     ).first_or_404()
     data = request.get_json()
     evaluation = EvaluationFournisseur(

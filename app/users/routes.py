@@ -112,9 +112,7 @@ def logout():
 @login_required
 @has_permission('users.voir')
 def list_users():
-    users_list = Utilisateur.query.filter_by(
-        entreprise_id=current_user.entreprise_id
-    ).all()
+    users_list = Utilisateur.query.all()
     return render_template('users/list.html', users=users_list)
 
 

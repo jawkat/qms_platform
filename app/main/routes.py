@@ -55,22 +55,30 @@ def force_error():
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.tableau_de_bord'))
+
+    plans = []
     slots_json = '{}'
-    plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
+    features_labels = {}
     try:
+        import json as _json
+        plans = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
+        for p in plans:
+            if isinstance(p.features, str):
+                try:
+                    p.features = _json.loads(p.features)
+                except (_json.JSONDecodeError, TypeError):
+                    p.features = {}
+            if p.features:
+                for k in p.features:
+                    if not k.startswith('_vis_') and k not in features_labels:
+                        features_labels[k] = k.replace('_', ' ').title()
+
         from app.demo.routes import _generer_creneaux_libres, _slots_to_json, _grouper_par_jour
         creneaux = _generer_creneaux_libres()
         creneaux_par_jour = _grouper_par_jour(creneaux)
         slots_json = _slots_to_json(creneaux_par_jour)
     except Exception:
         pass
-
-    all_features = {}
-    for p in plans:
-        if p.features:
-            for k, v in p.features.items():
-                if v and k not in all_features:
-                    all_features[k] = True
 
     features = [
         {'icon': 'fas fa-satellite-dish', 'color': '#06b6d4', 'bg': 'rgba(6,182,212,.1)',
@@ -111,13 +119,6 @@ def index():
          'description': 'Calendrier global, audits, formations, inspections et rappels automatiques.'},
     ]
 
-    features_labels = {}
-    for p in plans:
-        if p.features:
-            for k in p.features:
-                if k not in features_labels:
-                    features_labels[k] = k.replace('_', ' ').title()
-
     return render_template('landing.html', slots_json=slots_json, plans=plans, features=features, features_labels=features_labels)
 
 
@@ -130,41 +131,127 @@ def tableau_de_bord():
     return render_template('main/dashboard.html', entreprise=entreprise, domaine=domaine)
 
 
+@main.get('/api/dashboard/alerts')
+@login_required
+@has_permission('actions.voir')
+def api_dashboard_alerts():
+    """Alertes agrégées pour le tableau de bord : notifications, échéances, approbations, expirations."""
+    from datetime import date, timedelta
+    from app.models import ActionCorrective, ProofMaster
+    today = date.today()
+
+    entreprise_id = current_user.entreprise_id
+    is_admin = current_user.role and current_user.role.est_systeme
+    is_manager = is_admin or current_user.is_manager
+
+    # Notifications (filtrées technique pour non-admin)
+    notif_q = Notification.query
+    if is_manager:
+        notif_q = notif_q.join(Utilisateur, Notification.utilisateur_id == Utilisateur.id)\
+                          .filter(Utilisateur.entreprise_id == entreprise_id)
+    else:
+        notif_q = notif_q.filter_by(utilisateur_id=current_user.id)
+    if not is_admin:
+        notif_q = notif_q.filter(Notification.categorie != 'technique')
+    recent_notifications = notif_q.order_by(
+        Notification.lu.asc(), Notification.date_envoi.desc()
+    ).limit(20).all()
+
+    # Actions en retard (assignées au user, ou toutes si manager)
+    action_q = ActionCorrective.query.filter(
+        ActionCorrective.statut.notin_(['SOLDE', 'ANNULE']),
+        ActionCorrective.date_echeance < today,
+    )
+    if is_manager:
+        action_q = action_q.filter(ActionCorrective.entreprise_id == entreprise_id)
+    else:
+        action_q = action_q.filter(ActionCorrective.responsable_id == current_user.id)
+    overdue_actions = action_q.count()
+
+    # Échéances dans les 7 jours
+    upcoming_q = ActionCorrective.query.filter(
+        ActionCorrective.statut.notin_(['SOLDE', 'ANNULE']),
+        ActionCorrective.date_echeance.between(today, today + timedelta(days=7)),
+    )
+    if is_manager:
+        upcoming_q = upcoming_q.filter(ActionCorrective.entreprise_id == entreprise_id)
+    else:
+        upcoming_q = upcoming_q.filter(ActionCorrective.responsable_id == current_user.id)
+    upcoming_actions = upcoming_q.count()
+
+    # Documents en attente d'approbation
+    pending_approvals = ProofMaster.query.filter_by(
+        workflow_statut='soumis',
+        workflow_approbateur_id=current_user.id,
+    ).count()
+
+    # Documents expirés / en expiration (30 jours)
+    expired_docs = ProofMaster.query.filter(
+        ProofMaster.statut == 'ACTIF',
+        ProofMaster.validite < today,
+    )
+    expiring_docs = ProofMaster.query.filter(
+        ProofMaster.statut == 'ACTIF',
+        ProofMaster.validite.between(today, today + timedelta(days=30)),
+    )
+    if is_manager:
+        expired_docs = expired_docs.filter(ProofMaster.entreprise_id == entreprise_id)
+        expiring_docs = expiring_docs.filter(ProofMaster.entreprise_id == entreprise_id)
+
+    return {
+        'notifications': [
+            {
+                'id': n.id,
+                'type': n.type,
+                'message': n.message,
+                'categorie': n.categorie,
+                'urgence': n.urgence,
+                'lu': n.lu,
+                'date_envoi': n.date_envoi.isoformat() if n.date_envoi else None,
+                'entite_type': n.entite_type,
+                'entite_id': n.entite_id,
+                'utilisateur_id': n.utilisateur_id,
+            }
+            for n in recent_notifications
+        ],
+        'overdue_actions': overdue_actions,
+        'upcoming_actions': upcoming_actions,
+        'pending_approvals': pending_approvals,
+        'expired_docs': expired_docs.count(),
+        'expiring_docs': expiring_docs.count(),
+    }
+
+
 @main.get('/api/stats')
 @login_required
 @has_permission('actions.voir')
 def api_stats():
     """Statistiques globales du tableau de bord"""
     domaine = session.get('domaine_actif', 'hse')
-    eid = current_user.entreprise_id
     today = date.today()
 
     total_actions = ActionCorrective.query.filter_by(
-        entreprise_id=eid, domaine=domaine
+        domaine=domaine
     ).count()
 
     actions_en_cours = ActionCorrective.query.filter_by(
-        entreprise_id=eid, domaine=domaine, statut='EN_COURS'
+        domaine=domaine, statut='EN_COURS'
     ).count()
 
     actions_en_retard = ActionCorrective.query.filter(
-        ActionCorrective.entreprise_id == eid,
         ActionCorrective.domaine == domaine,
         ActionCorrective.statut.notin_(['SOLDE', 'ANNULE']),
-        ActionCorrective.date_echeance < today,
-    ).count()
+        ActionCorrective.date_echeance < today).count()
 
     total_documents = ProofMaster.query.filter_by(
-        entreprise_id=eid, domaine=domaine, statut='ACTIF'
+        domaine=domaine, statut='ACTIF'
     ).count()
 
     total_audits = Audit.query.filter_by(
-        entreprise_id=eid, domaine=domaine
+        domaine=domaine
     ).count()
 
-    total_users = Utilisateur.query.filter_by(
-        entreprise_id=eid
-    ).count()
+    total_users = Utilisateur.query.count()
 
     return {
         'total_actions': total_actions,
@@ -193,19 +280,21 @@ def switch_domaine(domaine):
 @login_required
 @main.response(200, NotificationSchema(many=True))
 def api_notifications():
-    """Liste de vos notifications les plus récentes"""
-    return Notification.query.filter_by(utilisateur_id=current_user.id)\
-        .order_by(Notification.lu.asc(), Notification.date_envoi.desc()).limit(20).all()
+    """Liste de vos notifications les plus récentes (filtrées par rôle)."""
+    q = Notification.query.filter_by(utilisateur_id=current_user.id)
+    if not current_user.role or not current_user.role.est_systeme:
+        q = q.filter(Notification.categorie != 'technique')
+    return q.order_by(Notification.lu.asc(), Notification.date_envoi.desc()).limit(20).all()
 
 
 @main.get('/api/notifications/unread-count')
 @login_required
 def api_notifications_unread_count():
-    """Nombre de notifications non lues"""
-    count = Notification.query.filter_by(
-        utilisateur_id=current_user.id, lu=False
-    ).count()
-    return {'unread': count}
+    """Nombre de notifications non lues (filtré par rôle)."""
+    q = Notification.query.filter_by(utilisateur_id=current_user.id, lu=False)
+    if not current_user.role or not current_user.role.est_systeme:
+        q = q.filter(Notification.categorie != 'technique')
+    return {'unread': q.count()}
 
 
 @main.post('/api/notifications/<int:id>/read')
@@ -261,12 +350,32 @@ def notification_open(id):
     if m:
         return redirect(url_for('hse.incidents'))
 
-    # 3. Notifications "Bug applicatif" → journal de sécurité
+    # 3. Notifications "Bug applicatif" → journal de sécurité avec détail incident
     if notif.message and 'Bug applicatif' in notif.message:
+        import re
+        m = re.search(r'Ref:\s*([a-f0-9-]+)', notif.message or '')
+        if m:
+            ref = m.group(1)
+            from app.models import JournalSecurite
+            incident = JournalSecurite.query.filter(
+                JournalSecurite.details.cast(db.String).contains(ref)
+            ).first()
+            if incident:
+                return redirect(url_for('admin.securite', incident_id=incident.id))
         return redirect(url_for('admin.securite'))
 
     # 4. Dernier recours : tableau de bord
     return redirect(url_for('main.index'))
+
+
+@main.route('/notifications')
+@login_required
+def notifications():
+    q = Notification.query.filter_by(utilisateur_id=current_user.id)
+    if not current_user.role or not current_user.role.est_systeme:
+        q = q.filter(Notification.categorie != 'technique')
+    notifs = q.order_by(Notification.date_envoi.desc()).all()
+    return render_template('main/notifications.html', notifications=notifs)
 
 
 @main.route('/search')
@@ -276,17 +385,13 @@ def search():
     results = {}
     if q:
         pattern = f'%{q}%'
-        eid = current_user.entreprise_id
-
         actions = ActionCorrective.query.filter(
-            ActionCorrective.entreprise_id == eid,
             ActionCorrective.description.ilike(pattern)
         ).limit(10).all()
         if actions:
             results['Actions'] = [{'id': a.id, 'title': a.description[:80], 'url': url_for('actions.detail_action', action_id=a.id)} for a in actions]
 
         audits = Audit.query.filter(
-            Audit.entreprise_id == eid,
             db.or_(Audit.type.ilike(pattern), Audit.commentaire.ilike(pattern))
         ).limit(10).all()
         if audits:
@@ -302,7 +407,6 @@ def search():
             results['Indicateurs'] = [{'id': i.id, 'title': i.nom, 'url': url_for('indicateurs.detail', indicateur_id=i.id)} for i in indicateurs]
 
         tickets = Ticket.query.filter(
-            Ticket.entreprise_id == eid,
             Ticket.sujet.ilike(pattern)
         ).limit(10).all()
         if tickets:
@@ -329,7 +433,6 @@ def export_module(module):
     from app.services.report_service import (
         export_actions_excel, export_audits_excel, export_nc_excel, export_risques_excel
     )
-    eid = current_user.entreprise_id
     domaine = session.get('domaine_actif', 'hse')
 
     exporters = {

@@ -352,9 +352,24 @@ def send_email_notification_task(email, name, category, message, urgence='normal
                                  entreprise_nom=None, user_role=None):
     """
     Tâche d'envoi d'email pour les notifications de la plateforme.
-    Formatte le message selon la catégorie et l'urgence.
+    Vérifie les préférences utilisateur avant envoi.
     """
     try:
+        from app import db
+        from app.models.auth import Utilisateur
+        from app.models.systeme import NotificationPreference
+
+        user = Utilisateur.query.filter_by(email=email).first()
+        if user:
+            prefs = NotificationPreference.query.filter_by(
+                utilisateur_id=user.id, categorie=category
+            ).first()
+            if prefs and not prefs.email_enabled:
+                logger.info("Email désactivé par l'utilisateur %s pour %s — ignoré", email, category)
+                return False
+        else:
+            logger.info("Email %s ne correspond à aucun utilisateur — envoi autorisé (fallback)", email)
+
         from app import mail
         from flask_mail import Message
 

@@ -1,15 +1,36 @@
 {% extends 'layout.html' %}
 {% block title %}Administration - Plans d'abonnement{% endblock %}
+{% block extra_css %}
+<style>
+  .feat-table thead th { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; border-bottom:2px solid #e5e7eb; }
+  .feat-table tbody tr { transition: background .15s; }
+  .feat-table tbody tr:hover { background:#f9fafb; }
+  .feat-table td { vertical-align:middle; }
+  .feature-check, .feature-vis { width:30px; height:30px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:.8rem; transition: all .15s; cursor:pointer; border:2px solid transparent; }
+  .feature-check.btn-success, .feature-vis.btn-success { background:#22c55e; color:#fff; border-color:#16a34a; box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+  .feature-check.btn-outline-secondary, .feature-vis.btn-outline-secondary { background:#fff; color:#9ca3af; border-color:#d1d5db; }
+  .feature-check.btn-outline-secondary:hover, .feature-vis.btn-outline-secondary:hover { border-color:#6b7280; color:#374151; }
+  .feature-check.btn-success:hover, .feature-vis.btn-success:hover { background:#16a34a; }
+  .feat-move-btn { width:22px; height:18px; font-size:.7rem; border:none; background:transparent; color:#9ca3af; cursor:pointer; padding:0; transition:color .15s; }
+  .feat-move-btn:hover:not(:disabled) { color:#374151; }
+  .feat-move-btn:disabled { opacity:.3; cursor:default; }
+  .feat-key { font-family:'SF Mono',Consolas,monospace; font-size:.82rem; color:#1f2937; background:#f3f4f6; padding:2px 8px; border-radius:4px; }
+  .feat-rename-btn { opacity:0; transition:opacity .15s; }
+  .feat-table tbody tr:hover .feat-rename-btn { opacity:1; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-1">
     <h1 class="h3 mb-0"><i class="fas fa-credit-card me-2"></i>Paramètres des plans d'abonnement</h1>
-    <form method="POST" action="{{ url_for('admin.plans_seed') }}" class="d-inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-primary" type="submit">
-        <i class="fas fa-seedling me-1"></i>Initialiser les plans par défaut
-      </button>
-    </form>
+    <div class="d-flex gap-2">
+      <form method="POST" action="{{ url_for('admin.plans_seed') }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-primary" type="submit">
+          <i class="fas fa-seedling me-1"></i>Initialiser les plans par défaut
+        </button>
+      </form>
+    </div>
   </div>
   <p class="text-muted mb-4">Paramètres généraux et fonctionnalités des plans.</p>
 
@@ -20,7 +41,12 @@
         <div class="card-header bg-white py-3">
           <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0 text-capitalize">{{ p.plan_key }}</h5>
-            <span class="badge bg-{{ 'success' if p.is_active else 'secondary' }}">{{ 'Actif' if p.is_active else 'Inactif' }}</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-{{ 'success' if p.is_active else 'secondary' }}">{{ 'Actif' if p.is_active else 'Inactif' }}</span>
+              <button class="btn btn-sm btn-outline-danger" onclick="deletePlan({{ p.id }}, '{{ p.label }}')" title="Supprimer le plan">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
           </div>
         </div>
         <div class="card-body">
@@ -63,32 +89,58 @@
       <h5 class="mb-0">Fonctionnalités des plans</h5>
       <div class="d-flex gap-2">
         <input type="text" class="form-control form-control-sm" id="newFeatureKey" placeholder="Clé (ex: veille_reglementaire)" style="width:250px">
-        <input type="text" class="form-control form-control-sm" id="newFeatureLabel" placeholder="Libellé (ex: Veille réglementaire)" style="width:250px">
         <button class="btn btn-sm btn-success" onclick="addFeature()"><i class="fas fa-plus me-1"></i>Ajouter</button>
       </div>
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
+        <table class="table mb-0 feat-table">
+          <thead>
             <tr>
-              <th style="min-width:280px">Fonctionnalité (clé DB)</th>
+              <th style="width:50px"></th>
+              <th style="min-width:280px">Fonctionnalité</th>
               {% for p in plans %}
-              <th class="text-center text-capitalize">{{ p.plan_key }}</th>
+              <th class="text-center text-capitalize" style="min-width:120px">{{ p.plan_key }}</th>
               {% endfor %}
-              <th style="width:50px">Suppr.</th>
+              <th style="width:80px" class="text-center">Actions</th>
             </tr>
           </thead>
           <tbody id="featuresBody">
             {% for feat_key in all_feature_keys %}
-            <tr data-feature-key="{{ feat_key }}">
-              <td><code>{{ feat_key }}</code></td>
+            <tr data-feature-key="{{ feat_key }}" data-index="{{ loop.index0 }}">
+              <td class="text-center">
+                <div class="d-flex flex-column align-items-center">
+                  <button class="feat-move-btn" data-dir="up" onclick="moveFeature(this)" title="Monter" {% if loop.first %}disabled{% endif %}>
+                    <i class="fas fa-caret-up"></i>
+                  </button>
+                  <button class="feat-move-btn" data-dir="down" onclick="moveFeature(this)" title="Descendre" {% if loop.last %}disabled{% endif %}>
+                    <i class="fas fa-caret-down"></i>
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="feat-key">{{ feat_key }}</span>
+                  <button class="btn btn-sm btn-outline-secondary py-0 px-1 feat-rename-btn" onclick="renameFeature('{{ feat_key }}')" title="Renommer">
+                    <i class="fas fa-pen fa-xs"></i>
+                  </button>
+                </div>
+              </td>
               {% for p in plans %}
               <td class="text-center">
-                <div class="form-check form-switch d-inline-block mb-0">
-                  <input type="checkbox" class="form-check-input feature-toggle"
-                    data-plan="{{ p.id }}" data-feature="{{ feat_key }}"
-                    {% if p.features and p.features.get(feat_key) %}checked{% endif %}>
+                <div class="d-flex align-items-center justify-content-center gap-1">
+                  {% set vis = p.features.get('_vis_' ~ feat_key, true) if (p.features is mapping) else true %}
+                  {% set val = p.features.get(feat_key, false) if (p.features is mapping) else false %}
+                  <button class="feature-vis {% if vis %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                    data-plan="{{ p.id }}" data-feature="{{ feat_key }}" data-val="{{ 'true' if vis else 'false' }}"
+                    onclick="toggleVisibility(this)" title="{{ 'Masquer' if vis else 'Afficher' }}">
+                    <i class="fas fa-{% if vis %}eye{% else %}eye-slash{% endif %}"></i>
+                  </button>
+                  <button class="feature-check {% if val %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                    data-plan="{{ p.id }}" data-feature="{{ feat_key }}" data-val="{{ 'true' if val else 'false' }}"
+                    onclick="toggleFeature(this)" title="{{ 'Activé' if val else 'Désactivé' }}">
+                    <i class="fas fa-{% if val %}check{% else %}times{% endif %}"></i>
+                  </button>
                 </div>
               </td>
               {% endfor %}
@@ -101,7 +153,7 @@
             {% endfor %}
             {% if not all_feature_keys %}
             <tr id="emptyFeaturesRow">
-              <td colspan="{{ plans|length + 2 }}" class="text-center text-muted py-4">
+              <td colspan="{{ plans|length + 3 }}" class="text-center text-muted py-4">
                 Aucune fonctionnalité définie. Ajoutez-en une ci-dessus.
               </td>
             </tr>
@@ -122,7 +174,7 @@ document.querySelectorAll('.plan-field').forEach(input => {
     const planId = this.dataset.plan;
     const field = this.dataset.field;
     const val = this.type === 'number' ? parseInt(this.value) || 0 : this.value;
-    fetch('/plans/api/' + planId + '/update', {
+    fetch('/admin/plans/api/' + planId + '/update', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({[field]: val}),
@@ -130,53 +182,124 @@ document.querySelectorAll('.plan-field').forEach(input => {
   });
 });
 
-document.querySelectorAll('.feature-toggle').forEach(cb => {
-  cb.addEventListener('change', function() {
-    const planId = this.dataset.plan;
-    const feature = this.dataset.feature;
-    const val = this.checked;
-    fetch('/plans/api/' + planId + '/update', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({features: {[feature]: val}}),
-    });
-  });
 });
 
-});
+function toggleFeature(btn) {
+  const planId = btn.dataset.plan;
+  const feature = btn.dataset.feature;
+  const current = btn.dataset.val === 'true';
+  const newVal = !current;
+  btn.dataset.val = newVal ? 'true' : 'false';
+  btn.className = 'feature-check ' + (newVal ? 'btn-success' : 'btn-outline-secondary');
+  btn.querySelector('i').className = 'fas fa-' + (newVal ? 'check' : 'times');
+  fetch('/admin/plans/api/' + planId + '/update', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({features: {[feature]: newVal}}),
+  });
+}
+
+function toggleVisibility(btn) {
+  const planId = btn.dataset.plan;
+  const feature = btn.dataset.feature;
+  const current = btn.dataset.val === 'true';
+  const newVal = !current;
+  btn.dataset.val = newVal ? 'true' : 'false';
+  btn.className = 'feature-vis ' + (newVal ? 'btn-success' : 'btn-outline-secondary');
+  btn.querySelector('i').className = 'fas fa-' + (newVal ? 'eye' : 'eye-slash');
+  btn.title = newVal ? 'Masquer' : 'Afficher';
+  fetch('/admin/plans/api/' + planId + '/update', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({feature_visibility: {[feature]: newVal}}),
+  });
+}
+
+function moveFeature(btn) {
+  const tr = btn.closest('tr');
+  const dir = btn.dataset.dir;
+  const sibling = dir === 'up' ? tr.previousElementSibling : tr.nextElementSibling;
+  if (!sibling || sibling.id === 'emptyFeaturesRow') return;
+  if (dir === 'up') {
+    tr.parentNode.insertBefore(tr, sibling);
+  } else {
+    tr.parentNode.insertBefore(sibling, tr);
+  }
+  updateFeatureOrder();
+}
+
+function updateFeatureOrder() {
+  const rows = document.querySelectorAll('#featuresBody tr[data-feature-key]');
+  const plans = {{ plans|map(attribute='id')|list|tojson }};
+  const planData = {};
+  rows.forEach(r => {
+    const key = r.dataset.featureKey;
+    r.querySelectorAll('.feature-check').forEach(btn => {
+      planData[btn.dataset.plan] = planData[btn.dataset.plan] || {};
+      planData[btn.dataset.plan][key] = btn.dataset.val === 'true';
+    });
+    r.querySelectorAll('.feature-vis').forEach(btn => {
+      planData[btn.dataset.plan] = planData[btn.dataset.plan] || {};
+      planData[btn.dataset.plan]['_vis_' + key] = btn.dataset.val === 'true';
+    });
+  });
+  let done = 0;
+  plans.forEach(planId => {
+    fetch('/admin/plans/api/' + planId + '/update', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({features: planData[planId] || {}}),
+    }).then(() => { done++; if (done === plans.length) location.reload(); });
+  });
+}
+
+function renameFeature(oldKey) {
+  const newKey = prompt('Nouvelle clé pour "' + oldKey + '"', oldKey);
+  if (!newKey || newKey === oldKey) return;
+  const plans = {{ plans|map(attribute='id')|list|tojson }};
+  let done = 0;
+  plans.forEach(planId => {
+    fetch('/admin/plans/api/' + planId + '/update', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({rename_feature: {old: oldKey, new: newKey}}),
+    }).then(() => { done++; if (done === plans.length) location.reload(); });
+  });
+}
 
 function addFeature() {
   const key = document.getElementById('newFeatureKey').value.trim();
-  const label = document.getElementById('newFeatureLabel').value.trim();
   if (!key) { alert('Clé requise'); return; }
   const plans = {{ plans|map(attribute='id')|list|tojson }};
+  let done = 0;
   plans.forEach(planId => {
-    fetch('/plans/api/' + planId + '/update', {
+    fetch('/admin/plans/api/' + planId + '/update', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({features: {[key]: false}}),
-    });
+    }).then(() => { done++; if (done === plans.length) location.reload(); });
   });
-  location.reload();
 }
 
 function deleteFeature(btn, featureKey) {
   if (!confirm('Supprimer la fonctionnalité "' + featureKey + '" de tous les plans ?')) return;
-  const row = btn.closest('tr');
-  const toggles = row.querySelectorAll('.feature-toggle');
   const planIds = [];
-  toggles.forEach(cb => { planIds.push(cb.dataset.plan); });
+  btn.closest('tr').querySelectorAll('.feature-check').forEach(b => { planIds.push(b.dataset.plan); });
   let done = 0;
   planIds.forEach(planId => {
-    fetch('/plans/api/' + planId + '/update', {
+    fetch('/admin/plans/api/' + planId + '/update', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({features: {[featureKey]: null}}),
-    }).then(() => {
-      done++;
-      if (done === planIds.length) location.reload();
-    });
+    }).then(() => { done++; if (done === planIds.length) location.reload(); });
   });
+}
+
+function deletePlan(planId, planLabel) {
+  if (!confirm('Supprimer le plan "' + planLabel + '" ? Cette action est irréversible.')) return;
+  fetch('/admin/plans/' + planId + '/delete', { method: 'POST' })
+    .then(r => { if (r.redirected || r.ok) location.reload(); })
+    .catch(() => alert('Erreur lors de la suppression.'));
 }
 </script>
 {% endblock %}
