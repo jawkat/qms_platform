@@ -196,14 +196,11 @@ def _envoyer_confirmations(creneau):
     ))
     creneau.ticket_id = ticket.id
 
+    from app.utils.notifications import create_notification
     admins = Utilisateur.query.join(Role, Utilisateur.role_id == Role.id).filter(
         Role.est_systeme == True,
         Utilisateur.actif == True,
     ).all()
     for admin in admins:
-        db.session.add(Notification(
-            type='ticket',
-            message=f"Nouvelle demande de demo - {creneau.nom_contact} ({creneau.email_contact}) [TICKET:{ticket.id}]",
-            utilisateur_id=admin.id,
-        ))
+        create_notification(admin.id, f"Nouvelle demande de demo - {creneau.nom_contact} ({creneau.email_contact})", type='ticket')
     db.session.commit()

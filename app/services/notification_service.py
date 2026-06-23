@@ -173,6 +173,29 @@ class NotificationService:
             current_app.logger.error(f"Bug critique dans NotificationService: {str(e)}")
 
     @staticmethod
+    def notify_enterprise_users(entreprise_id, category, message, urgence='normale', exclude_user_id=None, entite_type=None, entite_id=None, notification_type=None):
+        """
+        Notifie tous les utilisateurs actifs d'une entreprise.
+        """
+        query = Utilisateur.query.filter(
+            Utilisateur.entreprise_id == entreprise_id,
+            Utilisateur.actif == True,
+        )
+        if exclude_user_id:
+            query = query.filter(Utilisateur.id != exclude_user_id)
+        users = query.all()
+        for user in users:
+            NotificationService.notify(user.id, category, message, urgence, entite_type, entite_id, notification_type)
+
+    @staticmethod
+    def notify_users(user_ids, category, message, urgence='normale', entite_type=None, entite_id=None, notification_type=None):
+        """
+        Notifie une liste d'utilisateurs par leurs IDs.
+        """
+        for uid in user_ids:
+            NotificationService.notify(uid, category, message, urgence, entite_type, entite_id, notification_type)
+
+    @staticmethod
     def _enqueue_email(user, category, message, urgence):
         """
         Envoie l'email de notification — d'abord par RQ (async), puis synchrone si Redis est indisponible.

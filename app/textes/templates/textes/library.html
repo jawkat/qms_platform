@@ -130,9 +130,9 @@
                 <span class="badge bg-info" style="font-size:.6rem">{{ t.type or '-' }}</span>
                 <small class="text-muted">{{ t.domaine_ref.nom if t.domaine_ref else t.domaine or '' }}</small>
               </div>
-              <a href="{% if current_user.role and current_user.role.est_systeme %}{{ url_for('textes.detail', texte_id=t.id) }}{% elif v %}{{ url_for('textes.version_detail', version_id=v.id) }}{% else %}{{ url_for('textes.detail', texte_id=t.id) }}{% endif %}" class="text-decoration-none fw-medium d-block">
+              <span class="fw-medium d-block">
                 {{ t.titre[:200] }}{% if t.titre|length > 200 %}...{% endif %}
-              </a>
+              </span>
               <div class="d-flex align-items-center gap-2 mt-1">
                 <small class="text-muted">{{ t.referentiel|capitalize if t.referentiel else '' }}</small>
                 {% if v %}
@@ -144,6 +144,7 @@
               </div>
             </div>
             <div class="d-flex flex-column align-items-end gap-1" style="min-width:120px">
+              <a href="{% if current_user.role and current_user.role.est_systeme %}{{ url_for('textes.detail', texte_id=t.id) }}{% elif v %}{{ url_for('textes.version_detail', version_id=v.id) }}{% else %}{{ url_for('textes.detail', texte_id=t.id) }}{% endif %}" class="btn btn-sm btn-outline-primary w-100" style="font-size:.7rem">Lecture</a>
               {% if item.link_state == 'linked' %}
               <span class="badge bg-success w-100">Lié</span>
               <form method="POST" action="{{ url_for('entreprise_textes.toggle_link') }}" class="w-100">
@@ -153,8 +154,14 @@
                 <button class="btn btn-sm btn-outline-danger w-100" style="font-size:.7rem">Délier</button>
               </form>
               {% elif item.link_state == 'evaluated' %}
-              <span class="badge bg-primary w-100">Évalué</span>
-              <a href="{{ url_for('conformite.index') }}" class="btn btn-sm btn-outline-primary w-100" style="font-size:.7rem">Voir</a>
+              <span class="badge bg-primary w-100">Est lié</span>
+              <a href="{{ url_for('conformite.index') }}" class="btn btn-sm btn-outline-primary w-100" style="font-size:.7rem">Évaluation</a>
+              <form method="POST" action="{{ url_for('entreprise_textes.toggle_link') }}" class="w-100">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="version_id" value="{{ v.id if v else '' }}">
+                <input type="hidden" name="action" value="unlink">
+                <button class="btn btn-sm btn-outline-danger w-100" style="font-size:.7rem">Délier</button>
+              </form>
               {% else %}
               <span class="badge bg-secondary w-100">Non lié</span>
               <form method="POST" action="{{ url_for('entreprise_textes.toggle_link') }}" class="w-100">

@@ -454,8 +454,14 @@ class PluginManager:
         if 'veille' in active_names:
             sections.append({
                 'id': 'veille', 'title': 'Veille réglementaire', 'icon': 'fa-satellite-dish', 'items': [
+                    {'endpoint': 'textes.veille_dashboard', 'icon': 'fa-chart-line', 'label': 'Tableau de bord',
+                     'active_prefix': 'textes.veille'},
                     {'endpoint': 'textes.library_all', 'icon': 'fa-book', 'label': 'Bibliothèque',
                      'active_prefix': 'textes.library'},
+                    {'endpoint': 'textes.veille_non_conformites', 'icon': 'fa-exclamation-triangle', 'label': 'NC articles',
+                     'active_prefix': 'textes.veille_non'},
+                    {'endpoint': 'textes.veille_preuves', 'icon': 'fa-paperclip', 'label': 'Preuves',
+                     'active_prefix': 'textes.veille_preuves'},
                     {'endpoint': 'conformite.index', 'icon': 'fa-clipboard-list', 'label': 'Conformité',
                      'active_prefix': 'conformite.'},
                 ]

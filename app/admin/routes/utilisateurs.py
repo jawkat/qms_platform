@@ -119,12 +119,8 @@ def admin_ticket_repondre(ticket_id):
     db.session.commit()
 
     if not est_interne and ticket.cree_par_id:
-        notif = Notification(
-            type='ticket',
-            message=f"Nouvelle réponse sur {ticket.reference}: {contenu[:100]} [TICKET:{ticket.id}]",
-            utilisateur_id=ticket.cree_par_id,
-        )
-        db.session.add(notif)
+        from app.utils.notifications import create_notification
+        create_notification(ticket.cree_par_id, f"Nouvelle réponse sur {ticket.reference}: {contenu[:100]}", type='ticket')
         db.session.commit()
 
     flash('Message ajouté.', 'success')

@@ -1,0 +1,87 @@
+{% extends 'layout.html' %}
+{% block title %}Non-conformités articles – Veille réglementaire{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Articles non conformes</h4>
+    <a href="{{ url_for('textes.veille_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Tableau de bord
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-lg-4">
+          <input type="text" name="q" class="form-control form-control-sm" placeholder="Rechercher dans le contenu des articles..." value="{{ filters.get('q','') }}">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-search me-1"></i>Rechercher</button>
+        </div>
+        <div class="col-auto ms-auto">
+          <small class="text-muted">{{ total }} article(s) non conforme(s)</small>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Article</th><th>Texte</th><th>Domaine</th><th>Évalué le</th><th>Observation</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in nonconformites %}
+            {% set ev = item.evaluation %}
+            {% set art = item.article %}
+            {% set txt = item.texte %}
+            <tr>
+              <td>
+                <span class="fw-medium">Art. {{ art.numero_article if art else '-' }}</span>
+                <br><small class="text-muted">{{ (art.contenu|safe|striptags|truncate(120, True)) if art and art.contenu else '' }}</small>
+              </td>
+              <td>
+                <small>{{ txt.titre[:80] if txt and txt.titre else '' }}{% if txt and txt.titre and txt.titre|length > 80 %}...{% endif %}</small>
+                {% if txt %}
+                <br><span class="badge bg-secondary" style="font-size:.6rem">{{ txt.code or '' }}</span>
+                {% endif %}
+              </td>
+              <td><span class="badge bg-secondary">{{ txt.domaine if txt else '' }}</span></td>
+              <td><small>{{ ev.date_evaluation.strftime('%d/%m/%Y') if ev.date_evaluation else '-' }}</small></td>
+              <td><small>{{ (ev.observation[:100] ~ '...') if ev.observation and ev.observation|length > 100 else (ev.observation or '-') }}</small></td>
+              <td>
+                <a href="{{ url_for('textes.article_detail', article_id=art.id) }}" class="btn btn-sm btn-outline-primary" title="Voir l'article">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-check-circle fa-2x mb-2 d-block text-success"></i>Aucun article non conforme.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if pagination and pagination.pages > 1 %}
+  <nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center mb-0">
+      {% for p in range(1, pagination.pages + 1) %}
+      <li class="page-item {% if p == pagination.page %}active{% endif %}">
+        <a class="page-link" href="?q={{ filters.get('q','') }}&domaine={{ filters.get('domaine','') }}&page={{ p }}">{{ p }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

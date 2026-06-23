@@ -107,6 +107,7 @@ def notifications():
 @login_required
 @admin_required
 def notification_send():
+    from app.utils.notifications import create_notification
     type_notif = request.form.get('type', 'info')
     message = request.form.get('message', '').strip()
     utilisateur_id = request.form.get('utilisateur_id')
@@ -114,12 +115,10 @@ def notification_send():
         flash('Le message est requis.', 'danger')
         return redirect(url_for('admin.notifications'))
     if utilisateur_id:
-        notif = Notification(type=type_notif, message=message, utilisateur_id=int(utilisateur_id))
-        db.session.add(notif)
+        create_notification(int(utilisateur_id), message, type=type_notif)
     else:
         for u in Utilisateur.query.all():
-            db.session.add(Notification(type=type_notif, message=message, utilisateur_id=u.id))
-    db.session.commit()
+            create_notification(u.id, message, type=type_notif)
     flash('Notification(s) envoyée(s).', 'success')
     return redirect(url_for('admin.notifications'))
 

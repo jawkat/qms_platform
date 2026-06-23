@@ -137,7 +137,7 @@
                   </button>
                   {% endif %}
                   <button class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown"></button>
-                  <ul class="dropdown-menu dropdown-menu-end">
+                  <ul class="dropdown-menu dropdown-menu-end" style="z-index:1050">
                     {% if et.evaluations %}
                     <li><a class="dropdown-item" href="{{ url_for('conformite.evaluation_detail', evaluation_id=first_eval.id) }}">
                       <i class="fas fa-clipboard-check me-2"></i>Évaluer

@@ -4,13 +4,11 @@ from app.utils.permissions import has_permission
 from app import db
 from app.workflow_engine import blueprint
 from app.models import WorkflowModele, WorkflowEtape, WorkflowInstance, WorkflowHistorique
-from app.models.systeme import Notification
-from datetime import datetime
+from app.utils.notifications import create_notification
 
 
 def _notify_workflow(user_id, message, wf_type='workflow'):
-    notif = Notification(type=wf_type, message=message, utilisateur_id=user_id)
-    db.session.add(notif)
+    create_notification(user_id, message, type=wf_type)
 
 
 @blueprint.route('/')

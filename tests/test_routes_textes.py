@@ -31,6 +31,10 @@ class TestTextesRoutes:
         resp = login_client.get('/admin/textes/bibliotheque/mises-a-jour-recentes')
         assert resp.status_code in (200, 403)
 
+    def test_veille_dashboard_renders(self, login_client):
+        resp = login_client.get('/admin/textes/bibliotheque/veille-dashboard')
+        assert resp.status_code in (200, 403)
+
     def test_api_liste_returns_json(self, login_client):
         resp = login_client.get('/admin/textes/api/liste')
         assert resp.status_code in (200, 403)
@@ -108,6 +112,77 @@ class TestVeilleRoutes:
     def test_api_sources_returns_json(self, login_client):
         resp = login_client.get('/admin/veille/api/sources')
         assert resp.status_code in (200, 403)
+
+
+class TestVeilleBibliothequeRoutes:
+    def test_veille_non_conformites_requires_login(self, client):
+        resp = client.get('/admin/textes/bibliotheque/non-conformites', follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_veille_non_conformites_renders(self, login_client):
+        resp = login_client.get('/admin/textes/bibliotheque/non-conformites')
+        assert resp.status_code in (200, 403)
+
+    def test_veille_non_conformites_with_search(self, login_client):
+        resp = login_client.get('/admin/textes/bibliotheque/non-conformites?q=sécurité')
+        assert resp.status_code in (200, 403)
+
+    def test_veille_non_conformites_with_domaine(self, login_client):
+        resp = login_client.get('/admin/textes/bibliotheque/non-conformites?domaine=hse')
+        assert resp.status_code in (200, 403)
+
+    def test_veille_preuves_requires_login(self, client):
+        resp = client.get('/admin/textes/bibliotheque/preuves', follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_veille_preuves_renders(self, login_client):
+        resp = login_client.get('/admin/textes/bibliotheque/preuves')
+        assert resp.status_code in (200, 403)
+
+    def test_article_detail_requires_login(self, client):
+        resp = client.get('/admin/textes/bibliotheque/article/1', follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_article_detail_404(self, login_client):
+        resp = login_client.get('/admin/textes/bibliotheque/article/99999')
+        assert resp.status_code in (404, 403)
+
+    def test_article_list_proofs_requires_login(self, client):
+        resp = client.get('/admin/textes/bibliotheque/article/1/proof/liste', follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_article_list_actions_requires_login(self, client):
+        resp = client.get('/admin/textes/bibliotheque/article/1/actions', follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_article_attach_proof_requires_login(self, client):
+        resp = client.post('/admin/textes/bibliotheque/article/1/proof/attach',
+                          data=json.dumps({'proof_id': 1}),
+                          content_type='application/json',
+                          follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_article_add_action_requires_login(self, client):
+        resp = client.post('/admin/textes/bibliotheque/article/1/action/add',
+                          data={'description': 'Test action'},
+                          follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_veille_preuves_upload_requires_login(self, client):
+        resp = client.post('/admin/textes/bibliotheque/preuves/upload',
+                          data={'file': (b'test', 'test.txt')},
+                          follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_veille_preuves_supprimer_requires_login(self, client):
+        resp = client.post('/admin/textes/bibliotheque/preuves/1/supprimer',
+                          follow_redirects=False)
+        assert resp.status_code in (302, 401)
+
+    def test_veille_preuves_upload_no_file(self, login_client):
+        resp = login_client.post('/admin/textes/bibliotheque/preuves/upload',
+                                follow_redirects=False)
+        assert resp.status_code in (400, 403)
 
 
 class TestSecteurRoutes:

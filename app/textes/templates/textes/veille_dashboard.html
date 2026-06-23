@@ -1,0 +1,361 @@
+{% extends 'layout.html' %}
+{% block title %}Tableau de bord – Veille réglementaire{% endblock %}
+{% block content %}
+<div class="container-fluid">
+
+  {# ── En-tête ── #}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-book-open text-danger me-2"></i>Veille réglementaire</h4>
+    <a href="{{ url_for('textes.library_all') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Bibliothèque
+    </a>
+  </div>
+
+  {# ── KPIs principaux ── #}
+  <div class="row g-3 mb-4">
+    {# Conformité #}
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Conformité</h6>
+              <div class="h3 mb-0 fw-bold">{{ taux_conformite }}%</div>
+              <small class="text-muted">Conformes: {{ total_conformes }} | Non conformes: {{ total_non_conformes }}</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e0f2f1;">
+              <i class="fas fa-shield-alt" style="color:#0d9488;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {# Couverture textes #}
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Couverture textes</h6>
+              <div class="h3 mb-0 fw-bold">{{ couverture_pct }}%</div>
+              <small class="text-muted">Évalués: {{ total_evaluated }} | Restants: {{ total_articles - total_evaluated }}</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fef3e2;">
+              <i class="fas fa-book text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {# Résolution des actions #}
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Résolution des actions</h6>
+              {% set total_actions = actions_ouvertes + actions_soldees %}
+              <div class="h3 mb-0 fw-bold">{{ (actions_soldees / total_actions * 100)|round(1) if total_actions > 0 else 0 }}%</div>
+              <small class="text-muted">Clôturées: {{ actions_soldees }} | Ouvertes: {{ actions_ouvertes }}</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e8f5e9;">
+              <i class="fas fa-check-circle text-success"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {# Textes attribués #}
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Textes attribués</h6>
+              <div class="h3 mb-0 fw-bold">{{ total_attribues }}</div>
+              <small class="text-muted">{{ total_attribues }} à évaluer</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#f3e8ff;">
+              <i class="fas fa-file-alt" style="color:#7c3aed;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Deuxième rangée KPIs ── #}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Actions correctives</h6>
+              <div class="h3 mb-0 fw-bold">{{ actions_ouvertes }}</div>
+              <small class="text-muted">{{ actions_en_retard }} en retard</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fde8e8;">
+              <i class="fas fa-exclamation-triangle text-danger"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Utilisateurs</h6>
+              <div class="h3 mb-0 fw-bold">{{ utilisateurs_actifs }}</div>
+              <small class="text-muted">Actifs sur l'entreprise</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e8f4fd;">
+              <i class="fas fa-users text-primary"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Évaluations</h6>
+              <div class="h3 mb-0 fw-bold">{{ evaluations_total }}</div>
+              <small class="text-muted">{{ notif_recentes|length }} notif. récentes</small>
+            </div>
+            <div class="rounded-3 p-2" style="background:#e0f7fa;">
+              <i class="fas fa-clipboard-check" style="color:#0097a7;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-2">Répartition obligation</h6>
+              <div class="d-flex gap-2 mt-1">
+                <span class="badge bg-danger">{{ obligatoires }} oblig.</span>
+                <span class="badge bg-info">{{ volontaires }} vol.</span>
+                <span class="badge bg-secondary">{{ hors_perimetre }} hors</span>
+              </div>
+            </div>
+            <div class="rounded-3 p-2" style="background:#fff3e0;">
+              <i class="fas fa-balance-scale" style="color:#e65100;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {# ── Colonne gauche : Focus opérationnel ── #}
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pb-0">
+          <h6 class="mb-0"><i class="fas fa-bolt text-danger me-2"></i>Focus opérationnel</h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <small class="text-muted">Mise à jour temps réel</small>
+              <span class="badge bg-success" style="font-size:.65rem"><i class="fas fa-circle me-1" style="font-size:.4rem"></i>Actif</span>
+            </div>
+          </div>
+
+          <div class="mb-3 p-2 rounded" style="background:#fef2f2;">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-exclamation-triangle text-danger"></i>
+              <div>
+                <small class="fw-semibold text-danger">Risque conformité</small>
+                <div class="small">{{ total_non_conformes }} articles non conformes</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 p-2 rounded" style="background:#eff6ff;">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-folder-open text-primary"></i>
+              <div>
+                <small class="fw-semibold text-primary">Actions ouvertes</small>
+                <div class="small">{{ actions_ouvertes }} dont {{ actions_en_retard }} en retard</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 p-2 rounded" style="background:#f0fdf4;">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-file-alt text-success"></i>
+              <div>
+                <small class="fw-semibold text-success">Textes à traiter</small>
+                <div class="small">{{ total_attribues }} versions non évaluées</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# Actions rapides #}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pb-0">
+          <h6 class="mb-0"><i class="fas fa-bolt text-warning me-2"></i>Actions rapides</h6>
+        </div>
+        <div class="card-body">
+          <a href="{{ url_for('textes.library_all') }}" class="btn btn-outline-danger btn-sm w-100 text-start py-2 mb-2">
+            <i class="fas fa-book me-2"></i>Consulter la bibliothèque
+          </a>
+          <a href="{{ url_for('conformite.index') }}" class="btn btn-outline-primary btn-sm w-100 text-start py-2 mb-2">
+            <i class="fas fa-shield-alt me-2"></i>Évaluations conformité
+          </a>
+          <a href="{{ url_for('actions.liste_actions') }}" class="btn btn-outline-warning btn-sm w-100 text-start py-2">
+            <i class="fas fa-tasks me-2"></i>Gestion des actions
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {# ── Colonne droite : Graphiques ── #}
+    <div class="col-lg-8">
+      <div class="row g-3">
+        {# Conformité répartition #}
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0">
+              <h6 class="mb-0 small fw-semibold">Conformité (répartition)</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="min-height:200px">
+              <canvas id="chartConformite" width="180" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+
+        {# Évaluations 30 derniers jours #}
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0">
+              <h6 class="mb-0 small fw-semibold">Évaluations — 30 derniers jours</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="min-height:200px">
+              <canvas id="chartEvaluations" width="250" height="160"></canvas>
+            </div>
+          </div>
+        </div>
+
+        {# Actions par statut #}
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0">
+              <h6 class="mb-0 small fw-semibold">Actions par statut</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="min-height:200px">
+              <canvas id="chartActions" width="180" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+
+        {# Utilisateurs par rôle #}
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0">
+              <h6 class="mb-0 small fw-semibold">Utilisateurs par rôle</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="min-height:200px">
+              <canvas id="chartUsers" width="180" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var conformiteCtx = document.getElementById('chartConformite');
+  if (conformiteCtx) {
+    new Chart(conformiteCtx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Conformes', 'Non conformes', 'En cours'],
+        datasets: [{
+          data: [{{ total_conformes }}, {{ total_non_conformes }}, {{ total_evaluated - total_conformes - total_non_conformes if total_evaluated - total_conformes - total_non_conformes > 0 else 0 }}],
+          backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+          borderWidth: 0,
+        }]
+      },
+      options: { responsive: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, cutout: '60%' }
+    });
+  }
+
+  var evalCtx = document.getElementById('chartEvaluations');
+  if (evalCtx) {
+    new Chart(evalCtx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Période précédente', '30 derniers jours'],
+        datasets: [{
+          label: 'Évaluations',
+          data: [{{ eval_precedent }}, {{ eval_30j }}],
+          backgroundColor: ['#93c5fd', '#3b82f6'],
+          borderRadius: 6,
+          barThickness: 40,
+        }]
+      },
+      options: {
+        responsive: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
+  var actionsCtx = document.getElementById('chartActions');
+  if (actionsCtx) {
+    var actionsLabels = [{% for statut, count in actions_par_statut %}'{{ statut }}'{% if not loop.last %},{% endif %}{% endfor %}];
+    var actionsData = [{% for statut, count in actions_par_statut %}{{ count }}{% if not loop.last %},{% endif %}{% endfor %}];
+    var actionsColors = ['#f59e0b', '#3b82f6', '#22c55e', '#6b7280', '#ef4444', '#8b5cf6'];
+    new Chart(actionsCtx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: actionsLabels.length ? actionsLabels : ['Aucune action'],
+        datasets: [{
+          data: actionsData.length ? actionsData : [1],
+          backgroundColor: actionsLabels.length ? actionsColors.slice(0, actionsLabels.length) : ['#e5e7eb'],
+          borderWidth: 0,
+        }]
+      },
+      options: { responsive: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, cutout: '60%' }
+    });
+  }
+
+  var usersCtx = document.getElementById('chartUsers');
+  if (usersCtx) {
+    var roleLabels = [{% for role, count in users_par_role %}'{{ role }}'{% if not loop.last %},{% endif %}{% endfor %}];
+    var roleData = [{% for role, count in users_par_role %}{{ count }}{% if not loop.last %},{% endif %}{% endfor %}];
+    var roleColors = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4'];
+    new Chart(usersCtx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: roleLabels.length ? roleLabels : ['Aucun'],
+        datasets: [{
+          data: roleData.length ? roleData : [1],
+          backgroundColor: roleLabels.length ? roleColors.slice(0, roleLabels.length) : ['#e5e7eb'],
+          borderWidth: 0,
+        }]
+      },
+      options: { responsive: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, cutout: '60%' }
+    });
+  }
+});
+</script>
+{% endblock %}

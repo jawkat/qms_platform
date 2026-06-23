@@ -212,6 +212,8 @@ def edit_texte(texte_id):
         secteur_ids = [int(s) for s in request.form.getlist('secteurs') if s]
         texte.secteurs = Secteur.query.filter(Secteur.id.in_(secteur_ids)).all() if secteur_ids else []
         db.session.commit()
+        from app.services.textes_notification_service import notify_regulation_update
+        notify_regulation_update(texte, 'Modification du texte', actor_user_id=current_user.id)
         flash('Texte réglementaire modifié avec succès.', 'success')
         return redirect(url_for('textes.detail', texte_id=texte.id))
     domaines = Domaine.query.order_by(Domaine.nom).all()
@@ -282,6 +284,8 @@ def edit_version(version_id):
         if request.form.get('set_active'):
             version.texte.version_active_id = version.id
             db.session.commit()
+        from app.services.textes_notification_service import notify_regulation_update
+        notify_regulation_update(version.texte, f'Mise à jour version {version.numero_version}', actor_user_id=current_user.id)
         flash('Version modifiée avec succès.', 'success')
         return redirect(url_for('textes.version_detail', version_id=version.id))
     texte = version.texte

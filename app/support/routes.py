@@ -19,28 +19,21 @@ def _get_admins():
                             .filter(Role.est_systeme == True).all()
 
 
+from app.utils.notifications import create_notification
+
+
 def _notifier_admins(ticket, message=None):
     admins = _get_admins()
     for admin in admins:
         msg = f"Nouveau ticket {ticket.reference}: {ticket.sujet}"
         if message:
             msg = f"Nouveau message sur {ticket.reference}: {message.contenu[:100]}"
-        notif = Notification(
-            type='ticket',
-            message=f"{msg} [TICKET:{ticket.id}]",
-            utilisateur_id=admin.id,
-        )
-        db.session.add(notif)
+        create_notification(admin.id, msg, type='ticket')
 
 
 def _notifier_client(ticket, message):
     if ticket.cree_par_id:
-        notif = Notification(
-            type='ticket',
-            message=f"Nouvelle réponse sur {ticket.reference}: {message.contenu[:100]} [TICKET:{ticket.id}]",
-            utilisateur_id=ticket.cree_par_id,
-        )
-        db.session.add(notif)
+        create_notification(ticket.cree_par_id, f"Nouvelle réponse sur {ticket.reference}: {message.contenu[:100]}", type='ticket')
 
 
 @support.route('/')

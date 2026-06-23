@@ -127,7 +127,6 @@ from app.schemas.documents import DossierSchema, TypeDocumentSchema, ProofMaster
 @blueprint.get('/api/dossiers')
 @login_required
 @has_permission('documents.voir')
-@blueprint.response(200, DossierSchema(many=True))
 def api_dossiers():
     """Arborescence des dossiers de la GED"""
     domaine = __import__('flask').session.get('domaine_actif', 'hse')
@@ -152,7 +151,7 @@ def api_dossiers():
             result.append(data)
         return result
 
-    return build_tree(None)
+    return jsonify(build_tree(None))
 
 
 @blueprint.route('/api/dossiers/create', methods=['POST'])
@@ -389,9 +388,8 @@ def soumettre(proof_id):
                         entreprise_id=current_user.entreprise_id, actif=True
                     ).all()
                     for v in validateurs:
-                        if v.role and v.role.nom and premiere.role_requis.lower() in v.role.nom.lower():
-                            notif = Notification(type='workflow', message=f'Nouveau document "{proof.nom_fichier}" à valider (workflow: {modele.nom})', utilisateur_id=v.id)
-                            db.session.add(notif)
+                            if v.role and v.role.nom and premiere.role_requis.lower() in v.role.nom.lower():
+                                create_notification(v.id, f'Nouveau document "{proof.nom_fichier}" à valider (workflow: {modele.nom})', type='workflow')
 
     if not approbateur_id:
         flash('Veuillez sélectionner un approbateur.', 'warning')
@@ -403,8 +401,7 @@ def soumettre(proof_id):
     proof.workflow_statut = 'soumis'
     proof.workflow_approbateur_id = approbateur_id
     proof.date_soumission = datetime.utcnow()
-    notif = Notification(type='workflow', message=f'Document "{proof.nom_fichier}" soumis pour votre approbation.', utilisateur_id=approbateur_id)
-    db.session.add(notif)
+    create_notification(approbateur_id, f'Document "{proof.nom_fichier}" soumis pour votre approbation.', type='workflow')
     db.session.commit()
     flash('Document soumis pour approbation.', 'success')
     return redirect(url_for('documents.detail', proof_id=proof_id))
@@ -439,14 +436,12 @@ def approuver(proof_id):
             if next_etape.delai_jours:
                 wf_inst.date_deadline = datetime.utcnow() + timedelta(days=next_etape.delai_jours)
             if wf_inst.demandeur_id:
-                notif = Notification(type='workflow', message=f'Workflow "{wf_inst.modele.nom}" : étape "{next_etape.nom}" en attente.', utilisateur_id=wf_inst.demandeur_id)
-                db.session.add(notif)
+                create_notification(wf_inst.demandeur_id, f'Workflow "{wf_inst.modele.nom}" : étape "{next_etape.nom}" en attente.', type='workflow')
         else:
             wf_inst.statut = 'termine'
             wf_inst.date_fin = datetime.utcnow()
             if wf_inst.demandeur_id:
-                notif = Notification(type='workflow', message=f'Workflow "{wf_inst.modele.nom}" terminé avec succès.', utilisateur_id=wf_inst.demandeur_id)
-                db.session.add(notif)
+                create_notification(wf_inst.demandeur_id, f'Workflow "{wf_inst.modele.nom}" terminé avec succès.', type='workflow')
 
     _log_workflow(proof_id, 'approuve',
                   request.form.get('commentaire', 'Document approuvé'),
@@ -487,8 +482,7 @@ def rejeter(proof_id):
         wf_inst.statut = 'rejete'
         wf_inst.date_fin = datetime.utcnow()
         if wf_inst.demandeur_id:
-            notif = Notification(type='workflow', message=f'Workflow "{wf_inst.modele.nom}" rejeté. Motif : {commentaire}', utilisateur_id=wf_inst.demandeur_id)
-            db.session.add(notif)
+            create_notification(wf_inst.demandeur_id, f'Workflow "{wf_inst.modele.nom}" rejeté. Motif : {commentaire}', type='workflow')
 
     _log_workflow(proof_id, 'rejete', commentaire, current_user.id)
     proof.workflow_statut = 'rejete'
@@ -734,21 +728,42 @@ def download(proof_id):
     Utilise StorageService pour récupérer le fichier (MINIO ou local).
     Retourne le fichier comme attachment.
     """
+    import os
+    import mimetypes
     proof = tenant_get_or_404(ProofMaster, proof_id)
+
+    download_name = proof.nom_fichier
+    if '.' not in (download_name or ''):
+        download_name = os.path.basename(proof.chemin or download_name)
+    mime_type, _ = mimetypes.guess_type(download_name or '')
+    mimetype = mime_type or 'application/octet-stream'
 
     # Utiliser ProofService pour récupérer le stream
     file_stream = ProofService.get_proof_stream(proof.id)
-    if not file_stream:
-        flash('Fichier introuvable dans le stockage.', 'danger')
-        return redirect(url_for('documents.gestion'))
+    if file_stream:
+        from flask import send_file
+        return send_file(
+            file_stream,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype=mimetype,
+        )
 
-    from flask import send_file
-    return send_file(
-        file_stream,
-        as_attachment=True,
-        download_name=proof.nom_fichier,
-        mimetype=f'application/{proof.type}' if proof.type else None,
-    )
+    # Fallback local filesystem
+    if proof.chemin:
+        filename = os.path.basename(proof.chemin)
+        for base_dir in (
+            current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+            os.path.join(current_app.root_path, 'uploads'),
+        ):
+            for subdir in ('preuves', 'documents/preuves'):
+                local_path = os.path.join(base_dir, str(proof.entreprise_id), subdir, filename)
+                if os.path.exists(local_path):
+                    from flask import send_file
+                    return send_file(local_path, as_attachment=True, download_name=download_name, mimetype=mimetype)
+
+    flash('Fichier introuvable dans le stockage.', 'danger')
+    return redirect(url_for('documents.gestion'))
 
 
 @blueprint.route('/<int:proof_id>/archiver', methods=['POST'])

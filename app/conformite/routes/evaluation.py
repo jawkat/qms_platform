@@ -331,3 +331,50 @@ def preuves_gestion():
         preuves=preuves,
         filters={'q': search, 'statut': statut_filter or ''},
     )
+
+
+@blueprint.route('/preuves/<int:proof_id>/mettre_a_jour', methods=['POST'])
+@login_required
+@has_permission('documents.upload')
+def preuve_mettre_a_jour(proof_id):
+    from app.models import ProofMaster
+    proof = tenant_get_or_404(ProofMaster, proof_id)
+    proof.description = request.form.get('description', proof.description)
+    if request.form.get('validite'):
+        try:
+            proof.validite = datetime.strptime(request.form['validite'], '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+    proof.categorie = request.form.get('categorie', proof.categorie)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@blueprint.route('/preuves/<int:proof_id>/archiver', methods=['POST'])
+@login_required
+@has_permission('documents.archiver')
+def preuve_archiver(proof_id):
+    ProofService.archive_proof(proof_id)
+    db.session.commit()
+    flash('Preuve archivée.', 'success')
+    return redirect(url_for('conformite.preuves_gestion'))
+
+
+@blueprint.route('/preuves/<int:proof_id>/supprimer', methods=['POST'])
+@login_required
+@has_permission('documents.archiver')
+def preuve_supprimer(proof_id):
+    ProofService.hard_delete_proof(proof_id)
+    db.session.commit()
+    flash('Preuve supprimée.', 'success')
+    return redirect(url_for('conformite.preuves_gestion'))
+
+
+@blueprint.route('/evaluation/<int:evaluation_id>/proof/<int:proof_id>/detach', methods=['POST'])
+@login_required
+@has_permission('conformite.modifier')
+def detach_proof(evaluation_id, proof_id):
+    tenant_get_or_404(EvaluationArticle, evaluation_id)
+    ref = ProofService.detach_proof(proof_id, 'evaluation_article', evaluation_id)
+    db.session.commit()
+    return jsonify({'success': True, 'detached': ref is not None})

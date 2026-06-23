@@ -19,7 +19,6 @@ def index():
 @blueprint.get('/api/liste')
 @login_required
 @has_permission('nonconformites.voir')
-@blueprint.response(200, NonConformiteSchema(many=True))
 def api_liste():
     """Liste des non-conformités filtrée"""
     eid = current_user.entreprise_id

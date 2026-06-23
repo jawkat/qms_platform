@@ -1,0 +1,338 @@
+{% extends 'layout.html' %}
+{% block title %}Article {{ article.numero_article }} – NC{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <a href="{{ url_for('textes.veille_non_conformites') }}" class="text-decoration-none small text-muted mb-1 d-inline-block">
+        <i class="fas fa-arrow-left me-1"></i>Retour aux NC articles
+      </a>
+      <h4 class="mb-0">
+        <span class="badge bg-secondary me-2" style="font-size:.9rem">{{ article.numero_article }}</span>
+        {{ texte.titre[:100] if texte else '' }}
+      </h4>
+      <small class="text-muted">v{{ version.numero_version if version else '-' }} | {{ texte.domaine if texte else '' }}</small>
+    </div>
+    <div class="d-flex gap-2">
+      {% if prev_article_id %}
+      <a href="{{ url_for('textes.article_detail', article_id=prev_article_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-chevron-left"></i></a>
+      {% endif %}
+      <span class="btn btn-sm btn-outline-secondary disabled">{{ stats.current }}/{{ stats.total }}</span>
+      {% if next_article_id %}
+      <a href="{{ url_for('textes.article_detail', article_id=next_article_id) }}" class="btn btn-sm btn-danger"><i class="fas fa-chevron-right"></i></a>
+      {% else %}
+      <a href="{{ url_for('textes.veille_non_conformites') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-list"></i></a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+
+      <!-- Article info -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+          <h6 class="mb-0"><i class="fas fa-info-circle me-2 text-danger"></i>Article {{ article.numero_article }}</h6>
+          <div>
+            {% if article.exigence_type %}
+            <span class="badge bg-{{ 'danger' if article.exigence_type.name in ('OBLIGATION','INTERDICTION') else 'warning' if article.exigence_type.name == 'RECOMMANDATION' else 'info' }} me-1">{{ article.exigence_type.value }}</span>
+            {% endif %}
+            {% if article.niveau_risque %}
+            <span class="badge bg-{{ 'danger' if article.niveau_risque.name in ('CRITIQUE','ELEVE') else 'warning' if article.niveau_risque.name == 'MOYEN' else 'secondary' }}">{{ article.niveau_risque.value }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body">
+          {% if article.resume_article %}<p class="fw-medium mb-3">{{ article.resume_article }}</p>{% endif %}
+          {% if article.contenu %}
+          <div class="p-3 bg-light rounded border" style="max-height:400px;overflow-y:auto">{{ article.contenu | safe }}</div>
+          {% endif %}
+          {% if article.explication_detaillee %}
+          <details class="mt-3">
+            <summary class="text-muted small fw-medium cursor-pointer"><i class="fas fa-file-alt me-1"></i>Détails de l'article</summary>
+            <div class="bg-light p-3 rounded small mt-2">{{ article.explication_detaillee | safe }}</div>
+          </details>
+          {% endif %}
+          {% if article.domaine or article.acteur %}
+          <hr class="my-2">
+          <div class="d-flex flex-wrap gap-2 small">
+            {% if article.domaine %}<span class="badge bg-light text-dark border"><i class="fas fa-tag me-1"></i>{{ article.domaine }}</span>{% endif %}
+            {% if article.acteur %}<span class="badge bg-light text-dark border"><i class="fas fa-user me-1"></i>{{ article.acteur }}</span>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if evaluation %}
+      <!-- Tabs -->
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#panel-evaluation"><i class="fas fa-clipboard-check me-1"></i>Évaluation</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#panel-preuves"><i class="fas fa-paperclip me-1"></i>Preuves <span class="badge bg-danger ms-1" id="proofCount">{{ proofs|length }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#panel-actions"><i class="fas fa-tasks me-1"></i>Actions <span class="badge bg-danger ms-1" id="actionCount">{{ actions|length }}</span></button></li>
+      </ul>
+
+      <div class="tab-content">
+
+        <!-- Panel: Évaluation (editable) -->
+        <div class="tab-pane fade show active" id="panel-evaluation" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <form method="POST" id="evalForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="btn-group mb-3 w-100" role="group">
+                  <button type="button" class="btn btn-outline-{{ 'success' if evaluation.applicable and evaluation.applicable.name == 'APPLICABLE' else 'secondary' }} eval-btn"
+                    data-field="applicable" data-value="APPLICABLE" onclick="setField(this,'applicable','APPLICABLE','success')">
+                    <i class="fas fa-check-circle me-1"></i>Applicable
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'secondary' if evaluation.applicable and evaluation.applicable.name == 'NON_APPLICABLE' else 'secondary' }} eval-btn"
+                    data-field="applicable" data-value="NON_APPLICABLE" onclick="setField(this,'applicable','NON_APPLICABLE','secondary')">
+                    <i class="fas fa-times-circle me-1"></i>Non applicable
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'info' if evaluation.applicable and evaluation.applicable.name == 'INFORMATION' else 'secondary' }} eval-btn"
+                    data-field="applicable" data-value="INFORMATION" onclick="setField(this,'applicable','INFORMATION','info')">
+                    <i class="fas fa-info-circle me-1"></i>Information
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'warning' if evaluation.applicable and evaluation.applicable.name == 'A_CONFIRMER' else 'secondary' }} eval-btn"
+                    data-field="applicable" data-value="A_CONFIRMER" onclick="setField(this,'applicable','A_CONFIRMER','warning')">
+                    <i class="fas fa-question-circle me-1"></i>À confirmer
+                  </button>
+                </div>
+
+                <div class="btn-group mb-3 w-100" role="group" id="conformeGroup">
+                  <button type="button" class="btn btn-outline-{{ 'success' if evaluation.conforme and evaluation.conforme.name == 'CONFORME' else 'secondary' }} eval-btn"
+                    data-field="conforme" data-value="CONFORME" onclick="setField(this,'conforme','CONFORME','success')">
+                    <i class="fas fa-thumbs-up me-1"></i>Conforme
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'danger' if evaluation.conforme and evaluation.conforme.name == 'NON_CONFORME' else 'secondary' }} eval-btn"
+                    data-field="conforme" data-value="NON_CONFORME" onclick="setField(this,'conforme','NON_CONFORME','danger')">
+                    <i class="fas fa-thumbs-down me-1"></i>Non conforme
+                  </button>
+                  <button type="button" class="btn btn-outline-{{ 'warning' if evaluation.conforme and evaluation.conforme.name == 'EN_COURS' else 'secondary' }} eval-btn"
+                    data-field="conforme" data-value="EN_COURS" onclick="setField(this,'conforme','EN_COURS','warning')">
+                    <i class="fas fa-spinner me-1"></i>En cours
+                  </button>
+                </div>
+
+                <input type="hidden" name="applicable" id="inputApplicable" value="{{ evaluation.applicable.name if evaluation.applicable else '' }}">
+                <input type="hidden" name="conforme" id="inputConforme" value="{{ evaluation.conforme.name if evaluation.conforme else '' }}">
+
+                <div class="mb-3">
+                  <label class="form-label">Observation</label>
+                  <textarea name="observation" class="form-control" rows="3" id="inputObservation">{{ evaluation.observation or '' }}</textarea>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                  <small class="text-muted" id="saveStatus">
+                    {% if evaluation.date_evaluation %}
+                    <i class="fas fa-check text-success me-1"></i>Évalué le {{ evaluation.date_evaluation.strftime('%d/%m/%Y %H:%M') }}
+                    {% else %}
+                    <i class="fas fa-clock me-1"></i>Non évalué
+                    {% endif %}
+                  </small>
+                  <button type="submit" class="btn btn-danger px-4"><i class="fas fa-save me-1"></i>Enregistrer</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Preuves -->
+        <div class="tab-pane fade" id="panel-preuves" role="tabpanel">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white py-2">
+              <h6 class="mb-0"><i class="fas fa-lightbulb me-2 text-warning"></i>Comment prouver la conformité</h6>
+            </div>
+            <div class="card-body">
+              {% if article.preuve_conformite %}
+              <p class="mb-0 small">{{ article.preuve_conformite }}</p>
+              {% else %}
+              <p class="small text-muted mb-0">Documentation attestant de la conformité à l'article (registres, rapports, procès-verbaux, affichages).</p>
+              {% endif %}
+            </div>
+          </div>
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+              <h6 class="mb-0"><i class="fas fa-paperclip me-2 text-danger"></i>Preuves attachées</h6>
+              <a href="{{ url_for('textes.veille_preuves') }}" class="btn btn-sm btn-outline-danger"><i class="fas fa-plus"></i> Gérer</a>
+            </div>
+            <div class="card-body p-0" id="proofList">
+              <div class="text-center text-muted py-4"><small>Chargement...</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Actions -->
+        <div class="tab-pane fade" id="panel-actions" role="tabpanel">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+              <h6 class="mb-0"><i class="fas fa-tasks me-2 text-danger"></i>Actions correctives</h6>
+              <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addActionModal"><i class="fas fa-plus"></i> Nouvelle action</button>
+            </div>
+            <div class="card-body p-0" id="actionList">
+              <div class="text-center text-muted py-4"><small>Chargement...</small></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      {% else %}
+      <div class="card border-0 shadow-sm"><div class="card-body text-center text-muted py-4"><i class="fas fa-clipboard me-2"></i>Aucune évaluation trouvée.</div></div>
+      {% endif %}
+    </div>
+
+    <!-- Sidebar NC -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-2">
+          <h6 class="mb-0"><i class="fas fa-list me-2 text-danger"></i>Articles NC <small class="text-muted">({{ stats.total }})</small></h6>
+        </div>
+        <div class="card-body p-0" style="max-height:600px;overflow-y:auto">
+          <div class="list-group list-group-flush">
+            {% for ev in nc_evs %}
+            <a href="{{ url_for('textes.article_detail', article_id=ev.article_id) }}"
+               class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 {% if ev.article_id == article.id %}active{% endif %}">
+              <span class="badge bg-secondary rounded-pill" style="min-width:28px">{{ ev.article.numero_article if ev.article else '?' }}</span>
+              <span class="small flex-grow-1 text-truncate">{{ ev.article.resume_article[:60] if ev.article and ev.article.resume_article else 'Article' }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- Modal: Nouvelle action -->
+<div class="modal fade" id="addActionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nouvelle action corrective</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Description <span class="text-danger">*</span></label><textarea id="actionDescription" class="form-control" rows="3" required></textarea></div>
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Type</label>
+            <select id="actionType" class="form-select"><option value="corrective">Corrective</option><option value="preventive">Préventive</option><option value="amelioration">Amélioration</option></select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Priorité</label>
+            <select id="actionPriorite" class="form-select"><option value="haute">Haute</option><option value="moyenne" selected>Moyenne</option><option value="basse">Basse</option></select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Responsable</label>
+            <select id="actionResponsable" class="form-select"><option value="">— Non assigné —</option>{% for u in responsables %}<option value="{{ u.id }}">{{ u.prenom }} {{ u.nom }}</option>{% endfor %}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Date échéance</label><input type="date" id="actionEcheance" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" id="btnSaveAction">Créer l'action</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var EVAL_URL = '{{ url_for("textes.article_detail", article_id=article.id) }}';
+var ARTICLE_ID = {{ article.id }};
+var PROOF_LIST_URL = '{{ url_for("textes.article_list_proofs", article_id=article.id) }}';
+var ACTIONS_LIST_URL = '{{ url_for("textes.article_list_actions", article_id=article.id) }}';
+var ACTION_ADD_URL = '{{ url_for("textes.article_add_action", article_id=article.id) }}';
+var PROOF_ATTACH_URL = '{{ url_for("textes.article_attach_proof", article_id=article.id) }}';
+
+// === Evaluation save ===
+function setField(btn, field, value, color) {
+  var group = btn.closest('.btn-group');
+  group.querySelectorAll('.eval-btn').forEach(function(b) {
+    b.className = b.className.replace(/btn-outline-\w+/g, 'btn-outline-secondary');
+  });
+  btn.className = btn.className.replace(/btn-outline-\w+/g, 'btn-outline-' + color);
+  document.getElementById('input' + field.charAt(0).toUpperCase() + field.slice(1)).value = value;
+  autoSave();
+}
+
+function autoSave() {
+  var form = document.getElementById('evalForm');
+  var formData = new FormData(form);
+  var status = document.getElementById('saveStatus');
+  status.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement...';
+  fetch(EVAL_URL, {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
+    body: new URLSearchParams(formData)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    status.innerHTML = d.success
+      ? '<i class="fas fa-check text-success me-1"></i>Sauvegardé'
+      : '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Erreur';
+  }).catch(function() {
+    status.innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Erreur réseau';
+  });
+}
+
+document.getElementById('evalForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  autoSave();
+});
+
+// === Load Proofs ===
+function loadProofs() {
+  var container = document.getElementById('proofList');
+  fetch(PROOF_LIST_URL).then(function(r) { return r.json(); }).then(function(refs) {
+    document.getElementById('proofCount').textContent = refs.length;
+    if (!refs.length) { container.innerHTML = '<div class="text-center text-muted py-4"><small>Aucune preuve attachée.</small></div>'; return; }
+    var html = '<div class="list-group list-group-flush">';
+    refs.forEach(function(r) {
+      html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2"><span><i class="fas fa-file me-2 text-muted"></i>' + (r.nom_fichier || 'Document') + '</span><small class="text-muted">' + (r.date_attached || '') + '</small></div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  });
+}
+loadProofs();
+
+// === Load Actions ===
+function loadActions() {
+  var container = document.getElementById('actionList');
+  fetch(ACTIONS_LIST_URL).then(function(r) { return r.json(); }).then(function(actions) {
+    document.getElementById('actionCount').textContent = actions.length;
+    if (!actions.length) { container.innerHTML = '<div class="text-center text-muted py-4"><small>Aucune action corrective.</small></div>'; return; }
+    var html = '<div class="list-group list-group-flush">';
+    actions.forEach(function(a) {
+      var pc = {haute:'danger', moyenne:'warning', basse:'secondary'};
+      var sc = {REALISE:'success', SOLDE:'success', EN_COURS:'warning', A_FAIRE:'secondary', ANNULE:'dark'};
+      html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2"><div class="d-flex align-items-center gap-2"><span class="badge bg-' + (pc[a.priorite] || 'secondary') + '">' + a.priorite + '</span><span class="small">' + (a.description ? a.description.substring(0, 100) : '') + '</span></div><span class="badge bg-' + (sc[a.statut] || 'secondary') + '">' + a.statut + '</span></div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  });
+}
+loadActions();
+
+// === Save Action ===
+document.getElementById('btnSaveAction').addEventListener('click', function() {
+  var desc = document.getElementById('actionDescription').value;
+  if (!desc.trim()) { alert('Veuillez saisir une description.'); return; }
+  var formData = new URLSearchParams();
+  formData.append('description', desc);
+  formData.append('type_action', document.getElementById('actionType').value);
+  formData.append('priorite', document.getElementById('actionPriorite').value);
+  formData.append('responsable_id', document.getElementById('actionResponsable').value);
+  formData.append('date_echeance', document.getElementById('actionEcheance').value);
+  fetch(ACTION_ADD_URL, {
+    method: 'POST', body: formData
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      bootstrap.Modal.getInstance(document.getElementById('addActionModal')).hide();
+      document.getElementById('actionDescription').value = '';
+      loadActions();
+    }
+  });
+});
+</script>
+{% endblock %}

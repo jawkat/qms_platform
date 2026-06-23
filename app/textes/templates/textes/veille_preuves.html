@@ -1,0 +1,232 @@
+{% extends 'layout.html' %}
+{% block title %}Preuves – Veille réglementaire{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-paperclip text-danger me-2"></i>Preuves de conformité</h4>
+    <a href="{{ url_for('textes.veille_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Tableau de bord
+    </a>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 fw-bold">{{ total_files }}</div>
+        <small class="text-muted">Total</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 fw-bold text-danger">{{ summary.expired }}</div>
+        <small class="text-muted">Expirées</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 fw-bold text-warning">{{ summary.expiring_soon }}</div>
+        <small class="text-muted">Expirent bientôt</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 fw-bold text-success">{{ summary.valid }}</div>
+        <small class="text-muted">Valides</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 fw-bold text-secondary">{{ summary.no_date }}</div>
+        <small class="text-muted">Sans date</small>
+      </div></div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm"><div class="card-body text-center py-2">
+        <div class="h4 mb-0 fw-bold text-info">{{ storage_mb }}</div>
+        <small class="text-muted">Mo stockés</small>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- Upload zone -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <form id="uploadForm" enctype="multipart/form-data" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small text-muted">Fichier <span class="text-danger">*</span></label>
+          <input type="file" id="proofFile" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">Nom</label>
+          <input type="text" id="proofNom" class="form-control form-control-sm" placeholder="Nom du document">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">Catégorie</label>
+          <select id="proofCategorie" class="form-select form-select-sm">
+            <option value="">— Sélectionner —</option>
+            <option value="registre">Registre</option>
+            <option value="rapport">Rapport</option>
+            <option value="procedure">Procédure</option>
+            <option value="certificat">Certificat</option>
+            <option value="pv">Procès-verbal</option>
+            <option value="affichage">Affichage</option>
+            <option value="photo">Photo</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">Description</label>
+          <input type="text" id="proofDescription" class="form-control form-control-sm" placeholder="Description">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">Validité</label>
+          <input type="date" id="proofValidite" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-1">
+          <button type="submit" class="btn btn-danger btn-sm w-100" id="btnUpload">
+            <i class="fas fa-upload"></i>
+          </button>
+        </div>
+      </form>
+      <div id="uploadStatus" class="mt-2 small"></div>
+    </div>
+  </div>
+
+  <!-- Liste des preuves -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+      <h6 class="mb-0"><i class="fas fa-list me-2 text-danger"></i>Documents ({{ proofs|length }})</h6>
+      <div class="d-flex gap-2">
+        <select id="filterState" class="form-select form-select-sm" style="width:auto" onchange="filterList()">
+          <option value="">Tous états</option>
+          <option value="expired">Expirées</option>
+          <option value="expiring_soon">Expirent bientôt</option>
+          <option value="valid">Valides</option>
+          <option value="no_date">Sans date</option>
+        </select>
+        <input type="text" id="searchProof" class="form-control form-control-sm" style="width:220px" placeholder="Rechercher..." oninput="filterList()">
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>État</th><th>Nom</th><th>Catégorie</th><th>Description</th><th>Validité</th><th>Taille</th><th>Articles liés</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="proofTable">
+            {% for item in proofs %}
+            {% set p = item.proof %}
+            <tr class="proof-row"
+                data-search="{{ (p.nom_fichier or '')|lower }} {{ (p.categorie or '')|lower }} {{ (p.description or '')|lower }}"
+                data-state="{{ item.proof_state }}">
+              <td>
+                {% if item.proof_state == 'expired' %}
+                <span class="badge bg-danger">Expirée</span>
+                {% elif item.proof_state == 'expiring_soon' %}
+                <span class="badge bg-warning text-dark">Expire bientôt</span>
+                {% elif item.proof_state == 'valid' %}
+                <span class="badge bg-success">Valide</span>
+                {% else %}
+                <span class="badge bg-secondary">Sans date</span>
+                {% endif %}
+              </td>
+              <td><span class="fw-medium"><i class="fas fa-file me-2 text-muted"></i>{{ p.nom_fichier or 'Sans nom' }}</span></td>
+              <td><span class="badge bg-secondary">{{ p.categorie or '-' }}</span></td>
+              <td><small class="text-muted">{{ p.description or '-' }}</small></td>
+              <td>
+                <small>{{ p.validite.strftime('%d/%m/%Y') if p.validite else '-' }}</small>
+                {% if item.proof_state == 'expiring_soon' and p.validite %}
+                <br><small class="text-warning">{{ (p.validite - today).days if today else '' }} j(s) restant(s)</small>
+                {% endif %}
+              </td>
+              <td><small class="text-muted">{% if item.file_size %}{{ (item.file_size / 1024)|round(1) }} Ko{% else %}-{% endif %}</small></td>
+              <td>
+                {% for la in item.linked_articles %}
+                <span class="badge bg-light text-dark border" style="font-size:.65rem">Art. {{ la.article_numero }}</span>
+                {% endfor %}
+                {% if not item.linked_articles %}<small class="text-muted">-</small>{% endif %}
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{{ url_for('textes.veille_preuves_download', proof_id=p.id) }}" class="btn btn-sm btn-outline-primary" title="Télécharger">
+                    <i class="fas fa-download"></i>
+                  </a>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteProof({{ p.id }})" title="Supprimer">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-paperclip fa-2x mb-2 d-block"></i>Aucune preuve.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var TODAY = new Date('{{ today.isoformat() }}');
+var UPLOAD_URL = '{{ url_for("textes.veille_preuves_upload") }}';
+var DELETE_URL = '{{ url_for("textes.veille_preuves_supprimer", proof_id=0) }}';
+
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var file = document.getElementById('proofFile').files[0];
+  if (!file) return;
+  var btn = document.getElementById('btnUpload');
+  var status = document.getElementById('uploadStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  status.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Upload en cours...';
+
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('nom_fichier', document.getElementById('proofNom').value || file.name);
+  formData.append('categorie', document.getElementById('proofCategorie').value);
+  formData.append('description', document.getElementById('proofDescription').value);
+  formData.append('validite', document.getElementById('proofValidite').value);
+
+  fetch(UPLOAD_URL, { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        status.innerHTML = '<i class="fas fa-check text-success me-1"></i>Document uploadé avec succès.';
+        document.getElementById('uploadForm').reset();
+        setTimeout(function() { location.reload(); }, 800);
+      } else {
+        status.innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Erreur: ' + (d.error || 'inconnue');
+      }
+    })
+    .catch(function() {
+      status.innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-1"></i>Erreur réseau.';
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-upload"></i>';
+    });
+});
+
+function filterList() {
+  var s = document.getElementById('searchProof').value.toLowerCase();
+  var state = document.getElementById('filterState').value;
+  document.querySelectorAll('.proof-row').forEach(function(row) {
+    var matchSearch = !s || (row.dataset.search || '').includes(s);
+    var matchState = !state || row.dataset.state === state;
+    row.style.display = (matchSearch && matchState) ? '' : 'none';
+  });
+}
+
+function deleteProof(id) {
+  if (!confirm('Supprimer ce document ?')) return;
+  fetch(DELETE_URL.replace('/0', '/' + id), { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) location.reload(); });
+}
+</script>
+{% endblock %}

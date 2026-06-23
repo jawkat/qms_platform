@@ -84,9 +84,13 @@ class StorageService:
                 self._client = boto3.client(
                     's3',
                     endpoint_url=endpoint,
+                    region_name='us-east-1',
                     aws_access_key_id=current_app.config.get('MINIO_ACCESS_KEY', ''),
                     aws_secret_access_key=current_app.config.get('MINIO_SECRET_KEY', ''),
-                    config=boto3.session.Config(signature_version='s3v4'),
+                    config=boto3.session.Config(
+                        signature_version='s3v4',
+                        s3={'addressing_style': 'path'},
+                    ),
                 )
                 self._bucket = current_app.config.get('MINIO_BUCKET', 'qms-platform')
                 self._ensure_bucket()

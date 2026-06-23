@@ -226,7 +226,18 @@ class ProofService:
             return None
 
         storage = get_storage()
-        return storage.download(proof.chemin)
+
+        stream = storage.download(proof.chemin)
+        if stream:
+            return stream
+
+        if '/' not in (proof.chemin or ''):
+            full_key = f'{proof.entreprise_id}/documents/preuves/{proof.chemin}'
+            stream = storage.download(full_key)
+            if stream:
+                return stream
+
+        return None
 
     @staticmethod
     def get_proof_url(proof_id: int, expires_in: int = 3600) -> Optional[str]:

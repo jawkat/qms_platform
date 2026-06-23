@@ -643,13 +643,25 @@ function loadProofs() {
     refs.forEach(function(r) {
       html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2">' +
         '<span><i class="fas fa-file me-2 text-muted"></i>' + (r.nom_fichier || 'Document #' + r.id) + '</span>' +
+        '<div class="d-flex align-items-center gap-2">' +
         '<small class="text-muted">' + (r.date_attached ? new Date(r.date_attached).toLocaleDateString('fr-FR') : '') + '</small>' +
-        '</div>';
+        '<button class="btn btn-sm btn-outline-danger" onclick="detachProof(' + r.id + ')" title="Délier"><i class="fas fa-unlink"></i></button>' +
+        '</div></div>';
     });
     html += '</div>';
     container.innerHTML = html;
   }).catch(function() {
     container.innerHTML = '<div class="text-center text-muted py-4"><small>Erreur de chargement.</small></div>';
+  });
+}
+
+function detachProof(proofId) {
+  if (!confirm('Délier cette preuve de l\'évaluation ?')) return;
+  fetch('/conformite/evaluation/{{ evaluation.id }}/proof/' + proofId + '/detach', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) loadProofs();
   });
 }
 loadProofs();
@@ -797,6 +809,7 @@ document.getElementById('btnUploadProof').addEventListener('click', function() {
   formData.append('categorie', document.getElementById('proofCategorie').value);
   formData.append('description', document.getElementById('proofDescription').value);
   formData.append('validite', document.getElementById('proofValidite').value);
+  formData.append('workflow_statut', 'approuve');
   fetch('/documents/upload?format=json', {
     method: 'POST',
     body: formData

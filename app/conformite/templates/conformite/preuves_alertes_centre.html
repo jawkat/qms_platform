@@ -48,7 +48,7 @@
               <th>Validité</th>
               <th>Statut</th>
               <th>Évaluations liées</th>
-              <th style="width:120px">Actions</th>
+              <th style="width:180px">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -84,6 +84,26 @@
                 <div class="btn-group btn-group-sm">
                   <a href="{{ url_for('documents.detail', proof_id=item.proof.id) }}" class="btn btn-outline-primary" title="Détail"><i class="fas fa-eye"></i></a>
                   <a href="{{ url_for('documents.download', proof_id=item.proof.id) }}" class="btn btn-outline-success" title="Télécharger"><i class="fas fa-download"></i></a>
+                  <button class="btn btn-outline-secondary" title="Modifier" data-proof-id="{{ item.proof.id }}" data-description="{{ item.proof.description or '' }}" data-validite="{{ item.proof.validite.isoformat() if item.proof.validite else '' }}" data-categorie="{{ item.proof.categorie or '' }}" onclick="openEditModal(this)"><i class="fas fa-edit"></i></button>
+                  <div class="btn-group btn-group-sm" style="position:relative;z-index:10">
+                    <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                    <ul class="dropdown-menu dropdown-menu-end" style="z-index:1050">
+                      <li>
+                        <form method="POST" action="{{ url_for('conformite.preuve_archiver', proof_id=item.proof.id) }}" style="display:inline"
+                              onsubmit="return confirm('Archiver cette preuve ?')">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button class="dropdown-item"><i class="fas fa-archive me-2"></i>Archiver</button>
+                        </form>
+                      </li>
+                      <li>
+                        <form method="POST" action="{{ url_for('conformite.preuve_supprimer', proof_id=item.proof.id) }}" style="display:inline"
+                              onsubmit="return confirm('Supprimer définitivement cette preuve ? Cette action est irréversible.')">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button class="dropdown-item text-danger"><i class="fas fa-trash me-2"></i>Supprimer</button>
+                        </form>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </td>
             </tr>
@@ -99,4 +119,84 @@
     </div>
   </div>
 </div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title"><i class="fas fa-edit text-danger me-1"></i>Modifier la preuve</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <form id="editForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="proof_id" id="editProofId">
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" id="editDescription" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Date de validité</label>
+          <input type="date" name="validite" id="editValidite" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Catégorie</label>
+          <select name="categorie" id="editCategorie" class="form-select">
+            <option value="">-- Choisir --</option>
+            <option value="rapport">Rapport</option>
+            <option value="certificat">Certificat</option>
+            <option value="facture">Facture</option>
+            <option value="bon_commande">Bon de commande</option>
+            <option value="pv_reunion">PV de réunion</option>
+            <option value="photographie">Photographie</option>
+            <option value="enregistrement">Enregistrement</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" id="btnEditProof" class="btn btn-danger">
+          <i class="fas fa-save me-1"></i>Enregistrer
+        </button>
+      </div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditModal(btn) {
+  document.getElementById('editProofId').value = btn.dataset.proofId;
+  document.getElementById('editDescription').value = btn.dataset.description || '';
+  document.getElementById('editValidite').value = btn.dataset.validite || '';
+  document.getElementById('editCategorie').value = btn.dataset.categorie || '';
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+document.getElementById('editForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btnEditProof');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement...';
+  var formData = new URLSearchParams(new FormData(this));
+  fetch('/conformite/preuves/' + document.getElementById('editProofId').value + '/mettre_a_jour', {
+    method: 'POST',
+    body: formData
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+      location.reload();
+    } else {
+      alert('Erreur lors de la sauvegarde.');
+    }
+  }).catch(function() {
+    alert('Erreur réseau.');
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Enregistrer';
+  });
+});
+</script>
 {% endblock %}
