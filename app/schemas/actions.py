@@ -12,7 +12,6 @@ class ActionSchema(SQLAlchemyAutoSchema):
     responsable_name = fields.Function(lambda obj: f"{obj.responsable.prenom} {obj.responsable.nom}" if obj.responsable else None, dump_only=True)
 
 class ActionCreateSchema(Schema):
-    titre = fields.String(required=True)
     description = fields.String(required=True)
     type_action = fields.String(required=True)
     priorite = fields.String(dump_default="moyenne")

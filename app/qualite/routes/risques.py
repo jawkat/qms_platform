@@ -1,6 +1,7 @@
 from flask import render_template, Response
 from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
+from app.utils.resource_registry import auto_register_crud
 from app.models import Risque
 from app.qualite import blueprint
 from app.schemas.qualite import RisqueSchema
@@ -13,6 +14,11 @@ class RisqueResource(BaseResource):
     schema = RisqueSchema
     search_fields = ['designation', 'cause', 'effet']
     filter_fields = {'statut': 'statut', 'domaine': 'domaine'}
+
+
+auto_register_crud(blueprint, Risque, RisqueSchema, module='qualite', name='risques',
+                   permission_voir='qualite.voir', permission_gerer='qualite.gerer_risques',
+                   resource_cls=RisqueResource)
 
 
 @blueprint.route('/')
@@ -51,7 +57,7 @@ def formations():
 @blueprint.get('/api/stats')
 @access_required(module='qualite', permission='qualite.voir')
 def api_stats():
-    """Statistiques globales qualité"""
+    """Statistiques globales qualite"""
     from app.models import Reclamation, Fournisseur, Formation, Equipement, ControleQualite, RevueDirection
     from app.models.nonconformite import NonConformite
     return {
@@ -64,38 +70,6 @@ def api_stats():
         'revues': RevueDirection.query.count(),
         'nonconformites': NonConformite.query.filter_by(domaine='qualite').count(),
     }
-
-
-@blueprint.get('/api/risques')
-@access_required(module='qualite', permission='qualite.voir')
-@blueprint.response(200, RisqueSchema(many=True))
-def api_risques():
-    """Liste des risques qualité"""
-    return RisqueResource.list_resources()
-
-
-@blueprint.post('/api/risques/create')
-@access_required(module='qualite', permission='qualite.voir')
-@blueprint.arguments(RisqueSchema)
-@blueprint.response(201, RisqueSchema)
-def api_risques_create(data):
-    """Créer un nouveau risque"""
-    return RisqueResource.create_resource(data)
-
-
-@blueprint.post('/api/risques/<int:item_id>/update')
-@access_required(module='qualite', permission='qualite.voir')
-@blueprint.response(200, RisqueSchema)
-def api_risques_update(item_id):
-    """Mettre à jour un risque"""
-    return RisqueResource.update_resource(item_id)
-
-
-@blueprint.post('/api/risques/<int:item_id>/delete')
-@access_required(module='qualite', permission='qualite.voir')
-def api_risques_delete(item_id):
-    """Supprimer un risque"""
-    return RisqueResource.delete_resource(item_id)
 
 
 @blueprint.get('/api/risques/heatmap')

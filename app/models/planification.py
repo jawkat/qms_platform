@@ -10,6 +10,8 @@ class EvenementPlanification(BaseModel):
     date_fin = db.Column(db.DateTime)
     type_evenement = db.Column(db.String(50))  # audit, formation, réunion, maintenance
     pilote_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
+    lieu = db.Column(db.String(200))
+    responsable = db.Column(db.String(100))
     statut = db.Column(db.String(20), default='planifie')
     
     entreprise = db.relationship('Entreprise')

@@ -1,7 +1,7 @@
 import os
 from flask import render_template, request, redirect, url_for, flash, abort, jsonify, current_app
 from flask_login import current_user
-from app.utils.permissions import access_required
+from app.utils.permissions import access_required, system_admin_required
 from app.admin import admin
 from app import db, mail
 from app.models import (
@@ -12,26 +12,14 @@ from app.services.backup_service import BackupService
 from app.services.subscription_service import apply_subscription_update
 from app.utils.permission_catalog import iter_permission_rows, PERMISSION_CATALOG
 from app.utils.subscriptions import _seed_default_plans
-from functools import wraps
 from flask_mail import Message
 from datetime import date, timedelta, datetime
 import os, shutil
 
 
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            abort(403)
-        if not current_user.role or not current_user.role.est_systeme:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated
-
-
 @admin.route('/securite')
 @access_required()
-@admin_required
+@system_admin_required
 def securite():
     type_action = request.args.get('type_action')
     query = JournalSecurite.query
@@ -45,7 +33,7 @@ def securite():
 
 @admin.route('/securite/<int:incident_id>/resolve', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def resolve_incident(incident_id):
     try:
         incident = db.session.get(JournalSecurite, incident_id)
@@ -63,7 +51,7 @@ def resolve_incident(incident_id):
 
 @admin.route('/securite/resolve-all', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def resolve_all_incidents():
     try:
         count = JournalSecurite.query.filter_by(resolu=False).update({
@@ -80,7 +68,7 @@ def resolve_all_incidents():
 
 @admin.route('/securite/delete-all', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def delete_all_incidents():
     try:
         count = JournalSecurite.query.delete()
@@ -93,7 +81,7 @@ def delete_all_incidents():
 
 @admin.route('/securite/<int:incident_id>/delete', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def delete_incident(incident_id):
     try:
         incident = db.session.get(JournalSecurite, incident_id)
@@ -109,7 +97,7 @@ def delete_incident(incident_id):
 
 @admin.route('/securite/<int:incident_id>/detail')
 @access_required()
-@admin_required
+@system_admin_required
 def incident_detail(incident_id):
     incident = db.session.get(JournalSecurite, incident_id)
     if not incident:
@@ -130,7 +118,7 @@ def incident_detail(incident_id):
 
 @admin.route('/notifications')
 @access_required()
-@admin_required
+@system_admin_required
 def notifications():
     """
     Vue d'administration des notifications.
@@ -173,7 +161,7 @@ def notifications():
 
 @admin.route('/notifications/send', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def notification_send():
     type_notif = request.form.get('type', 'info')
     message = request.form.get('message', '').strip()
@@ -213,7 +201,7 @@ def notification_send():
 
 @admin.route('/notifications/<int:id>/delete', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def notification_delete(id):
     notif = db.session.get(Notification, id)
     if notif:
@@ -227,7 +215,7 @@ def notification_delete(id):
 
 @admin.route('/notifications/delete-all', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def notifications_delete_all():
     try:
         Notification.query.delete()
@@ -241,7 +229,7 @@ def notifications_delete_all():
 
 @admin.route('/notifications/mark-all-read', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def notifications_mark_all_read():
     try:
         Notification.query.filter_by(lu=False).update({'lu': True})
@@ -255,7 +243,7 @@ def notifications_mark_all_read():
 
 @admin.route('/mail-test')
 @access_required()
-@admin_required
+@system_admin_required
 def mail_test():
     """Page de diagnostic de la configuration mail."""
     config = {
@@ -277,7 +265,7 @@ def mail_test():
 
 @admin.route('/mail-test/send', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def mail_test_send():
     """Envoie un email de test pour vérifier la configuration."""
     try:
@@ -306,7 +294,7 @@ def mail_test_send():
 
 @admin.route('/plans')
 @access_required()
-@admin_required
+@system_admin_required
 def plans():
     import json
     plans_list = SubscriptionPlan.query.order_by(SubscriptionPlan.price_mad).all()
@@ -339,7 +327,7 @@ def plans():
 
 @admin.route('/plans/seed', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def plans_seed():
     _seed_default_plans()
     flash('Plans d\'abonnement par défaut créés.', 'success')
@@ -348,7 +336,7 @@ def plans_seed():
 
 @admin.route('/plans/<int:plan_id>/delete', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def plans_delete(plan_id):
     p = db.session.get(SubscriptionPlan, plan_id)
     if not p:
@@ -361,7 +349,7 @@ def plans_delete(plan_id):
 
 @admin.route('/plans/api/<int:plan_id>/update', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def plans_api_update(plan_id):
     p = db.session.get(SubscriptionPlan, plan_id)
     if not p:
@@ -413,14 +401,14 @@ def plans_api_update(plan_id):
 
 @admin.route('/plans/entreprises')
 @access_required()
-@admin_required
+@system_admin_required
 def plans_entreprises():
     return redirect(url_for('admin.entreprises'))
 
 
 @admin.route('/plans/entreprises/<int:eid>/update', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def plans_entreprises_update(eid):
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
@@ -436,7 +424,7 @@ def plans_entreprises_update(eid):
 
 @admin.route('/backups')
 @access_required()
-@admin_required
+@system_admin_required
 def backups():
     service = BackupService()
     backups_list = service.list_backups()
@@ -445,7 +433,7 @@ def backups():
 
 @admin.route('/backups/create', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def backup_create():
     service = BackupService()
     try:
@@ -458,7 +446,7 @@ def backup_create():
 
 @admin.route('/backups/<filename>/restore', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def backup_restore(filename):
     service = BackupService()
     try:
@@ -471,7 +459,7 @@ def backup_restore(filename):
 
 @admin.route('/backups/<filename>/delete', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def backup_delete(filename):
     service = BackupService()
     if service.delete_backup(filename):
@@ -487,7 +475,7 @@ def _check_service(name, ok, detail='', hint=''):
 
 @admin.route('/services')
 @access_required()
-@admin_required
+@system_admin_required
 def services():
     checks = []
 

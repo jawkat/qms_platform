@@ -1,28 +1,16 @@
 from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import current_user
-from app.utils.permissions import access_required
+from app.utils.permissions import access_required, system_admin_required
 from app.admin import admin
 from app import db, mail
 from app.models import Disponibilite, CreneauDemo, Ticket, MessageTicket, Notification, Utilisateur, Role
-from functools import wraps
 from datetime import date, datetime, time, timedelta
 from flask_mail import Message
 
 
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            abort(403)
-        if not current_user.role or not current_user.role.est_systeme:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated
-
-
 @admin.route('/demo/creneaux')
 @access_required()
-@admin_required
+@system_admin_required
 def demo_creneaux():
     aujourdhui = date.today()
     fin = aujourdhui + timedelta(days=30)
@@ -35,7 +23,7 @@ def demo_creneaux():
 
 @admin.route('/demo/disponibilites', methods=['GET', 'POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def demo_disponibilites():
     if request.method == 'POST':
         Disponibilite.query.delete()
@@ -86,7 +74,7 @@ def demo_disponibilites():
 
 @admin.route('/demo/creneaux/<int:creneau_id>/annuler', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def demo_annuler_creneau(creneau_id):
     creneau = CreneauDemo.query.get_or_404(creneau_id)
     creneau.statut = 'annule'
@@ -97,7 +85,7 @@ def demo_annuler_creneau(creneau_id):
 
 @admin.route('/demo/creneaux/<int:creneau_id>/confirmer', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def demo_confirmer_creneau(creneau_id):
     creneau = CreneauDemo.query.get_or_404(creneau_id)
     creneau.statut = 'confirme'
@@ -108,7 +96,7 @@ def demo_confirmer_creneau(creneau_id):
 
 @admin.route('/demo/creneaux/<int:creneau_id>/rappel', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def demo_rappel_creneau(creneau_id):
     creneau = CreneauDemo.query.get_or_404(creneau_id)
     annulation_url = url_for('demo.annuler', token=creneau.token_annulation, _external=True)

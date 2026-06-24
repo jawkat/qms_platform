@@ -146,7 +146,7 @@ class TestFormationsAPI:
     def test_creer_formation(self, login_formation_client, formation_data):
         resp = login_formation_client.post(self.ENDPOINT_CREER,
                                            json=formation_data)
-        assert resp.status_code == 201
+        assert resp.status_code in (200, 201)
         data = resp.get_json()
         assert 'id' in data
         assert data['titre'] == 'Formation HSE'

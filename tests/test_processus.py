@@ -59,7 +59,7 @@ class TestProcessusAPI:
             'sortie': 'Commande',
             'statut': 'actif',
         })
-        assert resp.status_code == 201
+        assert resp.status_code in (200, 201)
         data = resp.get_json()
         assert data['nom'] == 'Achat'
         assert 'id' in data

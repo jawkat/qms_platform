@@ -28,15 +28,13 @@ class ActionCorrectiveResource(BaseResource):
 @blueprint.route('/liste')
 @access_required(permission='actions.voir')
 def liste_actions():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     actions = ActionService.get_all_by_tenant(
         entreprise_id=current_user.entreprise_id,
-        domaine=domaine,
         **request.args
     )
     responsables = Utilisateur.query.all()
     return render_template('actions/liste.html', actions=actions, responsables=responsables,
-                           domaine=domaine, filters=request.args)
+                           filters=request.args)
 
 
 @blueprint.get('/api/liste')
@@ -44,7 +42,6 @@ def liste_actions():
 @blueprint.response(200, ActionSchema(many=True))
 def api_liste_actions():
     """Liste des actions au format JSON"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return ActionService.get_all_by_tenant(current_user.entreprise_id)
 
 
@@ -54,10 +51,8 @@ def api_liste_actions():
 @blueprint.arguments(ActionCreateSchema)
 @blueprint.response(201, ActionSchema)
 def api_create_action(data):
-    """Créer une nouvelle action corrective"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
+    """Creer une nouvelle action corrective"""
     data['entreprise_id'] = current_user.entreprise_id
-    data['domaine'] = domaine
     return ActionService.create(**data)
 
 
@@ -96,10 +91,9 @@ def detail_action(action_id):
 
 @blueprint.post('/<int:action_id>/api/update')
 @access_required(permission='actions.modifier')
-@blueprint.arguments(ActionSchema(partial=True))
-@blueprint.response(200, ActionSchema)
-def api_update_action(data, action_id):
+def api_update_action(action_id):
     """Mettre à jour une action via API"""
+    data = request.get_json() or {}
     action = ActionService.update(action_id, current_user.entreprise_id, **data)
     if not action:
         return {"message": "Action non trouvée"}, 404
@@ -109,7 +103,7 @@ def api_update_action(data, action_id):
         action.date_realisation = date.today()
         db.session.commit()
         
-    return action
+    return ActionSchema().dump(action)
 
 
 from app.schemas.actions import ActionSchema, ActionCreateSchema, ActionReferenceSchema
@@ -193,9 +187,8 @@ def delete_action(action_id):
 @blueprint.route('/api/export')
 @access_required(permission='actions.voir')
 def export_actions():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     actions = ActionCorrective.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).order_by(ActionCorrective.date_creation.desc()).all()
 
     output = io.StringIO()

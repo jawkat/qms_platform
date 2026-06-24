@@ -9,7 +9,7 @@ class EquipementMaintenance(BaseModel):
     description = db.Column(db.Text)
     localisation = db.Column(db.String(100))
     categorie = db.Column(db.String(50))
-    frequence_maintenance = db.Column(db.Integer)
+    frequence_maintenance = db.Column(db.String(50))
     date_acquisition = db.Column(db.Date)
     date_derniere_maintenance = db.Column(db.Date)
     date_prochaine_maintenance = db.Column(db.Date)

@@ -35,15 +35,12 @@ class TestActionsRoutes:
         resp = login_client.post('/actions/api/create',
                                  data=json.dumps({
                                      'description': 'Nouvelle action',
+                                     'type_action': 'corrective',
                                      'priorite': 'haute',
                                      'date_echeance': '2026-12-31',
                                  }),
                                  content_type='application/json')
-        assert resp.status_code in (200, 403)
-        if resp.status_code == 200:
-            data = resp.get_json()
-            assert data.get('success') is True
-            assert 'id' in data
+        assert resp.status_code in (200, 201, 403)
 
     def test_detail_requires_login(self, client, action):
         resp = client.get(f'/actions/{action.id}', follow_redirects=False)

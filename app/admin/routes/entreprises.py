@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import current_user
-from app.utils.permissions import access_required
+from app.utils.permissions import access_required, system_admin_required
 from app.admin import admin
 from app import db
 from app.models import (
@@ -13,25 +13,13 @@ from app.services.subscription_service import (
     _get_storage_size_for_proofs, add_one_year_safe,
 )
 from app.utils.subscriptions import get_subscription_plan
-from functools import wraps
 from app.schemas.admin import EntrepriseSchema, HistoriquePaiementSchema, QuotaSchema
 from datetime import date, datetime, time, timedelta
 
 
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            abort(403)
-        if not current_user.role or not current_user.role.est_systeme:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated
-
-
 @admin.route('/')
 @access_required()
-@admin_required
+@system_admin_required
 def dashboard():
     from app.models import ActionCorrective, ProofMaster, JournalSecurite
     stats = {
@@ -48,7 +36,7 @@ def dashboard():
 
 @admin.route('/entreprises')
 @access_required()
-@admin_required
+@system_admin_required
 def entreprises():
     entreprises = Entreprise.query.order_by(Entreprise.date_inscription.desc()).all()
     data = []
@@ -87,14 +75,14 @@ def entreprises():
 
 @admin.route('/entreprises/create')
 @access_required()
-@admin_required
+@system_admin_required
 def entreprise_create():
     return redirect(url_for('entreprises.create'))
 
 
 @admin.route('/entreprises/<int:eid>')
 @access_required()
-@admin_required
+@system_admin_required
 def entreprise_detail(eid):
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
@@ -109,7 +97,7 @@ def entreprise_detail(eid):
 
 @admin.route('/entreprises/<int:eid>/update', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def entreprise_update(eid):
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:
@@ -161,7 +149,7 @@ def entreprise_update(eid):
 
 @admin.get('/entreprises/<int:eid>/api/quota')
 @access_required()
-@admin_required
+@system_admin_required
 @admin.response(200, QuotaSchema)
 def entreprise_api_quota(eid):
     """Quotas d'une entreprise"""
@@ -192,7 +180,7 @@ def entreprise_api_quota(eid):
 
 @admin.get('/entreprises/<int:eid>/api/paiements')
 @access_required()
-@admin_required
+@system_admin_required
 @admin.response(200, HistoriquePaiementSchema(many=True))
 def entreprise_api_paiements(eid):
     """Historique des paiements d'une entreprise"""
@@ -205,7 +193,7 @@ def entreprise_api_paiements(eid):
 
 @admin.post('/entreprises/<int:eid>/api/paiements/create')
 @access_required()
-@admin_required
+@system_admin_required
 @admin.arguments(HistoriquePaiementSchema)
 @admin.response(201, HistoriquePaiementSchema)
 def entreprise_api_paiements_create(data, eid):
@@ -238,7 +226,7 @@ def entreprise_api_paiements_create(data, eid):
 
 @admin.route('/entreprises/<int:eid>/suspendre', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def entreprise_suspendre(eid):
     entreprise = db.session.get(Entreprise, eid)
     if not entreprise:

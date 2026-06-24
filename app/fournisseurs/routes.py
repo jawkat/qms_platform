@@ -24,7 +24,7 @@ class FournisseurResource(BaseResource):
 
     @classmethod
     def create_resource(cls, data):
-        data.domaine = session.get('domaine', 'hse')
+        data.entreprise_id = current_user.entreprise_id
         return super().create_resource(data)
 
 

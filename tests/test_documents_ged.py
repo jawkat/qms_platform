@@ -110,7 +110,7 @@ class TestDossierAPI:
         session.add_all([d_hse, d_qualite])
         session.commit()
 
-        resp = login_client.get('/documents/api/dossiers')
+        resp = login_client.get('/documents/api/dossiers?domaine=hse')
         assert resp.status_code == 200
         data = json.loads(resp.data)
         names = [d['nom'] for d in data]
@@ -212,19 +212,20 @@ class TestDocumentDownload:
         assert resp.status_code in (302, 401)
 
     def test_download_local_fs_file(self, login_client, session, entreprise, app, manager_user):
-        upload_dir = app.config['UPLOAD_FOLDER']
+        from io import BytesIO
         content = b'hello world this is a test file'
-        filename = 'test_document.pdf'
-        relative_dir = f'{entreprise.id}/preuves'
-        os.makedirs(os.path.join(upload_dir, relative_dir), exist_ok=True)
-        file_path = os.path.join(upload_dir, relative_dir, filename)
-        with open(file_path, 'wb') as f:
-            f.write(content)
+        storage_key = StorageService.generate_key(
+            entreprise_id=entreprise.id, module='documents',
+            categorie='preuves', filename='test_document.pdf',
+        )
+        with app.app_context():
+            storage = get_storage()
+            storage.upload(BytesIO(content), storage_key)
 
         proof = ProofMaster(
             entreprise_id=entreprise.id, domaine='hse',
             nom_fichier='test_document.pdf', type='pdf',
-            chemin=f'{entreprise.id}/preuves/{filename}',
+            chemin=storage_key,
             taille_bytes=len(content), statut='ACTIF',
             upload_par=manager_user.id,
         )
@@ -237,19 +238,18 @@ class TestDocumentDownload:
         assert 'test_document.pdf' in resp.headers.get('Content-Disposition', '')
 
     def test_download_legacy_proof_no_extension(self, login_client, session, entreprise, app, manager_user):
-        upload_dir = app.config['UPLOAD_FOLDER']
+        from io import BytesIO
         content = b'legacy file content'
         filename = 'legacy_file.txt'
-        relative_dir = f'{entreprise.id}/preuves'
-        os.makedirs(os.path.join(upload_dir, relative_dir), exist_ok=True)
-        file_path = os.path.join(upload_dir, relative_dir, filename)
-        with open(file_path, 'wb') as f:
-            f.write(content)
+        storage_key = f'{entreprise.id}/preuves/{filename}'
+        with app.app_context():
+            storage = get_storage()
+            storage.upload(BytesIO(content), storage_key)
 
         proof = ProofMaster(
             entreprise_id=entreprise.id, domaine='hse',
             nom_fichier='legacy_label', type='preuve_veille',
-            chemin=f'{entreprise.id}/preuves/{filename}',
+            chemin=storage_key,
             taille_bytes=len(content), statut='ACTIF',
             upload_par=manager_user.id,
         )
@@ -260,7 +260,7 @@ class TestDocumentDownload:
         assert resp.status_code == 200
         assert resp.data == content
         disp = resp.headers.get('Content-Disposition', '')
-        assert filename in disp
+        assert 'legacy_label' in disp
 
     def test_download_nonexistent_proof(self, login_client):
         resp = login_client.get('/documents/99999/download', follow_redirects=True)

@@ -21,7 +21,7 @@ class AuditResource(BaseResource):
 
     @classmethod
     def create_resource(cls, data):
-        data.domaine = session.get('domaine_actif', 'hse')
+        data.entreprise_id = current_user.entreprise_id
         return super().create_resource(data)
 
 
@@ -30,7 +30,7 @@ class AuditResource(BaseResource):
 @blueprint.arguments(AuditSchema)
 @blueprint.response(201, AuditSchema)
 def api_creer(data):
-    """Créer un nouvel audit"""
+    """Creer un nouvel audit"""
     return AuditResource.create_resource(data)
 
 
@@ -39,18 +39,16 @@ def api_creer(data):
 @blueprint.response(200, AuditSchema(many=True))
 def api_liste():
     """Liste des audits"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return Audit.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).order_by(Audit.date_creation.desc()).all()
 
 
 @blueprint.route('/')
 @access_required(permission='audit.voir')
 def index():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     q = Audit.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     )
     type_filter = request.args.get('type')
     resultat = request.args.get('resultat')
@@ -133,9 +131,8 @@ def delete_observation(audit_id, obs_id):
 @blueprint.route('/api/export')
 @access_required(permission='audit.voir')
 def export_audits():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     audits = Audit.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).order_by(Audit.date_creation.desc()).all()
 
     output = io.StringIO()

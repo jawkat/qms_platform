@@ -55,7 +55,7 @@ def auto_register_crud(blueprint, model, schema, module=None, name=None,
 
         @blueprint.post(f'{url_prefix}/creer', endpoint='api_creer')
         @blueprint.arguments(schema)
-        @blueprint.response(201, schema)
+        @blueprint.response(200, schema)
         @access_required(permission=gerer, **kw)
         def _create(data):
             return resource_cls.create_resource(data)

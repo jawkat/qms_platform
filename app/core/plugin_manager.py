@@ -388,19 +388,22 @@ class PluginManager:
              'active_prefix': 'main.notifications'},
             {'endpoint': 'main.search', 'icon': 'fa-search', 'label': 'Recherche'},
         ]
+        if 'ged' in active_names:
+            general_items.append(
+                {'endpoint': 'documents.gestion', 'icon': 'fa-folder-open', 'label': 'Documents',
+                 'active_prefix': 'documents.'},
+            )
         sections.append({
             'id': 'general', 'title': 'Général', 'icon': 'fa-th-large',
             'items': general_items,
         })
 
-        # --- DOCUMENTS (menu à part) ---
-        if 'ged' in active_names:
-            sections.append({
-                'id': 'documents', 'title': 'Documents', 'icon': 'fa-folder-open', 'items': [
-                    {'endpoint': 'documents.gestion', 'icon': 'fa-folder-open', 'label': 'GED',
-                     'active_prefix': 'documents.'},
-                ]
-            })
+        # --- COMPTE (toujours visible) ---
+        sections.append({
+            'id': 'compte', 'title': 'Mon compte', 'icon': 'fa-user-circle', 'items': [
+                {'endpoint': 'users.profile', 'icon': 'fa-user', 'label': 'Profil'},
+            ]
+        })
 
         # --- QUALITÉ / ISO 9001 ---
         if 'qualite' in active_names:
@@ -633,20 +636,7 @@ class PluginManager:
                 ]
             })
 
-        # --- MON COMPTE (toujours présent) ---
-        sections.append({
-            'id': 'compte', 'title': 'Mon compte', 'icon': 'fa-user', 'items': [
-                {'endpoint': 'users.profile', 'icon': None, 'label': None, 'is_profile': True},
-                {'endpoint': 'users.notification_preferences', 'icon': 'fa-bell', 'label': 'Réglages Notifications',
-                 'active_prefix': 'users.notification_preferences'},
-                {'endpoint': 'facturation.index', 'icon': 'fa-credit-card', 'label': 'Facturation',
-                 'active_prefix': 'facturation.'},
-                {'endpoint': 'support.mes_tickets', 'icon': 'fa-ticket-alt', 'label': 'Mes tickets',
-                 'active_prefix': 'support.'},
-                {'endpoint': 'users.logout', 'icon': 'fa-sign-out-alt', 'label': 'Déconnexion',
-                 'is_logout': True},
-            ]
-        })
+
 
         return sections
 

@@ -34,31 +34,11 @@
             </div>
             <div class="sidebar-collapse" id="section-{{ section.id }}">
               {% for item in section['items'] %}
-              {% if item.is_profile %}
-              <li class="nav-item mb-2">
-                <a class="nav-link d-flex align-items-center gap-2{% if sidebar_is_active(item, request.endpoint) %} active{% endif %}" href="{{ url_for(item.endpoint) }}">
-                  {% if current_user.is_authenticated %}
-                  <span class="avatar-initials rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:.8rem;font-weight:600;">{{ (current_user.prenom[:1]|upper) if current_user.prenom else '' }}{{ (current_user.nom[:1]|upper) if current_user.nom else '' }}</span>
-                  <span class="text-truncate">{{ current_user.prenom }} {{ current_user.nom }}</span>
-                  {% else %}
-                  <i class="fas fa-user-circle fa-lg"></i>
-                  <span>Profil</span>
-                  {% endif %}
-                </a>
-              </li>
-              {% elif item.is_logout %}
-              <li class="nav-item mb-1">
-                <a class="nav-link" href="{{ url_for(item.endpoint) }}">
-                  {% if item.icon %}<i class="fas {{ item.icon }} me-2"></i>{% endif %}<span>{{ item.label }}</span>
-                </a>
-              </li>
-              {% else %}
               <li class="nav-item mb-1">
                 <a class="nav-link{% if sidebar_is_active(item, request.endpoint) %} active{% endif %}" href="{{ url_for(item.endpoint) }}">
                   <i class="fas {{ item.icon }} me-2"></i><span>{{ item.label }}</span>
                 </a>
               </li>
-              {% endif %}
               {% endfor %}
             </div>
           </div>
@@ -77,20 +57,62 @@
           </button>
           <span class="fw-semibold text-muted small">{% block page_title %}{% endblock %}</span>
         </div>
-        <div class="dropdown">
-          <button class="btn btn-sm btn-link text-dark position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="notifDropdown">
-            <i class="fas fa-bell fa-lg"></i>
-            <span class="badge bg-danger rounded-pill notif-badge" id="notifCount" style="display:none">0</span>
-          </button>
-          <div class="dropdown-menu dropdown-menu-end notif-dropdown shadow" aria-labelledby="notifDropdown">
-            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-              <strong class="small">Notifications</strong>
-              <a href="#" class="small text-danger" id="markAllRead" style="text-decoration:none">Tout marquer lu</a>
-            </div>
-            <div id="notifList">
-              <div class="text-center text-muted small py-3">Chargement...</div>
+        <div class="d-flex align-items-center gap-2">
+          {% if current_user.is_authenticated and current_user.role and current_user.role.est_systeme %}
+          <div class="dropdown">
+            <button class="btn btn-sm btn-link text-dark position-relative" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="incidentDropdown">
+              <i class="fas fa-bug fa-lg text-danger"></i>
+              <span class="badge bg-danger rounded-pill notif-badge" id="incidentCount" style="display:none">0</span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end notif-dropdown shadow">
+              <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                <strong class="small"><i class="fas fa-bug text-danger me-1"></i> Alertes techniques</strong>
+                <a href="#" class="small text-danger" id="markAllIncidentsRead" style="text-decoration:none">Tout marquer lu</a>
+              </div>
+              <div id="incidentList">
+                <div class="text-center text-muted small py-3">Chargement...</div>
+              </div>
             </div>
           </div>
+          {% endif %}
+
+          <div class="dropdown">
+            <button class="btn btn-sm btn-link text-dark position-relative" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="notifDropdown">
+              <i class="fas fa-bell fa-lg"></i>
+              <span class="badge bg-danger rounded-pill notif-badge" id="notifCount" style="display:none">0</span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end notif-dropdown shadow">
+              <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                <strong class="small">Notifications</strong>
+                <a href="#" class="small text-danger" id="markAllRead" style="text-decoration:none">Tout marquer lu</a>
+              </div>
+              <div id="notifList" class="notif-table-wrap">
+                <div class="text-center text-muted small py-3">Chargement...</div>
+              </div>
+            </div>
+          </div>
+
+          {% if current_user.is_authenticated %}
+          <div class="dropdown">
+            <a class="btn btn-sm btn-link text-dark d-flex align-items-center gap-2 text-decoration-none" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+              <span class="avatar-initials rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width:32px;height:32px;font-size:.8rem;font-weight:600;">{{ (current_user.prenom[:1]|upper) if current_user.prenom else '' }}{{ (current_user.nom[:1]|upper) if current_user.nom else '' }}</span>
+              <span class="d-none d-md-inline fw-semibold text-dark small">{{ current_user.prenom }} {{ current_user.nom }}</span>
+              <i class="fas fa-chevron-down small text-muted"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li class="px-3 py-2 border-bottom">
+                <div class="fw-semibold small">{{ current_user.prenom }} {{ current_user.nom }}</div>
+                <div class="text-muted" style="font-size:.75rem">{{ current_user.email }}</div>
+              </li>
+              <li><a class="dropdown-item" href="{{ url_for('users.profile') }}"><i class="fas fa-user-circle me-2"></i>Mon profil</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('users.notification_preferences') }}"><i class="fas fa-bell me-2"></i>Réglages Notifications</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('facturation.index') }}"><i class="fas fa-credit-card me-2"></i>Facturation</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('support.mes_tickets') }}"><i class="fas fa-ticket-alt me-2"></i>Mes tickets</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('users.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Déconnexion</a></li>
+            </ul>
+          </div>
+          {% endif %}
         </div>
       </div>
       {% endif %}
@@ -300,106 +322,146 @@
     document.addEventListener('DOMContentLoaded', function() {
       setupCsrfProtection();
       openActiveSection();
-      loadNotifications();
-      setInterval(function() {
-        fetch('/api/notifications/unread-count', {headers:{'X-Requested-With':'XMLHttpRequest'}})
-          .then(function(r){ return r.json(); })
-          .then(function(data) {
-            var count = document.getElementById('notifCount');
-            if (count) {
-              count.textContent = data.unread;
-              count.style.display = data.unread ? '' : 'none';
-            }
-          });
-      }, 30000);
-      if (document.getElementById('notifDropdown')) {
-        document.getElementById('notifDropdown').addEventListener('shown.bs.dropdown', loadNotifications);
+      initNotifications();
+    });
+
+    function initNotifications() {
+      var notifCache = [];
+
+      function updateBadge(badgeId, unread) {
+        var el = document.getElementById(badgeId);
+        if (!el) return;
+        el.textContent = String(unread);
+        el.style.display = unread ? '' : 'none';
       }
+
+      function renderNotifItem(n, baseUrl) {
+        var cls = n.lu ? '' : 'unread';
+        var iconMap = {
+          info:'fa-circle-info', success:'fa-circle-check', warning:'fa-triangle-exclamation',
+          danger:'fa-circle-xmark', incident:'fa-bug', overdue:'fa-clock',
+          echeance:'fa-calendar-exclamation', alerte:'fa-exclamation-circle',
+          texte:'fa-scroll', import_texte:'fa-file-import', action:'fa-tasks',
+          corrective:'fa-wrench', preventive:'fa-shield-alt', audit:'fa-clipboard-check',
+          formation:'fa-graduation-cap', maintenance:'fa-tools', haccp:'fa-utensils',
+          document:'fa-file-alt', ticket:'fa-headset'
+        };
+        var sourceMap = {
+          texte:'Texte', import_texte:'Import', action:'Action', corrective:'Action',
+          preventive:'Preventive', audit:'Audit', formation:'Formation',
+          incident:'Incident', overdue:'Echeance', echeance:'Echeance',
+          haccp:'HACCP', document:'Document', ticket:'Ticket',
+          maintenance:'Maintenance', info:'Systeme', alerte:'Alerte'
+        };
+        var type = (n.type || 'info').toLowerCase();
+        var source = (n.domain || type || 'info');
+        var icon = iconMap[type] || 'fa-bell';
+        var sourceLabel = sourceMap[type] || source.charAt(0).toUpperCase() + source.slice(1);
+        var href = baseUrl ? baseUrl.replace('/0/open','/' + n.id + '/open') : '#';
+        var dateStr = n.date_label || '';
+        var msg = (n.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return '<a href="' + href + '" class="notif-row ' + cls + '">' +
+          '<span class="notif-col-source"><i class="fas ' + icon + ' me-1"></i>' + sourceLabel + '</span>' +
+          '<span class="notif-col-date">' + dateStr + '</span>' +
+          '<span class="notif-col-msg">' + msg + '</span>' +
+          '</a>';
+      }
+
+      function renderTable(notifs, listEl) {
+        if (!notifs.length) {
+          listEl.innerHTML = '<div class="text-center text-muted small py-3">Aucune notification</div>';
+          return;
+        }
+        var html = '<div class="notif-table-head">' +
+          '<span class="notif-col-source">Source</span>' +
+          '<span class="notif-col-date">Date</span>' +
+          '<span class="notif-col-msg">Contenu</span>' +
+          '</div>';
+        notifs.forEach(function(n) {
+          html += renderNotifItem(n, '/notifications');
+        });
+        if (notifCache.length > 8) {
+          html += '<div class="text-center py-2 border-top"><a href="/notifications" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
+        }
+        listEl.innerHTML = html;
+      }
+
+      function loadGeneral() {
+        var list = document.getElementById('notifList');
+        if (!list) return;
+        list.innerHTML = '<div class="text-center text-muted small py-3">Chargement...</div>';
+        fetch('/notifications/quick?limit=8&scope=general', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+          .then(function(r){ return r.json(); })
+          .then(function(payload) {
+            if (!payload.success) throw new Error('payload');
+            updateBadge('notifCount', payload.unread_count || 0);
+            notifCache = payload.notifications || [];
+            renderTable(notifCache, list);
+          })
+          .catch(function() {
+            list.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';
+          });
+      }
+
+      function loadIncidents() {
+        var list = document.getElementById('incidentList');
+        if (!list) return;
+        list.innerHTML = '<div class="text-center text-muted small py-3">Chargement...</div>';
+        fetch('/notifications/quick?limit=8&scope=incident', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+          .then(function(r){ return r.json(); })
+          .then(function(payload) {
+            if (!payload.success) throw new Error('payload');
+            updateBadge('incidentCount', payload.unread_count || 0);
+            renderTable(payload.notifications || [], list);
+          })
+          .catch(function() {
+            list.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';
+          });
+      }
+
+      var notifTrigger = document.getElementById('notifDropdown');
+      if (notifTrigger) {
+        notifTrigger.addEventListener('shown.bs.dropdown', loadGeneral);
+      }
+      var incidentTrigger = document.getElementById('incidentDropdown');
+      if (incidentTrigger) {
+        incidentTrigger.addEventListener('shown.bs.dropdown', loadIncidents);
+      }
+
       var markAllBtn = document.getElementById('markAllRead');
       if (markAllBtn) {
         markAllBtn.addEventListener('click', function(e) {
           e.preventDefault();
-          fetch('/api/notifications/read-all', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
+          fetch('/notifications/read-all', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){ return r.json(); })
-            .then(function(){ loadNotifications(); refreshNotifCount(); });
+            .then(function(){ updateBadge('notifCount', 0); loadGeneral(); });
         });
       }
-    });
+      var markAllIncidentsBtn = document.getElementById('markAllIncidentsRead');
+      if (markAllIncidentsBtn) {
+        markAllIncidentsBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          fetch('/notifications/incidents/read-all', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}})
+            .then(function(r){ return r.json(); })
+            .then(function(){ updateBadge('incidentCount', 0); loadIncidents(); });
+        });
+      }
 
-    function loadNotifications() {
-      var list = document.getElementById('notifList');
-      var count = document.getElementById('notifCount');
-      if (!list) return;
-      list.innerHTML = '<div class="text-center text-muted small py-3">Chargement...</div>';
-      fetch('/api/notifications', {headers:{'X-Requested-With':'XMLHttpRequest'}})
-        .then(function(r){ return r.json(); })
-        .then(function(notifs) {
-          if (!notifs.length) {
-            list.innerHTML = '<div class="text-center text-muted small py-3">Aucune notification</div>';
-            if (count) count.style.display = 'none';
-            return;
-          }
-          var unread = notifs.filter(function(n){ return !n.lu; }).length;
-          if (count) {
-            count.textContent = unread;
-            count.style.display = unread ? '' : 'none';
-          }
-          var html = '';
-          var show = notifs.slice(0, 5);
-          var ICONS = {
-            'incident': 'fa-bug',
-            'accident': 'fa-bug',
-            'presqu_accident': 'fa-exclamation-triangle',
-            'overdue': 'fa-clock',
-            'echeance': 'fa-calendar-exclamation',
-            'alerte': 'fa-exclamation-circle',
-            'texte': 'fa-scroll',
-            'info': 'fa-info-circle',
-          };
-          var COLORS = {
-            'incident': '#e63946',
-            'accident': '#b91c1c',
-            'presqu_accident': '#f59e0b',
-            'overdue': '#dc2626',
-            'echeance': '#f59e0b',
-            'alerte': '#ef4444',
-            'texte': '#3b82f6',
-            'info': '#6b7280',
-          };
-          show.forEach(function(n) {
-            var cls = n.lu ? '' : 'unread';
-            var icon = ICONS[n.type] || 'fa-bell';
-            var color = COLORS[n.type] || '#6b7280';
-            html += '<a href="/notifications/' + n.id + '/open" class="notif-item ' + cls + '" style="text-decoration:none;color:inherit;display:block;">';
-            html += '<div class="d-flex align-items-start gap-2">';
-            html += '<i class="fas ' + icon + '" style="color:' + color + ';font-size:.85rem;margin-top:2px;"></i>';
-            html += '<div class="flex-grow-1">';
-            html += '<small class="text-muted d-block mb-1" style="font-size:.7rem;">' + (n.type || 'info') + '</small>';
-            html += '<div class="small mb-1">' + n.message + '</div>';
-            html += '<div class="d-flex justify-content-between align-items-center">';
-            html += '<small class="text-muted">' + (n.date_envoi ? new Date(n.date_envoi).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '') + '</small>';
-            html += '</div></div></div></a>';
+      setInterval(function() {
+        fetch('/notifications/quick?limit=1&scope=general', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+          .then(function(r){ return r.json(); })
+          .then(function(payload) {
+            if (payload.success) updateBadge('notifCount', payload.unread_count || 0);
           });
-          if (notifs.length > 5) {
-            html += '<div class="text-center py-2"><a href="/notifications" class="small text-muted" style="text-decoration:none">Voir toutes les notifications</a></div>';
-          }
-          list.innerHTML = html;
-        })
-        .catch(function() {
-          list.innerHTML = '<div class="text-center text-muted small py-3">Erreur de chargement</div>';
-        });
-    }
-
-    function refreshNotifCount() {
-      fetch('/api/notifications/unread-count', {headers:{'X-Requested-With':'XMLHttpRequest'}})
-        .then(function(r){ return r.json(); })
-        .then(function(data) {
-          var count = document.getElementById('notifCount');
-          if (count) {
-            count.textContent = data.unread;
-            count.style.display = data.unread ? '' : 'none';
-          }
-        });
+        var incTrigger = document.getElementById('incidentDropdown');
+        if (incTrigger) {
+          fetch('/notifications/quick?limit=1&scope=incident', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+            .then(function(r){ return r.json(); })
+            .then(function(payload) {
+              if (payload.success) updateBadge('incidentCount', payload.unread_count || 0);
+            });
+        }
+      }, 30000);
     }
   </script>
   {% block scripts %}{% endblock %}

@@ -8,6 +8,7 @@ class Reunion(BaseModel):
     date_reunion = db.Column(db.DateTime, nullable=False)
     lieu = db.Column(db.String(100))
     type_reunion = db.Column(db.String(50))
+    organisateur = db.Column(db.String(100))
     ordre_du_jour = db.Column(db.Text)
     participants = db.Column(db.Text)
     statut = db.Column(db.String(20), default='planifiee')  # planifiee, en_cours, terminee, annulee

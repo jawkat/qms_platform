@@ -157,6 +157,10 @@ PERMISSION_CATALOG = {
         ('rh.voir', 'Voir les employes QHSE'),
         ('rh.gerer', 'Gerer les employes QHSE'),
     ],
+    'rh_qhse': [
+        ('rh_qhse.voir', 'Voir les employes QHSE'),
+        ('rh_qhse.gerer', 'Gerer les employes QHSE'),
+    ],
     'connaissances': [
         ('connaissances.voir', 'Voir les REX et FAQ'),
         ('connaissances.gerer', 'Gerer les REX et FAQ'),
@@ -208,6 +212,7 @@ DEFAULT_ENTERPRISE_ROLE_PERMISSIONS = {
         'planification.voir', 'planification.gerer',
         'reunions.voir', 'reunions.gerer',
         'rh.voir', 'rh.gerer',
+        'rh_qhse.voir', 'rh_qhse.gerer',
         'connaissances.voir', 'connaissances.gerer',
         'urgences.voir', 'urgences.gerer',
         'entreprises.voir', 'entreprises.cree', 'entreprises.modifier',

@@ -44,6 +44,9 @@ def app():
         'UPLOAD_FOLDER': tempfile.mkdtemp(),
         'SERVER_NAME': 'localhost',
     })
+    # Reset storage singleton so it picks up the corrected UPLOAD_FOLDER
+    import app.core.storage as _storage_mod
+    _storage_mod._storage_service = None
     return _app
 
 

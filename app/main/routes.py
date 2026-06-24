@@ -3,7 +3,6 @@ from flask_login import current_user
 from app import db
 from app.models import Entreprise, ActionCorrective, ProofMaster, Audit, Utilisateur, Indicateur, Ticket, SubscriptionPlan
 from app.main import main
-from app.utils.domaine_switch import set_domaine_actif
 from app.utils.permissions import access_required
 from app.models import Notification
 from app.schemas.users import NotificationSchema
@@ -126,8 +125,7 @@ def index():
 @access_required(permission='actions.voir')
 def tableau_de_bord():
     entreprise = db.session.get(Entreprise, current_user.entreprise_id)
-    domaine = session.get('domaine_actif', 'hse')
-    return render_template('main/dashboard.html', entreprise=entreprise, domaine=domaine)
+    return render_template('main/dashboard.html', entreprise=entreprise)
 
 
 @main.get('/api/dashboard/alerts')
@@ -224,28 +222,27 @@ def api_dashboard_alerts():
 @access_required(permission='actions.voir')
 def api_stats():
     """Statistiques globales du tableau de bord"""
-    domaine = session.get('domaine_actif', 'hse')
     today = date.today()
 
     total_actions = ActionCorrective.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).count()
 
     actions_en_cours = ActionCorrective.query.filter_by(
-        domaine=domaine, statut='EN_COURS'
+        entreprise_id=current_user.entreprise_id, statut='EN_COURS'
     ).count()
 
     actions_en_retard = ActionCorrective.query.filter(
-        ActionCorrective.domaine == domaine,
+        ActionCorrective.entreprise_id == current_user.entreprise_id,
         ActionCorrective.statut.notin_(['SOLDE', 'ANNULE']),
         ActionCorrective.date_echeance < today).count()
 
     total_documents = ProofMaster.query.filter_by(
-        domaine=domaine, statut='ACTIF'
+        entreprise_id=current_user.entreprise_id, statut='ACTIF'
     ).count()
 
     total_audits = Audit.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).count()
 
     total_users = Utilisateur.query.count()
@@ -258,19 +255,6 @@ def api_stats():
         'total_audits': total_audits,
         'total_users': total_users,
     }
-
-
-@main.route('/switch-domaine/<domaine>')
-@access_required()
-def switch_domaine(domaine):
-    if domaine not in ('hse', 'qualite'):
-        abort(400)
-    entreprise = db.session.get(Entreprise, current_user.entreprise_id)
-    modules = entreprise.modules_actifs or ['hse']
-    if domaine not in modules:
-        abort(403)
-    set_domaine_actif(domaine)
-    return redirect(request.referrer or url_for('main.tableau_de_bord'))
 
 
 @main.get('/api/notifications')
@@ -311,6 +295,95 @@ def api_notification_read_all():
     Notification.query.filter_by(utilisateur_id=current_user.id, lu=False).update({'lu': True})
     db.session.commit()
     return {'success': True}
+
+
+def _classify_notification_domain(notification_type, message):
+    type_key = (notification_type or '').strip().lower()
+    text = (message or '').strip().lower()
+    if type_key in ('incident', 'accident', 'presqu_accident'):
+        return 'incident'
+    if type_key in ('action', 'overdue', 'echeance') or 'action' in text:
+        return 'action'
+    if 'évaluation' in text or 'evaluation' in text or 'preuve' in text or 'conformité' in text or 'conformite' in text:
+        return 'evaluation'
+    if 'mise à jour réglementaire' in text or 'mise a jour reglementaire' in text or 'texte' in text or 'réglementaire' in text or 'reglementaire' in text:
+        return 'texte'
+    if 'document' in text or type_key == 'document':
+        return 'document'
+    if 'formation' in text:
+        return 'formation'
+    if 'haccp' in text:
+        return 'haccp'
+    if 'ticket' in text or 'support' in text:
+        return 'ticket'
+    if 'maintenance' in text:
+        return 'maintenance'
+    if 'audit' in text:
+        return 'audit'
+    return type_key or 'info'
+
+
+@main.get('/notifications/quick')
+@access_required()
+def quick_notifications():
+    from sqlalchemy import or_
+    limit_raw = (request.args.get('limit') or '8').strip()
+    try:
+        limit = max(1, min(int(limit_raw), 20))
+    except ValueError:
+        limit = 8
+    scope = (request.args.get('scope') or 'general').strip().lower()
+    if scope not in {'general', 'incident', 'all'}:
+        scope = 'general'
+    base_query = Notification.query.filter_by(utilisateur_id=current_user.id)
+    if scope == 'incident':
+        base_query = base_query.filter(Notification.type == 'incident')
+    elif scope == 'general':
+        base_query = base_query.filter(or_(Notification.type.is_(None), Notification.type != 'incident'))
+    if not current_user.role or not current_user.role.est_systeme:
+        base_query = base_query.filter(Notification.categorie != 'technique')
+    notifications = base_query.order_by(Notification.date_envoi.desc()).limit(limit).all()
+    unread_count = base_query.filter_by(lu=False).count()
+    payload = []
+    for notification in notifications:
+        domain = _classify_notification_domain(notification.type, notification.message)
+        payload.append({
+            'id': notification.id,
+            'type': notification.type or 'info',
+            'domain': domain,
+            'message': notification.message or '',
+            'lu': bool(notification.lu),
+            'date_envoi': notification.date_envoi.isoformat() if notification.date_envoi else None,
+            'date_label': notification.date_envoi.strftime('%d/%m/%Y %H:%M') if notification.date_envoi else '',
+        })
+    return jsonify({'success': True, 'unread_count': unread_count, 'notifications': payload})
+
+
+@main.post('/notifications/read-all')
+@access_required()
+def mark_all_notifications_read():
+    from sqlalchemy import or_
+    Notification.query.filter(
+        Notification.utilisateur_id == current_user.id,
+        Notification.lu.is_(False),
+        or_(Notification.type.is_(None), Notification.type != 'incident'),
+    ).update({'lu': True}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'success': True, 'unread_count': 0})
+
+
+@main.post('/notifications/incidents/read-all')
+@access_required()
+def mark_all_incident_notifications_read():
+    if not current_user.role or not current_user.role.est_systeme:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 403
+    Notification.query.filter(
+        Notification.utilisateur_id == current_user.id,
+        Notification.lu.is_(False),
+        Notification.type == 'incident',
+    ).update({'lu': True}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'success': True, 'unread_count': 0})
 
 
 ENTITY_ROUTE_MAP = {
@@ -426,16 +499,15 @@ def api_trigger_alerts():
 @main.route('/export/<module>')
 @access_required()
 def export_module(module):
-    """Export Excel pour un module donné."""
+    """Export Excel pour un module donne."""
     from app.services.report_service import (
         export_actions_excel, export_audits_excel, export_nc_excel, export_risques_excel
     )
-    domaine = session.get('domaine_actif', 'hse')
 
     exporters = {
-        'actions': lambda: export_actions_excel(current_user.entreprise_id, domaine),
-        'audits': lambda: export_audits_excel(current_user.entreprise_id, domaine),
-        'nc': lambda: export_nc_excel(current_user.entreprise_id, domaine),
+        'actions': lambda: export_actions_excel(current_user.entreprise_id),
+        'audits': lambda: export_audits_excel(current_user.entreprise_id),
+        'nc': lambda: export_nc_excel(current_user.entreprise_id),
         'risques': lambda: export_risques_excel(current_user.entreprise_id),
     }
     if module not in exporters:

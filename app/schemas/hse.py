@@ -1,11 +1,11 @@
 from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from app.schemas.base import AutoSchema
 from app.models.hse import (
     Incident, UniteTravail, DangerSst, EvaluationRisqueSst,
     CauseIncident, EPI, Inspection, InspectionItem, PermisTravail
 )
 
-class IncidentSchema(SQLAlchemyAutoSchema):
+class IncidentSchema(AutoSchema):
     class Meta:
         model = Incident
         load_instance = True
@@ -13,19 +13,19 @@ class IncidentSchema(SQLAlchemyAutoSchema):
     
     statut_label = fields.String(dump_only=True)
 
-class UniteTravailSchema(SQLAlchemyAutoSchema):
+class UniteTravailSchema(AutoSchema):
     class Meta:
         model = UniteTravail
         load_instance = True
         include_fk = True
 
-class DangerSstSchema(SQLAlchemyAutoSchema):
+class DangerSstSchema(AutoSchema):
     class Meta:
         model = DangerSst
         load_instance = True
         include_fk = True
 
-class EvaluationRisqueSstSchema(SQLAlchemyAutoSchema):
+class EvaluationRisqueSstSchema(AutoSchema):
     class Meta:
         model = EvaluationRisqueSst
         load_instance = True
@@ -34,7 +34,7 @@ class EvaluationRisqueSstSchema(SQLAlchemyAutoSchema):
     criticite = fields.Int(dump_only=True)
     niveau_risque = fields.String(dump_only=True)
 
-class CauseIncidentSchema(SQLAlchemyAutoSchema):
+class CauseIncidentSchema(AutoSchema):
     class Meta:
         model = CauseIncident
         load_instance = True
@@ -42,25 +42,25 @@ class CauseIncidentSchema(SQLAlchemyAutoSchema):
 
     enfants = fields.Nested('self', many=True, dump_only=True)
 
-class EPISchema(SQLAlchemyAutoSchema):
+class EPISchema(AutoSchema):
     class Meta:
         model = EPI
         load_instance = True
         include_fk = True
 
-class InspectionSchema(SQLAlchemyAutoSchema):
+class InspectionSchema(AutoSchema):
     class Meta:
         model = Inspection
         load_instance = True
         include_fk = True
 
-class InspectionItemSchema(SQLAlchemyAutoSchema):
+class InspectionItemSchema(AutoSchema):
     class Meta:
         model = InspectionItem
         load_instance = True
         include_fk = True
 
-class PermisTravailSchema(SQLAlchemyAutoSchema):
+class PermisTravailSchema(AutoSchema):
     class Meta:
         model = PermisTravail
         load_instance = True

@@ -51,7 +51,7 @@ Multi-tenant SaaS platform for QMS (Quality Management System) / HSE / Qualité 
 qms_platform/
 ├── app/
 │   ├── __init__.py              # App factory: db, migrate, login, csrf, mail, blueprints
-│   ├── context_processors.py    # inject_globals: domaine_actif, modules_actifs, has_switch
+│   ├── context_processors.py    # inject_globals: modules_actifs, sidebar
 │   ├── actions/                 # Blueprint: actions correctives
 │   ├── admin/                   # Blueprint: admin panel
 │   ├── audit/                   # Blueprint: audits
@@ -441,34 +441,6 @@ items = MyModel.query.filter_by(entreprise_id=get_current_entreprise_id()).all()
 
 ---
 
-## 10. Domain Switching (HSE / Qualité)
-
-**File:** `app/utils/domaine_switch.py` + `app/context_processors.py`
-
-Stored in `session`:
-```python
-session['domaine_actif'] = domaine  # 'hse' or 'qualite'
-```
-
-Context processor injects:
-- `domaine_actif` — current domain
-- `modules_actifs` — list of enabled domains for this enterprise
-- `has_switch` — True if more than 1 domain enabled
-
-Many templates conditionally show content based on `domaine_actif`:
-```html
-{% if domaine_actif == 'hse' %}
-  <li><a href="/hse/incidents">Incidents</a></li>
-{% endif %}
-```
-
-Models use `domaine` column for domain-specific records:
-```python
-domaine = db.Column(db.String(20), default='hse', nullable=False)
-```
-
----
-
 ## 11. Proof / Attachment System
 
 **Central GED system with polymorphic attachments.**
@@ -550,7 +522,6 @@ class ProofReference(db.Model):
 | `tenant_scope.py` | ContextVar-based tenant isolation |
 | `permissions.py` | `@has_permission()` decorator |
 | `permission_catalog.py` | `PERMISSION_CATALOG` dict + `DEFAULT_ENTERPRISE_ROLE_PERMISSIONS` |
-| `domaine_switch.py` | Domain switching helpers |
 | `subscriptions.py` | Subscription plan defaults + quota lookup |
 | `notifications.py` | `create_notification()`, `send_action_reminder_email()` |
 | `observability.py` | Structured logging with request_id, business event logging, `JournalSecurite` recording |

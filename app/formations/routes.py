@@ -21,8 +21,7 @@ class FormationResource(BaseResource):
     @classmethod
     def _query(cls):
         q = super()._query()
-        domaine = session.get('domaine', 'hse')
-        return q.filter_by(domaine=domaine)
+        return q.filter_by(entreprise_id=current_user.entreprise_id)
 
     @classmethod
     def list_resources(cls):
@@ -45,7 +44,7 @@ class FormationResource(BaseResource):
 
     @classmethod
     def create_resource(cls, data):
-        data.domaine = session.get('domaine', 'hse')
+        data.entreprise_id = current_user.entreprise_id
         return super().create_resource(data)
 
 
@@ -163,9 +162,8 @@ def api_certifications():
 @access_required(permission='formations.voir')
 def api_calendrier():
     """Calendrier des formations"""
-    domaine = session.get('domaine', 'hse')
     items = Formation.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).all()
     couleurs = {
         'planifiee': '#3b82f6', 'realisee': '#10b981',

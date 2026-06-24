@@ -10,6 +10,7 @@ from app.utils.permissions import access_required
 from app.utils.base_resource import BaseResource
 from app.services.quota_middleware import check_quota
 from app.services.proof_service import ProofService
+from app.services.document_service import DocumentService
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 from app.schemas.documents import DossierSchema, TypeDocumentSchema, ProofMasterSchema
@@ -71,13 +72,12 @@ def before_request_ged():
 @blueprint.route('/gestion')
 @access_required(permission='documents.voir')
 def gestion():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     statut_filter = request.args.get('statut', 'ACTIF')
     if statut_filter not in ('ACTIF', 'ARCHIVE'):
         statut_filter = 'ACTIF'
-    base = ProofMaster.query.filter_by(domaine=domaine, statut=statut_filter)
+    base = ProofMaster.query.filter_by(entreprise_id=current_user.entreprise_id, statut=statut_filter)
     all_proofs = base.all()
-    archive_count = ProofMaster.query.filter_by(domaine=domaine, statut='ARCHIVE').count()
+    archive_count = ProofMaster.query.filter_by(entreprise_id=current_user.entreprise_id, statut='ARCHIVE').count()
 
     q = base
 
@@ -112,40 +112,23 @@ def gestion():
 
     proofs = q.all()
 
-    stats = {
-        'total': len(all_proofs),
-        'brouillon': sum(1 for p in all_proofs if p.workflow_statut == 'brouillon'),
-        'soumis': sum(1 for p in all_proofs if p.workflow_statut == 'soumis'),
-        'approuve': sum(1 for p in all_proofs if p.workflow_statut == 'approuve'),
-        'expire': sum(1 for p in all_proofs if p.validite and p.validite < date.today()),
-        'expire_bientot': sum(1 for p in all_proofs if p.validite and p.validite >= date.today() and (p.validite - date.today()).days <= 30),
-        'en_attente_approbation': sum(1 for p in all_proofs if p.workflow_statut == 'soumis' and p.workflow_approbateur_id == current_user.id),
-    }
+    stats = DocumentService.compute_stats(current_user.entreprise_id, proofs)
+    stats['en_attente_approbation'] = DocumentService.compute_pending_approvals(proofs, current_user.id)
 
     dossiers = Dossier.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).order_by(Dossier.nom).all()
 
     types_doc = TypeDocument.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).order_by(TypeDocument.nom).all()
 
     approbateurs = Utilisateur.query.filter_by(actif=True).all()
 
-    stats = {
-        'total': len(proofs),
-        'brouillon': sum(1 for p in proofs if p.workflow_statut == 'brouillon'),
-        'soumis': sum(1 for p in proofs if p.workflow_statut == 'soumis'),
-        'approuve': sum(1 for p in proofs if p.workflow_statut == 'approuve'),
-        'expire': sum(1 for p in proofs if p.validite and p.validite < date.today()),
-        'expire_bientot': sum(1 for p in proofs if p.validite and p.validite >= date.today() and (p.validite - date.today()).days <= 30),
-        'en_attente_approbation': sum(1 for p in proofs if p.workflow_statut == 'soumis' and p.workflow_approbateur_id == current_user.id),
-    }
-
     return render_template(
         'documents/gestion.html',
         proofs=proofs, dossiers=dossiers, types_doc=types_doc,
-        approbateurs=approbateurs, stats=stats, domaine=domaine,
+        approbateurs=approbateurs, stats=stats,
         today=date.today(), archive_count=archive_count,
         show_archives=(statut_filter == 'ARCHIVE'),
     )
@@ -159,35 +142,13 @@ def gestion():
 @access_required(permission='documents.voir')
 def api_dossiers():
     """Arborescence des dossiers de la GED"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    dossiers = Dossier.query.filter_by(
-        domaine=domaine
-    ).order_by(Dossier.nom).all()
-
-    # Pre-calculating doc counts to avoid N+1 in recursion
-    doc_counts = {
-        d.id: ProofMaster.query.filter_by(
-            dossier_id=d.id, statut='ACTIF'
-        ).count() for d in dossiers
-    }
-
-    def build_tree(parent_id=None):
-        items = [d for d in dossiers if d.parent_id == parent_id]
-        result = []
-        for d in items:
-            data = DossierSchema().dump(d)
-            data['doc_count'] = doc_counts.get(d.id, 0)
-            data['children'] = build_tree(d.id)
-            result.append(data)
-        return result
-
-    return build_tree(None)
+    domaine = request.args.get('domaine')
+    return DocumentService.build_dossier_tree(current_user.entreprise_id, domaine)
 
 
 @blueprint.route('/api/dossiers/create', methods=['POST'])
 @access_required(permission='documents.upload')
 def dossier_create():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     nom = request.form.get('nom', '').strip()
     if not nom:
         flash('Le nom du dossier est requis.', 'danger')
@@ -197,11 +158,10 @@ def dossier_create():
         description=request.form.get('description'),
         parent_id=request.form.get('parent_id', type=int) or None,
         entreprise_id=current_user.entreprise_id,
-        domaine=domaine,
     )
     db.session.add(dossier)
     db.session.commit()
-    flash(f'Dossier "{nom}" créé avec succès.', 'success')
+    flash(f'Dossier "{nom}" cree avec succes.', 'success')
     return redirect(url_for('documents.gestion'))
 
 
@@ -254,17 +214,9 @@ def dossier_delete(dossier_id):
 @access_required(permission='documents.upload')
 @check_quota('documents')
 def upload():
-    """
-    Upload un document vers la GED.
-
-    Utilise StorageService pour le stockage (MINIO ou local).
-    Le fichier est passé directement au ProofService qui gère
-    la détection de doublons et le stockage.
-    """
-    from flask import session as flask_session
-    domaine = flask_session.get('domaine_actif', 'hse')
+    """Upload un document vers la GED."""
     if 'file' not in request.files:
-        flash('Aucun fichier sélectionné.', 'danger')
+        flash('Aucun fichier selectionne.', 'danger')
         return redirect(url_for('documents.gestion'))
 
     file = request.files['file']
@@ -273,17 +225,12 @@ def upload():
         return redirect(url_for('documents.gestion'))
 
     original_filename = secure_filename(file.filename)
+    numero_doc = DocumentService.generate_numero_document()
 
-    # Générer numéro document auto
-    last_num = db.session.query(func.max(ProofMaster.id)).scalar() or 0
-    numero_doc = f"DOC-{datetime.utcnow().strftime('%Y%m')}-{last_num + 1:04d}"
-
-    # Upload via ProofService (utilise StorageService en interne)
     proof = ProofService.create_or_reuse_proof(
         entreprise_id=current_user.entreprise_id,
         nom_fichier=original_filename,
         file_obj=file.stream,
-        domaine=domaine,
         description=request.form.get('description'),
         validite=datetime.strptime(request.form['validite'], '%Y-%m-%d').date()
         if request.form.get('validite') else None,
@@ -291,23 +238,13 @@ def upload():
         categorie=request.form.get('categorie'),
     )
 
-    proof.dossier_id = request.form.get('dossier_id', type=int) or None
-    proof.type_document_id = request.form.get('type_document_id', type=int) or None
-    proof.numero_document = numero_doc
-    proof.mots_cles = request.form.get('mots_cles')
-    proof.notes = request.form.get('notes')
-    proof.workflow_statut = request.form.get('workflow_statut', 'brouillon')
-    proof.workflow_approbateur_id = request.form.get('workflow_approbateur_id', type=int) or None
-    if proof.workflow_statut == 'soumis' and proof.workflow_approbateur_id:
-        proof.date_soumission = datetime.utcnow()
-        _log_workflow(proof.id, 'soumis', 'Soumis pour approbation', current_user.id)
-
+    DocumentService.apply_upload_metadata(proof, request.form, current_user.id, numero_doc)
     db.session.commit()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type and 'multipart/form-data' in request.content_type and request.args.get('format') == 'json':
         return jsonify({'success': True, 'proof_id': proof.id})
 
-    flash('Document uploadé avec succès.', 'success')
+    flash('Document upload\u00e9 avec succ\u00e8s.', 'success')
     return redirect(url_for('documents.detail', proof_id=proof.id))
 
 
@@ -325,15 +262,7 @@ def detail(proof_id):
     types_doc = TypeDocument.query.all()
     dossiers = Dossier.query.order_by(Dossier.nom).all()
 
-    # Fetch version chain (remplace_preuve_id)
-    versions = []
-    v = proof
-    while v:
-        versions.append(v)
-        if v.remplace_preuve_id:
-            v = ProofMaster.query.get(v.remplace_preuve_id)
-        else:
-            v = None
+    versions = DocumentService.build_version_chain(proof)
 
     return render_template(
         'documents/detail.html',
@@ -349,19 +278,7 @@ def detail(proof_id):
 # ---------------------------------------------------------------------------
 
 def _log_workflow(proof_id, action, commentaire, user_id):
-    proof = db.session.get(ProofMaster, proof_id)
-    avant = {} if not proof else {
-        'workflow_statut': proof.workflow_statut,
-        'workflow_approbateur_id': proof.workflow_approbateur_id,
-    }
-    log = WorkflowLog(
-        proof_master_id=proof_id, action=action,
-        commentaire=commentaire, utilisateur_id=user_id,
-        metadata_avant=avant,
-    )
-    db.session.add(log)
-    db.session.flush()
-    return log
+    return DocumentService.log_workflow(proof_id, action, commentaire, user_id)
 
 
 @blueprint.route('/<int:proof_id>/soumettre', methods=['POST'])
@@ -539,17 +456,10 @@ def demander_revision(proof_id):
 @access_required(permission='documents.upload')
 @check_quota('documents')
 def nouvelle_version(proof_id):
-    """
-    Upload une nouvelle version d'un document.
-
-    L'ancienne version passe en statut 'REMPLACE' et la nouvelle
-    est créée avec un numéro de version incrémenté.
-    """
-    from flask import session as flask_session
+    """Upload une nouvelle version d'un document."""
     old_proof = tenant_get_or_404(ProofMaster, proof_id)
-    domaine = flask_session.get('domaine_actif', 'hse')
     if 'file' not in request.files:
-        flash('Aucun fichier sélectionné.', 'danger')
+        flash('Aucun fichier selectionne.', 'danger')
         return redirect(url_for('documents.detail', proof_id=proof_id))
 
     file = request.files['file']
@@ -559,16 +469,13 @@ def nouvelle_version(proof_id):
 
     original_filename = secure_filename(file.filename)
 
-    # Incrémenter le numéro de version
     old_version = int(old_proof.version) if old_proof.version and old_proof.version.isdigit() else 1
     new_version = str(old_version + 1)
 
-    # Upload via ProofService (utilise StorageService en interne)
     proof = ProofService.create_or_reuse_proof(
         entreprise_id=current_user.entreprise_id,
         nom_fichier=original_filename,
         file_obj=file.stream,
-        domaine=domaine,
         description=request.form.get('description') or old_proof.description,
         validite=datetime.strptime(request.form['validite'], '%Y-%m-%d').date()
         if request.form.get('validite') else old_proof.validite,
@@ -576,23 +483,9 @@ def nouvelle_version(proof_id):
         categorie=request.form.get('categorie') or old_proof.categorie,
     )
 
-    proof.dossier_id = old_proof.dossier_id
-    proof.type_document_id = old_proof.type_document_id
-    proof.numero_document = old_proof.numero_document
-    proof.mots_cles = old_proof.mots_cles
-    proof.notes = request.form.get('notes') or old_proof.notes
-    proof.workflow_statut = 'brouillon'
-    proof.version = new_version
-
-    _log_workflow(old_proof.id, 'nouvelle_version',
-                  f'Nouvelle version {new_version} uploadée',
-                  current_user.id)
-
-    # Archiver l'ancienne version
-    old_proof.statut = 'REMPLACE'
-    proof.remplace_preuve_id = old_proof.id
+    DocumentService.create_new_version(old_proof, proof, request.form, current_user.id)
     db.session.commit()
-    flash(f'Nouvelle version {new_version} créée avec succès.', 'success')
+    flash(f'Nouvelle version {new_version} cr\u00e9\u00e9e avec succ\u00e8s.', 'success')
     return redirect(url_for('documents.detail', proof_id=proof.id))
 
 
@@ -605,27 +498,25 @@ def nouvelle_version(proof_id):
 @blueprint.response(200, TypeDocumentSchema(many=True))
 def api_types():
     """Liste des types de documents disponibles"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return TypeDocument.query.filter_by(
-        domaine=domaine
+        entreprise_id=current_user.entreprise_id
     ).order_by(TypeDocument.nom).all()
 
 
 @blueprint.route('/api/types/create', methods=['POST'])
 @access_required(permission='documents.upload')
 def type_create():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     nom = request.form.get('nom', '').strip()
     if not nom:
         return jsonify({'success': False, 'error': 'Le nom est requis'}), 400
     existing = TypeDocument.query.filter_by(
-        domaine=domaine, nom=nom
+        entreprise_id=current_user.entreprise_id, nom=nom
     ).first()
     if existing:
-        return jsonify({'success': False, 'error': 'Ce type existe déjà'}), 400
+        return jsonify({'success': False, 'error': 'Ce type existe deja'}), 400
     td = TypeDocument(
         nom=nom, description=request.form.get('description'),
-        entreprise_id=current_user.entreprise_id, domaine=domaine,
+        entreprise_id=current_user.entreprise_id,
     )
     db.session.add(td)
     db.session.commit()
@@ -666,9 +557,8 @@ def type_delete(type_id):
 @access_required(permission='documents.voir')
 @blueprint.response(200, ProofMasterSchema(many=True))
 def api_recherche():
-    """Recherche avancée dans la GED"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
-    q = ProofMaster.query.filter_by(domaine=domaine, statut='ACTIF')
+    """Recherche avancee dans la GED"""
+    q = ProofMaster.query.filter_by(entreprise_id=current_user.entreprise_id, statut='ACTIF')
 
     search = request.args.get('q', '').strip()
     if search:
@@ -723,9 +613,8 @@ def api_recherche():
 @blueprint.response(200, ProofMasterSchema(many=True))
 def api_liste():
     """Liste simple des documents actifs"""
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     return ProofMaster.query.filter_by(
-        domaine=domaine, statut='ACTIF'
+        entreprise_id=current_user.entreprise_id, statut='ACTIF'
     ).order_by(ProofMaster.date_creation.desc()).all()
 
 
@@ -812,9 +701,8 @@ def mettre_a_jour(proof_id):
 @blueprint.route('/api/actives')
 @access_required(permission='documents.voir')
 def api_actives():
-    domaine = __import__('flask').session.get('domaine_actif', 'hse')
     proofs = ProofMaster.query.filter_by(
-        domaine=domaine, statut='ACTIF'
+        entreprise_id=current_user.entreprise_id, statut='ACTIF'
     ).order_by(ProofMaster.nom_fichier).all()
     return jsonify([{
         'id': p.id, 'nom_fichier': p.nom_fichier,

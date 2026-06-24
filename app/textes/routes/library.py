@@ -5,120 +5,33 @@ from app.utils.permissions import access_required
 from app import db
 from app.models import Domaine, TexteReglementaire, TexteVersion, Article, Secteur, EntrepriseTexte, EvaluationArticle, ActionCorrective, ConformiteEnum, Utilisateur
 from app.textes import textes
+from app.services.veille_service import VeilleService
+
 
 NEW_DAYS = 30
 
 
-def _compute_library_linkage(entreprise_id, texte_id, version_active_id):
-    if not version_active_id or not entreprise_id:
-        return 'unlinked'
-    et = EntrepriseTexte.query.filter_by(
-        entreprise_id=entreprise_id, texte_version_id=version_active_id
-    ).first()
-    if not et:
-        return 'unlinked'
-    eval_count = EvaluationArticle.query.filter_by(entreprise_texte_id=et.id).count()
-    eval_done = EvaluationArticle.query.filter(
-        EvaluationArticle.entreprise_texte_id == et.id,
-        EvaluationArticle.date_evaluation.isnot(None)
-    ).count()
-    if eval_done > 0:
-        return 'evaluated'
-    return 'linked'
+def _parse_library_filters():
+    secteur_ids = request.args.getlist('secteur', type=int)
+    return {
+        'q': request.args.get('q', ''),
+        'domaine_id': request.args.get('domaine_id', type=int),
+        'referentiel': request.args.get('referentiel', ''),
+        'secteur_ids': secteur_ids,
+        'sort': request.args.get('sort', 'updated'),
+        'order': request.args.get('order', 'desc'),
+        'per_page': request.args.get('per_page', 20, type=int),
+        'page': request.args.get('page', 1, type=int),
+    }
 
 
 def _render_library(tab, filters):
-    query = TexteReglementaire.query
-    q = filters.get('q', '').strip()
-    if q:
-        like = f'%{q}%'
-        query = query.filter(
-            db.or_(
-                TexteReglementaire.code.ilike(like),
-                TexteReglementaire.titre.ilike(like),
-                TexteReglementaire.description.ilike(like))
-        )
-    domaine_id = filters.get('domaine_id')
-    if domaine_id:
-        domaine = db.session.get(Domaine, domaine_id)
-        if domaine:
-            # Filtrer par domaine_id OU par le champ texte domaine (insensible à la casse)
-            query = query.filter(
-                db.or_(
-                    TexteReglementaire.domaine_id == domaine_id,
-                    TexteReglementaire.domaine.ilike(domaine.nom))
-            )
-    referentiel = filters.get('referentiel')
-    if referentiel:
-        query = query.filter(TexteReglementaire.referentiel == referentiel)
-    secteur_ids = filters.get('secteur_ids', [])
-    if secteur_ids:
-        query = query.filter(TexteReglementaire.secteurs.any(Secteur.id.in_(secteur_ids)))
-    sort = filters.get('sort', 'updated')
-    if sort == 'code':
-        query = query.order_by(TexteReglementaire.code)
-    elif sort == 'title':
-        query = query.order_by(TexteReglementaire.titre)
-    elif sort == 'domain':
-        query = query.order_by(TexteReglementaire.domaine)
-    else:
-        query = query.order_by(TexteReglementaire.date_creation.desc())
-    all_textes = query.all()
-    total = len(all_textes)
-    now = date.today()
-    cutoff = now - timedelta(days=NEW_DAYS)
-    counts = {'all': total, 'linked': 0, 'unlinked': 0, 'to_evaluate': 0, 'evaluated': 0}
-    enriched = []
-    for t in all_textes:
-        v = t.version_active
-        is_new = t.date_creation and t.date_creation.date() >= cutoff if t.date_creation else False
-        has_update = v and v.date_publication and v.date_publication >= cutoff if v and v.date_publication else False
-        link_state = _compute_library_linkage(current_user.entreprise_id, t.id, v.id if v else None)
-        entreprise_count = EntrepriseTexte.query.filter_by(texte_version_id=v.id).count() if v else 0
-        if link_state in ('linked', 'evaluated'):
-            counts['linked'] += 1
-        else:
-            counts['unlinked'] += 1
-        if link_state == 'linked':
-            counts['to_evaluate'] += 1
-        if link_state == 'evaluated':
-            counts['evaluated'] += 1
-        enriched.append({
-            'texte': t,
-            'version_active': v,
-            'is_new': is_new,
-            'has_update': has_update,
-            'link_state': link_state,
-            'entreprise_count': entreprise_count,
-        })
-    status_filter = filters.get('status', 'all')
-    if status_filter == 'linked':
-        enriched = [i for i in enriched if i['link_state'] in ('linked', 'evaluated')]
-    elif status_filter == 'unlinked':
-        enriched = [i for i in enriched if i['link_state'] == 'unlinked']
-    elif status_filter == 'to_evaluate':
-        enriched = [i for i in enriched if i['link_state'] == 'linked']
-    elif status_filter == 'evaluated':
-        enriched = [i for i in enriched if i['link_state'] == 'evaluated']
-    per_page = filters.get('per_page', 20)
+    enriched, total, counts = VeilleService.get_library_textes(
+        current_user.entreprise_id, filters
+    )
     page = filters.get('page', 1)
-    total_filtered = len(enriched)
-    pages = max(1, (total_filtered + per_page - 1) // per_page)
-    start = (page - 1) * per_page
-    end = start + per_page
-    # Tri : d'abord les liés, puis par date de mise à jour
-    def _sort_key(item):
-        # linked/evaluated = 0 (premier), unlinked = 1 (après)
-        link_order = 0 if item['link_state'] in ('linked', 'evaluated') else 1
-        # date de dernière version pour le tri chronologique
-        v = item['version_active']
-        date_val = v.date_publication if v and v.date_publication else item['texte'].date_creation or date.min
-        return (link_order, -(date_val.toordinal() if hasattr(date_val, 'toordinal') else 0))
-
-    enriched.sort(key=_sort_key)
-
-    # Pagination après le tri
-    enriched_page = enriched[start:end]
+    per_page = filters.get('per_page', 20)
+    enriched_page, total_filtered, pages = VeilleService.paginate(enriched, page, per_page)
 
     domaines = Domaine.query.order_by(Domaine.nom).all()
     referentiels = db.session.query(TexteReglementaire.referentiel).distinct().all()
@@ -167,79 +80,23 @@ def library_recent():
 @textes.route('/bibliotheque/article/<int:article_id>', methods=['GET', 'POST'])
 @access_required()
 def article_detail(article_id):
-    from app.models.nonconformite import NonConformite as NCModel
-    from app.models.proofs import ProofMaster, ProofReference
-    from app.models.actions import ActionCorrective
-    from app.models import Utilisateur as UserModel
-    from datetime import datetime as dt
-
     article = Article.query.get_or_404(article_id)
     version = article.version if article else None
     texte = version.texte if version else None
 
     eid = current_user.entreprise_id
-    ev_q = EvaluationArticle.query.join(EntrepriseTexte).filter(
-        EntrepriseTexte.entreprise_id == eid,
-        EvaluationArticle.conforme == ConformiteEnum.NON_CONFORME,
-    )
-    evals = ev_q.order_by(EvaluationArticle.date_evaluation.desc().nullslast()).all()
-    nc_eval_ids = {nc.evaluation_id for nc in NCModel.query.filter_by(entreprise_id=eid).all() if nc.evaluation_id}
-    nc_evs = [ev for ev in evals if ev.id not in nc_eval_ids]
-
-    evaluation = None
-    for ev in nc_evs:
-        if ev.article_id == article_id:
-            evaluation = ev
-            break
+    nc_evs, evaluation, next_article_id, prev_article_id, stats = \
+        VeilleService.get_article_nc_context(eid, article_id)
 
     if request.method == 'POST' and evaluation:
-        conforme_val = request.form.get('conforme')
-        if conforme_val:
-            evaluation.conforme = ConformiteEnum[conforme_val]
-        applicable_val = request.form.get('applicable')
-        if applicable_val:
-            from app.models.conformite import ApplicabiliteEnum
-            evaluation.applicable = ApplicabiliteEnum[applicable_val]
-        evaluation.observation = request.form.get('observation', evaluation.observation)
-        evaluation.date_evaluation = dt.utcnow()
-        evaluation.evalue_par = current_user.id
-        db.session.commit()
-
+        VeilleService.save_article_evaluation(evaluation, request.form, current_user.id)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True})
         return redirect(url_for('textes.article_detail', article_id=article_id))
 
-    nc_articles = [ev.article_id for ev in nc_evs]
-    current_idx = nc_articles.index(article_id) if article_id in nc_articles else -1
-    next_article_id = nc_articles[current_idx + 1] if current_idx >= 0 and current_idx < len(nc_articles) - 1 else None
-    prev_article_id = nc_articles[current_idx - 1] if current_idx > 0 else None
+    proofs, actions = VeilleService.get_article_proofs_and_actions(evaluation)
 
-    stats = {
-        'total': len(nc_evs),
-        'current': current_idx + 1 if current_idx >= 0 else 0,
-        'conforme': 0,
-        'non_conforme': len(nc_evs),
-        'non_applicable': 0,
-        'evalue': len(nc_evs),
-    }
-
-    proofs = []
-    actions = []
-    if evaluation:
-        refs = ProofReference.query.filter_by(
-            entity_type='evaluation_article', entity_id=evaluation.id
-        ).all()
-        for r in refs:
-            proofs.append({
-                'id': r.id,
-                'proof_id': r.proof_master_id,
-                'nom_fichier': r.proof_master.nom_fichier if r.proof_master else '?',
-                'date_attached': r.date_attached.strftime('%d/%m/%Y') if r.date_attached else '',
-            })
-        actions = ActionCorrective.query.filter_by(
-            source_type='evaluation_article', source_id=evaluation.id
-        ).order_by(ActionCorrective.date_creation.desc()).all()
-
+    from app.models import Utilisateur as UserModel
     responsables = UserModel.query.filter_by(entreprise_id=eid).all()
 
     return render_template(

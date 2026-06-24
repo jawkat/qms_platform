@@ -70,12 +70,64 @@ body { background: #eef1f5; font-family: 'Segoe UI', Tahoma, sans-serif; }
 }
 
 /* Notifications */
-.notif-dropdown { width: 360px; max-height: 400px; overflow-y: auto; }
-.notif-dropdown .notif-item { padding: .75rem 1rem; border-bottom: 1px solid #f0f0f0; }
-.notif-dropdown .notif-item:last-child { border-bottom: none; }
-.notif-dropdown .notif-item.unread { background: #fff5f5; }
-.notif-dropdown .notif-item .small { font-size: .8rem; }
+.notif-dropdown { width: 520px; max-height: 450px; overflow-y: auto; padding: 0; }
+.notif-table-wrap { font-size: .8rem; }
+.notif-table-head {
+  display: grid;
+  grid-template-columns: 110px 100px 1fr;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-weight: 700;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: #6b7280;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.notif-row {
+  display: grid;
+  grid-template-columns: 110px 100px 1fr;
+  gap: .5rem;
+  padding: .6rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s;
+  cursor: pointer;
+  align-items: center;
+}
+.notif-row:last-child { border-bottom: none; }
+.notif-row:hover { background: #f8f9fa; }
+.notif-row.unread { background: #fff5f5; }
+.notif-row.unread:hover { background: #fee2e2; }
+.notif-col-source {
+  white-space: nowrap;
+  font-weight: 600;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notif-col-date {
+  white-space: nowrap;
+  font-size: .72rem;
+  color: #9ca3af;
+}
+.notif-col-msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4b5563;
+}
 .notif-badge { position: absolute; top: -4px; right: -6px; font-size: .6rem; padding: .15em .45em; }
+@media (max-width: 576px) {
+  .notif-dropdown { width: 100vw; max-width: 360px; }
+  .notif-table-head, .notif-row { grid-template-columns: 90px 1fr; }
+  .notif-col-date { display: none; }
+}
 
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); }

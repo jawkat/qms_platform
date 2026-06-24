@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import current_user
-from app.utils.permissions import access_required
+from app.utils.permissions import access_required, system_admin_required
 from app.admin import admin
 from app import db
 from app.models import (
@@ -8,23 +8,11 @@ from app.models import (
     Utilisateur
 )
 from app.utils.permission_catalog import iter_permission_rows, PERMISSION_CATALOG, DEFAULT_ENTERPRISE_ROLE_PERMISSIONS
-from functools import wraps
-
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            abort(403)
-        if not current_user.role or not current_user.role.est_systeme:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated
 
 
 @admin.route('/roles')
 @access_required()
-@admin_required
+@system_admin_required
 def roles():
     roles = Role.query.order_by(Role.nom).all()
     permissions = list(iter_permission_rows())
@@ -42,7 +30,7 @@ def roles():
 
 @admin.route('/roles/create', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def role_create():
     nom = request.form.get('nom', '').strip()
     description = request.form.get('description', '').strip()
@@ -69,7 +57,7 @@ def role_create():
 
 @admin.route('/roles/<int:role_id>/edit')
 @access_required()
-@admin_required
+@system_admin_required
 def role_edit(role_id):
     role = db.session.get(Role, role_id)
     if not role:
@@ -87,7 +75,7 @@ def role_edit(role_id):
 
 @admin.route('/roles/<int:role_id>/update', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def role_update(role_id):
     role = db.session.get(Role, role_id)
     if not role:
@@ -115,7 +103,7 @@ def role_update(role_id):
 
 @admin.route('/roles/<int:role_id>/delete', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def role_delete(role_id):
     role = db.session.get(Role, role_id)
     if not role:
@@ -136,7 +124,7 @@ def role_delete(role_id):
 
 @admin.route('/permissions')
 @access_required()
-@admin_required
+@system_admin_required
 def permissions():
     perms = list(iter_permission_rows())
     return render_template('admin/permissions.html', permissions=perms,

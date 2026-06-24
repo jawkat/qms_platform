@@ -1,28 +1,16 @@
 from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import current_user
-from app.utils.permissions import access_required
+from app.utils.permissions import access_required, system_admin_required
 from app.admin import admin
 from app import db
 from app.models import Utilisateur, Ticket, MessageTicket
-from functools import wraps
 from datetime import datetime
 import secrets
 
 
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            abort(403)
-        if not current_user.role or not current_user.role.est_systeme:
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated
-
-
 @admin.route('/utilisateurs')
 @access_required()
-@admin_required
+@system_admin_required
 def utilisateurs():
     users = Utilisateur.query.order_by(Utilisateur.nom).all()
     return render_template('admin/utilisateurs.html', users=users)
@@ -30,7 +18,7 @@ def utilisateurs():
 
 @admin.route('/utilisateurs/<int:user_id>/toggle', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def admin_toggle_user(user_id):
     user = Utilisateur.query.get_or_404(user_id)
     user.actif = not user.actif
@@ -42,7 +30,7 @@ def admin_toggle_user(user_id):
 
 @admin.route('/utilisateurs/<int:user_id>/reset-password', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def admin_reset_user_password(user_id):
     user = Utilisateur.query.get_or_404(user_id)
     temp = secrets.token_urlsafe(12)
@@ -57,7 +45,7 @@ def admin_reset_user_password(user_id):
 
 @admin.route('/tickets')
 @access_required()
-@admin_required
+@system_admin_required
 def admin_tickets():
     type_filter = request.args.get('type', '')
     statut_filter = request.args.get('statut', '')
@@ -86,7 +74,7 @@ def admin_tickets():
 
 @admin.route('/tickets/<int:ticket_id>')
 @access_required()
-@admin_required
+@system_admin_required
 def admin_ticket_detail(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
     messages = MessageTicket.query.filter_by(ticket_id=ticket.id) \
@@ -96,7 +84,7 @@ def admin_ticket_detail(ticket_id):
 
 @admin.route('/tickets/<int:ticket_id>/message', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def admin_ticket_repondre(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
     contenu = request.form.get('contenu', '').strip()
@@ -130,7 +118,7 @@ def admin_ticket_repondre(ticket_id):
 
 @admin.route('/tickets/<int:ticket_id>/statut', methods=['POST'])
 @access_required()
-@admin_required
+@system_admin_required
 def admin_ticket_changer_statut(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
     nouveau_statut = request.form.get('statut', '').strip()

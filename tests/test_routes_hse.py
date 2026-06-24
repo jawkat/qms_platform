@@ -34,7 +34,7 @@ class TestHseRoutes:
                                     'date_incident': '2026-06-18',
                                 }),
                                 content_type='application/json')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)
 
     def test_api_incidents_update(self, login_client):
         resp = login_client.post('/hse/api/incidents/1/update',
@@ -53,12 +53,11 @@ class TestHseRoutes:
     def test_api_epi_create(self, login_client):
         resp = login_client.post('/hse/api/epi/create',
                                 data=json.dumps({
-                                    'nom': 'Casque test',
-                                    'type': 'protection-tete',
-                                    'quantite': 10,
+                                    'type_epi': 'protection-tete',
+                                    'designation': 'Casque test',
                                 }),
                                 content_type='application/json')
-        assert resp.status_code in (200, 403)
+        assert resp.status_code in (200, 201, 403)
 
     def test_inspections_page_renders(self, login_client):
         resp = login_client.get('/hse/inspections')

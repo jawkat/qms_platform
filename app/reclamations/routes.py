@@ -22,8 +22,7 @@ class ReclamationResource(BaseResource):
     @classmethod
     def _query(cls):
         q = super()._query()
-        domaine = session.get('domaine', 'hse')
-        return q.filter_by(domaine=domaine)
+        return q.filter_by(entreprise_id=current_user.entreprise_id)
 
     @classmethod
     def list_resources(cls):
@@ -62,9 +61,8 @@ def index():
 @blueprint.get('/api/stats')
 @access_required(permission='reclamations.voir')
 def api_stats():
-    """Statistiques des réclamations"""
-    domaine = session.get('domaine', 'hse')
-    base = Reclamation.query.filter_by(domaine=domaine)
+    """Statistiques des reclamations"""
+    base = Reclamation.query.filter_by(entreprise_id=current_user.entreprise_id)
 
     par_severite = dict(base.with_entities(Reclamation.severite, func.count())
         .group_by(Reclamation.severite).all())
@@ -87,11 +85,10 @@ def api_stats():
 @blueprint.get('/api/pareto')
 @access_required(permission='reclamations.voir')
 def api_pareto():
-    """Analyse Pareto des réclamations"""
-    domaine = session.get('domaine', 'hse')
+    """Analyse Pareto des reclamations"""
     rows = db.session.query(
         Reclamation.type_reclamation, func.count()
-    ).filter_by(domaine=domaine) \
+    ).filter_by(entreprise_id=current_user.entreprise_id) \
      .group_by(Reclamation.type_reclamation) \
      .order_by(func.count().desc()).all()
 

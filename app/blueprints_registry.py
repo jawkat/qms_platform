@@ -77,6 +77,11 @@ def register_blueprints(app, api):
 
     api.register_blueprint(facturation_bp, url_prefix='/facturation')
 
+    # --- Plans ---
+    from .plans import plans as plans_bp
+
+    api.register_blueprint(plans_bp, url_prefix='/plans')
+
     # --- Démo ---
     from .demo import demo as demo_bp
     api.register_blueprint(demo_bp, url_prefix='/demo')

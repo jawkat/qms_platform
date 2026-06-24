@@ -26,7 +26,6 @@ from urllib.parse import urlencode
 from flask import request
 from app.models import Entreprise
 from app.services.subscription_service import get_enterprise_lifecycle_status, get_payment_status
-from app.utils.domaine_switch import get_domaine_actif
 
 
 # =============================================================================
@@ -138,13 +137,11 @@ def inject_globals():
     Elle retourne un dict dont les clés sont accessibles directement
     dans les templates : {{ variable }}
 
-    Variables injectées :
-    - modules_actifs: Liste des modules activés pour l'entreprise
-    - domaine_actif: Domaine courant ('hse' ou 'qualite')
-    - has_switch: Si True, l'utilisateur peut basculer entre domaines
-    - entreprise: Objet Entreprise (si authentifié)
+    Variables injectees :
+    - modules_actifs: Liste des modules actives pour l'entreprise
+    - entreprise: Objet Entreprise (si authentifie)
     - sidebar_sections: Sections du sidebar pour le template
-    - sidebar_is_active: Fonction de détection du lien actif
+    - sidebar_is_active: Fonction de detection du lien actif
     - update_query_param: Utilitaire de query string
     - now: Datetime UTC courant
     - today: Date courante
@@ -153,8 +150,6 @@ def inject_globals():
 
     ctx = {
         'modules_actifs': [],
-        'domaine_actif': 'hse',
-        'has_switch': False,
         'update_query_param': update_query_param,
         'sidebar_sections': [],
     }
@@ -162,16 +157,13 @@ def inject_globals():
     if current_user.is_authenticated and current_user.entreprise_id:
         entreprise = Entreprise.query.get(current_user.entreprise_id)
         if entreprise:
-            modules = entreprise.modules_actifs or ['hse']
-            domaine = get_domaine_actif(entreprise)
+            modules = entreprise.modules_actifs or []
             lifecycle = get_enterprise_lifecycle_status(entreprise)
             pay_status = get_payment_status(entreprise)
             due = getattr(entreprise, 'abonnement_prochaine_echeance', None)
             days_remaining = (due - date.today()).days if due else None
             ctx.update({
-                'domaine_actif': domaine,
                 'modules_actifs': modules,
-                'has_switch': len(modules) > 1,
                 'entreprise': entreprise,
                 'subscription_lifecycle': lifecycle,
                 'subscription_pay_status': pay_status,
